@@ -1,4 +1,4 @@
-name: Build SCHRAUBI Stem Lab FLP
+name: Build SCHRAUBI RFT Sample Lab V2
 
 on:
   push:
@@ -23,15 +23,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "git+https://github.com/CryptoJones/FL-Studio-MCP-Server.git"
 
-      - name: Build FLP package
+      - name: Build and validate FLP package
         run: python tools/build_stem_lab.py
+
+      - name: Show generated files
+        run: find dist -maxdepth 4 -type f -printf '%p %k KB\n' | sort
 
       - name: Upload project artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SCHRAUBI-STEM-LAB
+          name: SCHRAUBI-RFT-SAMPLE-LAB-V2
           path: |
-            dist/SCHRAUBI_STEM_LAB.flp
-            dist/SCHRAUBI_STEM_LAB.zip
-            dist/SCHRAUBI_STEM_LAB/**
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2.flp
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2.zip
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2/**
           if-no-files-found: error
