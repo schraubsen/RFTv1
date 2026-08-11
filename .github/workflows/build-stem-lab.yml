@@ -1,0 +1,37 @@
+name: Build SCHRAUBI Stem Lab FLP
+
+on:
+  push:
+    branches:
+      - codex/stem-lab-flp
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install FLP tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "git+https://github.com/CryptoJones/FL-Studio-MCP-Server.git"
+
+      - name: Build FLP package
+        run: python tools/build_stem_lab.py
+
+      - name: Upload project artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCHRAUBI-STEM-LAB
+          path: |
+            dist/SCHRAUBI_STEM_LAB.flp
+            dist/SCHRAUBI_STEM_LAB.zip
+            dist/SCHRAUBI_STEM_LAB/**
+          if-no-files-found: error
