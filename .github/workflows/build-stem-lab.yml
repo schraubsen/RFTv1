@@ -27,7 +27,9 @@ jobs:
         run: python tools/build_stem_lab.py
 
       - name: Show generated files
-        run: find dist -maxdepth 4 -type f -printf '%p %k KB\n' | sort
+        run: |
+          find dist -maxdepth 4 -type f -printf '%p %k KB\n' | sort
+          find fl_live_setup -maxdepth 2 -type f -printf '%p %k KB\n' | sort
 
       - name: Upload project artifact
         uses: actions/upload-artifact@v4
@@ -37,4 +39,5 @@ jobs:
             dist/SCHRAUBI_RFT_SAMPLE_LAB_V3.flp
             dist/SCHRAUBI_RFT_SAMPLE_LAB_V3.zip
             dist/SCHRAUBI_RFT_SAMPLE_LAB_V3/**
+            fl_live_setup/**
           if-no-files-found: error
