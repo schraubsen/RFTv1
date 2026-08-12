@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pyflp
 from fl_studio_mcp.routes.pyflp_route import load_samples
+from pyflp._events import I8Event
+from pyflp.channel import ChannelID
 
 BPM = 166.0
 PROJECT_NAME = "SCHRAUBI_RFT_SAMPLE_LAB_V3"
@@ -32,6 +34,19 @@ def make_silence(
         wav.writeframes(b"\x00\x00" * channels * frames)
 
 
+def _route_channel_to_insert(channel: object, target_insert: int) -> None:
+    """Set FL's ChannelID.RoutedTo, injecting the byte event when the Empty template omits it."""
+    events = channel.events  # type: ignore[attr-defined]
+    if ChannelID.RoutedTo in events.ids:
+        channel.insert = target_insert  # type: ignore[attr-defined]
+        return
+
+    # ChannelID.RoutedTo is an I8 event. FL's Empty template can omit it entirely,
+    # so a normal EventProp assignment cannot work until the event exists.
+    raw = int(target_insert).to_bytes(1, byteorder="little", signed=True)
+    events.insert(1, I8Event(ChannelID.RoutedTo, raw))
+
+
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     dist = repo_root / "dist"
@@ -41,7 +56,6 @@ def main() -> None:
         shutil.rmtree(dist)
     project_dir.mkdir(parents=True, exist_ok=True)
 
-    # Playlist/channel order = source -> stems -> checks -> extraction -> cleanup -> ESX export.
     lanes = [
         ("Audio/00_Source/00_SOURCE_ORIGINAL.wav", "00 SOURCE - ORIGINAL", 2, "source"),
         ("Audio/01_Stems/01_STEM_DRUMS.wav", "01 STEM - DRUMS", 2, "stem"),
@@ -69,8 +83,6 @@ def main() -> None:
         ("Audio/07_ESX_Export/23_ESX_STEREO_READY.wav", "23 EXPORT - ESX STEREO READY", 2, "export"),
     ]
 
-    # V3: every Audio Clip is hard-routed to its own mixer insert (1..24).
-    # Inserts 25..32 are reserved as the bus layout for the next live-FL pass.
     mixer_names = {
         1: "SOURCE REF",
         2: "STEM DRUMS",
@@ -149,25 +161,18 @@ def main() -> None:
         stagger_bars=0,
     )
 
-    # ------------------------------------------------------------------
     # V3 pass: real Channel Rack -> Mixer routing.
-    # PyFLP exposes Sampler.insert as FL's ChannelID.RoutedTo value.
-    # This is deterministic and survives save/re-open in FL.
-    # ------------------------------------------------------------------
     project = pyflp.parse(flp_path)
     channels = list(project.channels)
     if len(channels) != len(lanes):
         raise RuntimeError(f"Expected {len(lanes)} channels before routing, got {len(channels)}")
 
-    route_before = []
+    route_before = [getattr(channel, "insert", None) for channel in channels]
     for idx, channel in enumerate(channels):
-        target_insert = idx + 1
-        route_before.append(getattr(channel, "insert", None))
-        channel.insert = target_insert
+        _route_channel_to_insert(channel, idx + 1)
 
-    # Rename mixer inserts where the template exposes a writable name event.
-    # FL can omit explicit InsertID.Name events for default tracks, so failures are recorded
-    # instead of corrupting the FLP. Channel routing itself is mandatory and validated below.
+    # Rename mixer inserts when PyFLP has a writable explicit name event.
+    # Default unnamed inserts can omit this event; we record those cases rather than forge mixer chunks.
     mixer_name_results: dict[str, dict[str, object]] = {}
     for insert_no, desired_name in mixer_names.items():
         try:
@@ -179,7 +184,7 @@ def main() -> None:
                 "old": old_name,
                 "new": insert.name,
             }
-        except Exception as exc:  # explicit audit trail; not a silent guess
+        except Exception as exc:
             mixer_name_results[str(insert_no)] = {
                 "ok": False,
                 "desired": desired_name,
@@ -188,7 +193,7 @@ def main() -> None:
 
     pyflp.save(project, flp_path)
 
-    # Re-open and verify every audio channel landed on the intended insert.
+    # Re-open and verify every audio channel landed on its own intended mixer insert.
     routed = pyflp.parse(flp_path)
     routed_channels = list(routed.channels)
     route_after = [getattr(channel, "insert", None) for channel in routed_channels]
