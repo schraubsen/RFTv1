@@ -1,4 +1,4 @@
-name: Build SCHRAUBI RFT Sample Lab V2
+name: Build SCHRAUBI RFT Sample Lab V3
 
 on:
   push:
@@ -32,9 +32,9 @@ jobs:
       - name: Upload project artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SCHRAUBI-RFT-SAMPLE-LAB-V2
+          name: SCHRAUBI-RFT-SAMPLE-LAB-V3
           path: |
-            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2.flp
-            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2.zip
-            dist/SCHRAUBI_RFT_SAMPLE_LAB_V2/**
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V3.flp
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V3.zip
+            dist/SCHRAUBI_RFT_SAMPLE_LAB_V3/**
           if-no-files-found: error
