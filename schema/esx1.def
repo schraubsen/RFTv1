@@ -1,0 +1,10 @@
+# Korg Electribe SX (ESX-1) - .esx Datei-Schema
+# Format-Spezifikation: siehe schema/FORMAT.md
+#
+# WICHTIG: Aktuell KEIN einziges Feld verifiziert. Diese Datei enthaelt nur
+# eine EXAMPLE-Zeile zur Illustration des Formats - kein reales Offset.
+# Befuellung ueber `etx diff before.esx after.esx`, siehe docs/ARCHITECTURE.md.
+#
+# Spaltenformat: <offset> <length> <name> <type> [# notes]
+
+0x0000  4  example_field  bytes  # EXAMPLE ONLY - nicht real, nur Format-Demo
