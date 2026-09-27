@@ -12,7 +12,7 @@ Wunsch nach direktem Datei-Zugriff und Bulk-Backup.
 | Multisample-Tool | `tools/multishotifier/` | Fertig, getestet (pure Python) |
 | `.esx`/`.emx`-Parser + Offset-Discovery-CLI | `electribe_core/`, `cli/` | Fertig: 7-bit-Codec, Schema-Loader, `etx diff/scan/dump`. Schema selbst noch leer (keine verifizierten Offsets) |
 | SysEx-Librarian (Standalone) | `standalone/` | Skeleton, blockiert auf Model-ID-Verifikation |
-| VST3-Plugin (Realtime-Control) | `plugin/` | Nur Plan, kein Code (fehlendes JUCE-SDK) |
+| Realtime-Control (MIDI-Note/CC) | `plugin/` | Plan umgestellt: JSFX/MIDI-Ansatz statt JUCE-VST3, siehe `plugin/README.md`. Mapping-Tabelle noch leer |
 
 ## Nicht-negotiable Regeln (aus dem electribe-dev Skill)
 
@@ -57,7 +57,8 @@ verifiziert ist).
       verifizieren, nicht nur gegen synthetische Testdaten.
 - [ ] Standalone-Librarian `backup`/`restore` implementieren, sobald
       Model-IDs vorliegen.
-- [ ] JUCE-SDK einbinden, VST3-Plugin-Minimalversion (ein CC-Mapping) bauen.
+- [ ] `plugin/midi_map.md` mit echten Note-/CC-Werten aus der
+      MIDI-Implementation-Chart befüllen, dann `plugin/electribe.jsfx` bauen.
 - [ ] MIDI-Interface mit DIN-Buchsen besorgen (kein Scarlett 2i2/Solo) für
       alle SysEx-Tests.
 
@@ -68,3 +69,9 @@ verifiziert ist).
 - `coderofsalvation/electribe-emx-esx-reverse-engineering` - Hardware/Firmware
 - `coderofsalvation/sample-multi-shotifier` - Ursprungskonzept für
   `tools/multishotifier/`
+- reaJS / "electribe-vstx-32/64" - MIDI-Note/CC-Steuerung per DAW,
+  Vorbild für `plugin/electribe.jsfx` (EMX-Teil dort laut Autor nie
+  fertiggestellt)
+- Electribome (ewanhemingway.co.uk) - Monome-Emulator über die
+  Keyboard-Matrix, Vorbild für den geplanten Button-Grid-Modus in
+  `plugin/midi_map.md`

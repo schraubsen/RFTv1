@@ -15,7 +15,8 @@ Skeleton für einen SysEx-Librarian. Details und offene TODOs stehen in
 - `schema/` - Textschema für Datei-Layouts (`!` = hardware-verifiziert, ohne
   `!` = unbestätigte Vermutung). Aktuell leer bis auf ein Format-Beispiel.
 - `standalone/` - Skeleton für den SysEx-Librarian (Bulk-Backup/-Restore).
-- `plugin/` - Plan für ein künftiges VST3-Plugin (Realtime-Control per CC).
+- `plugin/` - Plan für Realtime-Control per MIDI-Note/CC (JSFX-Skript statt
+  VST3/JUCE, siehe `plugin/README.md`).
 
 ## Build (C++)
 
