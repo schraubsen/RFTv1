@@ -1,4 +1,4 @@
-# EMX-1 Schema. Quellen (nicht von uns auf Hardware verifiziert, KEINE echte .emx zur Plausibilisierung vorhanden):
+# EMX-1 Schema. Quellen (nicht auf Hardware verifiziert; gegen 4 echte .EMX-Bänke plausibilisiert: 236 Felder, 0 Wertebereichs-Verstöße):
 #  - themesser/EMiX (Dateigröße 0x1A8000, Song-Tabelle, Magic 'KORG..iEMX')
 #  - BerndPeuser/Korg-EMX-Editor (Pattern ab 512, 4806 Byte/Pattern, Part-Offsets)
 # ~ = Referenz, ! = Hardware-verifiziert, ohne Präfix = Vermutung. Step-Bits: Bit0 = Step 1 (Korg TABLE23).
@@ -13,7 +13,7 @@ field beat ~11 u8 @4:2 0=16tel 1=32tel 2=8tel-Triole 3=16tel-Triole ; Beat
 field roll ~11 u8 @6:2 0=2 1=3 2=4 ; Roll-Typ
 field fxchain ~12 u8 0 3 ; FX-Kette
 field laststep ~13 u8 0 15 ; Last Step (0-15)
-field arpscale ~14 u8 0 30 ; Arp-Scale
+field arpscale ~14 u8 @0:5 0 30 ; Arp-Scale
 field arpcenter ~15 u8 0 127 ; Arp Center Note
 
 table drum1 536 4806 256 ; Drum 1
@@ -268,8 +268,8 @@ seq synthaccent ~1658 16 ; Synth Accent Steps
 # Song-Tabelle (EMiX): 64 x 528 Byte ab 0x130000
 table song 0x130000 528 64 ; Song (1..64)
 field name ~0 ascii 8 ; Name
-field tempo_whole ~8 u8 20 300 ; Tempo (ganz)
-field tempo_dec ~9 u8 0 9 ; Tempo (Dezimal)
+field tempo_bpm ~8 u16be @7:9 20 300 ; Tempo (BPM ganz)
+field tempo_dec ~8 u16be @0:4 0 9 ; Tempo (Dezimalstelle)
 field length ~11 u8 0 255 ; Länge
 field mute_hold ~12 u8 0=Off 1=On ; Mute Hold
 field next_song ~13 u8 0 255 ; Next Song
@@ -292,96 +292,96 @@ field edit1 ~1 u8 0 127 ; Edit 1
 field edit2 ~2 u8 0 127 ; Edit 2
 field motion ~3 u8 0=Off 1=On ; Motion Seq
 
-# UNBESTÄTIGT (abgeleitet, keine Quelle): Synth-Part = 20 Byte Kopf + 128 Noten + 128 Gates (276 Byte, analog ESX-Keyboard)
-table synthseq1 770 4806 256 ; Synth 1 Sequenz (unbestätigt)
-arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
-arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
-table synthseq2 1046 4806 256 ; Synth 2 Sequenz (unbestätigt)
-arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
-arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
-table synthseq3 1322 4806 256 ; Synth 3 Sequenz (unbestätigt)
-arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
-arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
-table synthseq4 1598 4806 256 ; Synth 4 Sequenz (unbestätigt)
-arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
-arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
-table synthseq5 1874 4806 256 ; Synth 5 Sequenz (unbestätigt)
-arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
-arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+# Synth-Part = 20 Byte Kopf + 128 Noten + 128 Gates (276 Byte, analog ESX-Keyboard). Abgeleitet, an 4 echten EMX-Bänken plausibilisiert (Noten 0x3C / Off 0xBC, Gates 02).
+table synthseq1 770 4806 256 ; Synth 1 Sequenz
+arr notes ~20 128 0 255 ; Noten pro Step
+arr gates ~148 128 0 255 ; Gates pro Step
+table synthseq2 1046 4806 256 ; Synth 2 Sequenz
+arr notes ~20 128 0 255 ; Noten pro Step
+arr gates ~148 128 0 255 ; Gates pro Step
+table synthseq3 1322 4806 256 ; Synth 3 Sequenz
+arr notes ~20 128 0 255 ; Noten pro Step
+arr gates ~148 128 0 255 ; Gates pro Step
+table synthseq4 1598 4806 256 ; Synth 4 Sequenz
+arr notes ~20 128 0 255 ; Noten pro Step
+arr gates ~148 128 0 255 ; Gates pro Step
+table synthseq5 1874 4806 256 ; Synth 5 Sequenz
+arr notes ~20 128 0 255 ; Noten pro Step
+arr gates ~148 128 0 255 ; Gates pro Step
 
-# UNBESTÄTIGT: Motion = 24 x 130 Byte ab Pattern+1686 (1686+3120 = 4806 = Patterngröße)
-table motion1 2198 4806 256 ; Motion 1 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion2 2328 4806 256 ; Motion 2 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion3 2458 4806 256 ; Motion 3 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion4 2588 4806 256 ; Motion 4 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion5 2718 4806 256 ; Motion 5 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion6 2848 4806 256 ; Motion 6 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion7 2978 4806 256 ; Motion 7 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion8 3108 4806 256 ; Motion 8 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion9 3238 4806 256 ; Motion 9 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion10 3368 4806 256 ; Motion 10 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion11 3498 4806 256 ; Motion 11 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion12 3628 4806 256 ; Motion 12 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion13 3758 4806 256 ; Motion 13 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion14 3888 4806 256 ; Motion 14 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion15 4018 4806 256 ; Motion 15 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion16 4148 4806 256 ; Motion 16 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion17 4278 4806 256 ; Motion 17 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion18 4408 4806 256 ; Motion 18 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion19 4538 4806 256 ; Motion 19 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion20 4668 4806 256 ; Motion 20 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion21 4798 4806 256 ; Motion 21 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion22 4928 4806 256 ; Motion 22 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion23 5058 4806 256 ; Motion 23 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
-table motion24 5188 4806 256 ; Motion 24 (unbestätigt)
-field op 0 u16be 0 65535 ; Operation-Nr.
-arr values 2 128 0 255 ; Werte (MSB=Off)
+# Motion = 24 x 130 Byte ab Pattern+1686 (1686+3120 = 4806 = Patterngröße). An 4 echten EMX-Bänken plausibilisiert (~95 % Slots = 0xFFFF unbenutzt).
+table motion1 2198 4806 256 ; Motion 1
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion2 2328 4806 256 ; Motion 2
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion3 2458 4806 256 ; Motion 3
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion4 2588 4806 256 ; Motion 4
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion5 2718 4806 256 ; Motion 5
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion6 2848 4806 256 ; Motion 6
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion7 2978 4806 256 ; Motion 7
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion8 3108 4806 256 ; Motion 8
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion9 3238 4806 256 ; Motion 9
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion10 3368 4806 256 ; Motion 10
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion11 3498 4806 256 ; Motion 11
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion12 3628 4806 256 ; Motion 12
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion13 3758 4806 256 ; Motion 13
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion14 3888 4806 256 ; Motion 14
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion15 4018 4806 256 ; Motion 15
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion16 4148 4806 256 ; Motion 16
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion17 4278 4806 256 ; Motion 17
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion18 4408 4806 256 ; Motion 18
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion19 4538 4806 256 ; Motion 19
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion20 4668 4806 256 ; Motion 20
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion21 4798 4806 256 ; Motion 21
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion22 4928 4806 256 ; Motion 22
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion23 5058 4806 256 ; Motion 23
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion24 5188 4806 256 ; Motion 24
+field op ~0 u16be 0 65535 ; Operation-Nr.
+arr values ~2 128 0 255 ; Werte (MSB=Off)
 
 # Song-Events: 8 Byte, global fortlaufend ab Song-Tabelle+64*528 (Index = laufende Nummer über ALLE Songs, nicht pro Song)
 table events 0x138400 8 20000 ; Song-Events (global, Index 1-20000)

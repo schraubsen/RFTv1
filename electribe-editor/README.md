@@ -17,11 +17,13 @@ Tests: `node test/core.test.mjs` · UI: `node test/ui.test.mjs` (Playwright; `de
 - `~` Referenz: Korg `ESX1midiimp.txt` + lammas/electribe, gegen die Standard-`default.esx` plausibilisiert (120 BPM, Pan 64, 44100 Hz …). **Nicht von uns auf Hardware verifiziert.**
 - `!` verifiziert (Hardware) · ohne Präfix = Vermutung
 
-## Quellen EMX-1
-Model-ID 0x69 und Song-Tabelle: [themesser/EMiX](https://github.com/themesser/EMiX); Pattern/Part-Offsets: [BerndPeuser/Korg-EMX-Editor](https://github.com/BerndPeuser/Korg-EMX-Editor). Es lag **keine echte .emx** zum Gegentest vor (nur synthetische Testdatei); ESX-Felder dagegen sind an der echten default.esx plausibilisiert (Drum 1 = Four-on-the-Floor).
+## EMX-1: Status
+Quellen: Model-ID 0x69 und Song-Tabelle aus [themesser/EMiX](https://github.com/themesser/EMiX); Pattern/Part-Offsets aus [BerndPeuser/Korg-EMX-Editor](https://github.com/BerndPeuser/Korg-EMX-Editor).
+**Gegen 5 echte `.EMX`-Bänke geprüft** (Nutzer-Uploads, nicht im Repo; `EMX_FILES=a:b node test/core.test.mjs`): 236 Felder, 0 Wertebereichs-Verstöße; Tempi 120–162, Arp Center 60, Song-Namen lesbar, Motion zu ~95 % `0xFFFF` (unbenutzt), Synth-Noten `0x3C`/Off `0xBC`. Korrekturen aus der Prüfung: Song-Tempo ist wie beim ESX bit-gepackt (nicht EMiX' `byte8 + byte9/10`), Arp-Scale nur 5 Bit. Roundtrip: Tempo + 1 Step ändern verändert genau 2 Bytes.
+Weiterhin **nicht** auf Hardware getestet.
 
 ## Offen
-- EMX-1-Request-Funktionscodes (SysEx) nicht verifiziert → Requests nur für ESX-1 freigegeben
+- EMX-1-Request-Funktionscodes (SysEx) nicht belegt → Requests nur für ESX-1 freigegeben
 - Web-MIDI/SysEx nicht an echter Hardware getestet
 - ESX+EMX: Song-Events als Rohtabelle (Index 1–20000, Event-Typ-abhängige Felder); Motion, Songs, MIDI-Kanäle/CC/Drum-Noten sind im Schema (Noten-Tab)
 - EMX: FX aus Quelle; Synth-Sequenzen und Motion sind **abgeleitet/UNBESTÄTIGT** (Partgröße 276 = 20+128+128, 1686+24×130 = 4806)

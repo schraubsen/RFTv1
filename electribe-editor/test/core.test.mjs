@@ -56,3 +56,20 @@ console.log("alle Tests ok");
     c.writeField(b, ff("measure"), 5, 1000); c.writeField(b, ff("step"), 9, 1000);
     assert.equal(b[0x130000 + 64 * 528 + 8000 + 1], 0x59); assert.throws(() => c.readField(b, ff("op"), 20000));
   } console.log("Events-Test ok"); }
+
+{ // Echte EMX-Bänke (EMX_FILES=pfad1:pfad2), falls vorhanden
+  const fs = await import("node:fs"), list = (process.env.EMX_FILES || "").split(":").filter(p => p && fs.existsSync(p));
+  if (!list.length) console.log("(keine echten .EMX: Realdatei-Test übersprungen)");
+  const sc = c.parseSchema(fs.readFileSync(new URL("../schema/emx1.def", import.meta.url), "utf8"));
+  for (const p of list) {
+    const d = new Uint8Array(fs.readFileSync(p)); assert.equal(c.detectKind(p, d), "EMX-1"); assert.equal(d.length, 0x1a8000);
+    let bad = 0, n = 0;
+    for (const f of sc.fields) { if (f.type === "ascii" || ["events"].includes(f.table) || f.id === "length_tempo_mute" || f.id === "note_or_value") continue;
+      for (let i = 0; i < Math.min(256, f.tbl.count); i++) { const v = c.readField(d, f, i); n++; if ((f.min != null && v < f.min) || (f.max != null && v > f.max)) bad++; } }
+    assert.equal(bad, 0, p + ": Werte außerhalb Schema-Bereich: " + bad);
+    const f = id => sc.fields.find(x => x.table === "pattern" && x.id === id);
+    assert.ok(c.readField(d, f("tempo_bpm"), 0) >= 20); assert.match(c.readField(d, f("name"), 0), /^[\x20-\x7e]+$/);
+    const sn = sc.fields.find(x => x.table === "song" && x.id === "name"); assert.equal(c.readField(d, sn, 1), "RFT GRVE");
+  }
+  if (list.length) console.log("Echte EMX-Bänke ok:", list.length);
+}
