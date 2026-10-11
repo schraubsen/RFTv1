@@ -23,5 +23,5 @@ Model-ID 0x69 und Song-Tabelle: [themesser/EMiX](https://github.com/themesser/EM
 ## Offen
 - EMX-1-Request-Funktionscodes (SysEx) nicht verifiziert → Requests nur für ESX-1 freigegeben
 - Web-MIDI/SysEx nicht an echter Hardware getestet
-- ESX: Song-Events (TABLE17–21) fehlen; Motion, Songs, MIDI-Kanäle/CC/Drum-Noten sind im Schema (Noten-Tab)
-- EMX: FX aus Quelle; Synth-Sequenzen und Motion sind **abgeleitet/UNBESTÄTIGT** (Partgröße 276 = 20+128+128, 1686+24×130 = 4806); Song-Events fehlen
+- ESX+EMX: Song-Events als Rohtabelle (Index 1–20000, Event-Typ-abhängige Felder); Motion, Songs, MIDI-Kanäle/CC/Drum-Noten sind im Schema (Noten-Tab)
+- EMX: FX aus Quelle; Synth-Sequenzen und Motion sind **abgeleitet/UNBESTÄTIGT** (Partgröße 276 = 20+128+128, 1686+24×130 = 4806)

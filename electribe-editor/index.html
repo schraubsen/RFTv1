@@ -26,7 +26,7 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 <section class="tab" id="t-params">
  <p style="color:var(--mu)">Felder kommen aus dem Schema. <span class="u">UNBESTÄTIGT</span> = Offset geraten, <span class="v">VERIFIZIERT</span> = Hardware-getestet (<code>!</code>).</p>
  <div class="row"><label>Schema</label><textarea id="schema" rows="8" cols="70" class="mono"></textarea><button id="applySchema">Schema anwenden</button></div>
- <div class="row"><label>Eintrag</label><select id="idx"></select><span id="idxinfo" class="mono"></span></div>
+ <div class="row"><label>Eintrag</label><select id="idx"></select><label>Nr.</label><input id="idxnum" type="number" min="1" max="20000" style="width:90px"><span id="idxinfo" class="mono"></span></div>
  <div id="fields"></div>
 </section>
 <section class="tab" id="t-steps">
@@ -90,7 +90,7 @@ function render(){
  if(cur==="params"){
   const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
   if($("idx").options.length!==256){$("idx").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("")}
-  $("idx").value=idx;$("idxinfo").textContent=buf&&C.detectKind(name,buf)==="ESX-1"?`Index ${idx+1} (Song-Tabelle nur 1–64)`:"";
+  $("idx").value=Math.min(idx,255);$("idxnum").value=idx+1;$("idxinfo").textContent=buf&&C.detectKind(name,buf)==="ESX-1"?`Index ${idx+1} (Songs 1–64, Events 1–20000; Pattern/Parts 1–256)`:"";
   const tr={ref:'<span class="r">REFERENZ</span>',guess:'<span class="u">UNBESTÄTIGT</span>',verified:'<span class="v">VERIFIZIERT</span>'};
   const groups=[...tables.map(t=>[t,fields.filter(f=>f.tbl===t)]),[null,fields.filter(f=>!f.tbl)]].filter(g=>g[1].length);
   $("fields").innerHTML=groups.map(([t,fs])=>`<details ${t&&["pattern","drum1"].includes(t.id)||!t?"open":""}><summary><b>${t?t.title:"Ohne Tabelle"}</b></summary><table>`+fs.map(f=>{
@@ -116,6 +116,7 @@ function render(){
 $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
  const x=+e.target.dataset.x;try{C.writeField(buf,fields[i],e.target.value,x);if(e.target.tagName==="INPUT")e.target.value=C.readField(buf,fields[i],x)}catch(x){alert(x.message)}};
 $("idx").onchange=()=>{idx=+$("idx").value;render()};
+$("idxnum").onchange=()=>{idx=Math.max(0,Math.min(19999,(parseInt($("idxnum").value)||1)-1));render()};
 $("idx3").onchange=()=>{idx=+$("idx3").value;render()};$("arrsel").onchange=()=>{arri=+$("arrsel").value;render()};
 $("arrgrid").onchange=e=>{const i=e.target.dataset.a;if(i==null)return;try{const a=arrs[arri],ax=a.tbl.count===1?0:idx;C.setArr(buf,a,ax,+i,e.target.value);e.target.value=C.getArr(buf,a,ax,+i)}catch(x){alert(x.message)}};
 $("idx2").onchange=()=>{idx=+$("idx2").value;render()};$("seqsel").onchange=()=>{seqi=+$("seqsel").value;render()};

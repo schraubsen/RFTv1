@@ -49,3 +49,10 @@ import("node:fs").then(({ existsSync, readFileSync }) => { // echte Datei, falls
   console.log("Realdatei-Test ok");
 });
 console.log("alle Tests ok");
+{ const fs = await import("node:fs");
+  for (const f of ["esx1", "emx1"]) { // Events-Tabelle: Bitfelder Measure/Step
+    const sc = c.parseSchema(fs.readFileSync(new URL(`../schema/${f}.def`, import.meta.url), "utf8")), b = new Uint8Array(0x130000 + 64 * 528 + 20000 * 8);
+    const ff = id => sc.fields.find(x => x.table === "events" && x.id === id);
+    c.writeField(b, ff("measure"), 5, 1000); c.writeField(b, ff("step"), 9, 1000);
+    assert.equal(b[0x130000 + 64 * 528 + 8000 + 1], 0x59); assert.throws(() => c.readField(b, ff("op"), 20000));
+  } console.log("Events-Test ok"); }

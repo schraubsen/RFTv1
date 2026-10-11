@@ -382,3 +382,13 @@ arr values 2 128 0 255 ; Werte (MSB=Off)
 table motion24 5188 4806 256 ; Motion 24 (unbestätigt)
 field op 0 u16be 0 65535 ; Operation-Nr.
 arr values 2 128 0 255 ; Werte (MSB=Off)
+
+# Song-Events: 8 Byte, global fortlaufend ab Song-Tabelle+64*528 (Index = laufende Nummer über ALLE Songs, nicht pro Song)
+table events 0x138400 8 20000 ; Song-Events (global, Index 1-20000)
+field position ~0 u8 0 255 ; Position (0-255 = 1-256)
+field measure ~1 u8 @4:4 0 7 ; Measure (0-7 = 1-8)
+field step ~1 u8 @0:4 0 15 ; Step (0-15 = 1-16)
+field op ~2 u16be 0 65535 ; Operation (0x4000 Drum/Key-Note, 515 Tempo, 503 Mute/Solo, sonst Control)
+field part ~4 u8 0 255 ; Part (Note-Typen: 0-15)
+field note_or_value ~5 u8 0 255 ; Note-Nr. (Note) / Value (Control)
+field length_tempo_mute ~6 u16be 0 65535 ; Länge (Key) / Tempo (Tempo) / Mute-Bitmaske (Mute)
