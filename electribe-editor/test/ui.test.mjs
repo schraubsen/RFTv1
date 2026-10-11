@@ -20,15 +20,27 @@ assert.equal(await pg.inputValue('#fields input >> nth=1'), "120");
 await pg.fill('#fields input >> nth=1', "150"); await pg.dispatchEvent('#fields input >> nth=1', "change");
 await pg.click('[data-k=scan]');
 const nm = pg.locator(".nm[value^=KICK01]"); await nm.fill("SNARE02"); await nm.dispatchEvent("change");
+await pg.click('[data-k=steps]'); await pg.waitForSelector('#grid button');
+await pg.click('#grid button[data-s="1"] >> nth=0');
 await pg.click('[data-k=hex]'); await pg.fill('#hexoff','256'); await pg.click('#hexgo'); await pg.fill('input[data-o="256"]', "ff"); await pg.dispatchEvent('input[data-o="256"]', "change");
 await pg.click('[data-k=diff]'); await pg.setInputFiles("#after", "/tmp/t2.esx");
 await pg.waitForFunction(() => document.getElementById("diffout").textContent.length > 0); assert.match(await pg.textContent("#diffout"), /1 Byte/);
 await pg.click("#addDiff");
 const [dl] = await Promise.all([pg.waitForEvent("download"), pg.click('[data-k=file]').then(() => pg.click("#save"))]);
 await dl.saveAs("/tmp/out.esx"); const o = fs.readFileSync("/tmp/out.esx");
-assert.equal(o.toString("latin1", 0x40, 0x47), "SNARE02"); assert.equal(o[0x100], 0xff); assert.equal(o.toString("latin1", 0x200, 0x204), "TEKK"); assert.equal(o.toString("latin1", 0x200 + 4280, 0x200 + 4284), "HARD"); assert.equal(o.readUInt16BE(0x208) >> 7, 150);
+assert.equal(o.toString("latin1", 0x40, 0x47), "SNARE02"); assert.equal(o[0x100], 0xff); assert.equal(o.toString("latin1", 0x200, 0x204), "TEKK"); assert.equal(o.toString("latin1", 0x200 + 4280, 0x200 + 4284), "HARD"); assert.equal(o.readUInt16BE(0x208) >> 7, 150); assert.equal(o[0x200 + 24 + 18], 2);
 await pg.click('[data-k=sysex]'); await pg.fill("#sxin", "80 ff 12"); await pg.click("#p7");
 assert.equal(await pg.textContent("#sxout"), "03 00 7f 12");
 await pg.click("#mbuild"); assert.equal(await pg.textContent("#sxout"), "f0 42 30 71 10 f7");
+{ // EMX-1 (synthetische Datei)
+  const e = Buffer.alloc(0x1a8000, 0); e.write("KORG\0\0\0iEMX\0", 0); e.write("EMXPAT01", 512); fs.writeFileSync("/tmp/t.emx", e);
+  await pg.click('[data-k=file]'); await pg.setInputFiles("#file", "/tmp/t.emx");
+  await pg.waitForFunction(() => document.getElementById("kind").textContent === "EMX-1");
+  await pg.click('[data-k=params]'); await pg.waitForFunction(() => document.querySelector("#fields input")?.value === "EMXPAT01");
+  await pg.click('[data-k=steps]'); await pg.waitForSelector("#grid button");
+  await pg.click('#grid button[data-s="0"] >> nth=0');
+  await pg.click('[data-k=file]'); const [d2] = await Promise.all([pg.waitForEvent("download"), pg.click("#save")]); await d2.saveAs("/tmp/out.emx");
+  assert.equal(fs.readFileSync("/tmp/out.emx")[512 + 24 + 10], 1);
+}
 assert.deepEqual(errs, []);
 console.log("UI ok"); await br.close(); srv.kill();

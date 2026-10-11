@@ -1,6 +1,6 @@
 // electribe core: kein DOM, läuft im Browser und in Node.
 // ESX-1: 0x71 laut Korg ESX1midiimp.txt (Header F0,42,3g,71). EMX-1: TODO verifizieren (EMX1midiimp.txt).
-export const MODEL_ID = { ESX1: 0x71, EMX1: null };
+export const MODEL_ID = { ESX1: 0x71, EMX1: 0x69 }; // EMX1: 0x69 aus EMiX (F0 42 3g 69 58 = Song-Load, Antwort 23h ok / 24h Fehler); Request-Funktionscodes des EMX nicht verifiziert
 export const FUNC = { CURRENT_PATTERN_REQ: 0x10, PATTERN_REQ: 0x1c, CURRENT_SONG_REQ: 0x0a, ALL_SONG_REQ: 0x0b, GLOBAL_REQ: 0x0e };
 export function requestFrame(channel, modelId, func, arg) {
   if (modelId == null) throw new Error("Model-ID unbekannt (TODO: verifizieren)");
@@ -38,7 +38,7 @@ export function sysexFrame(channel, modelId, func, payload) {
 // Vertrauen: "!off" verifiziert (Hardware) | "~off" Referenzquelle (Korg-Doku/lammas, in default.esx plausibilisiert) | "off" Vermutung
 const TYPES = { u8: 1, u16le: 2, u16be: 2, u32be: 4, ascii: 0 };
 export function parseSchema(text) {
-  const fields = [], tables = []; let table = null;
+  const fields = [], tables = [], seqs = []; let table = null;
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim(), err = m => new Error(`Schema Zeile ${i + 1}: ${m}`);
     if (!line || line[0] === "#") return;
@@ -49,6 +49,11 @@ export function parseSchema(text) {
       if (t.length < 5) throw err("table braucht id base stride count");
       table = { id: t[1], base: num(t[2]), stride: num(t[3]), count: num(t[4]), title: label.trim() || t[1] };
       tables.push(table); return;
+    }
+    if (t[0] === "seq") { // seq <id> <offset> <bytes> ; Label  (Bit0 = Step 1, laut Korg TABLE23)
+      if (t.length < 4 || !table) throw err("seq braucht table, id, offset, bytes");
+      let o = t[2], trust = "guess"; if (o[0] === "!") { trust = "verified"; o = o.slice(1); } else if (o[0] === "~") { trust = "ref"; o = o.slice(1); }
+      seqs.push({ id: t[1], offset: num(o), bytes: num(t[3]), trust, label: label.trim() || t[1], table: table.id, tbl: table }); return;
     }
     if (t[0] !== "field" || t.length < 4) throw err("ungültig");
     let off = t[2], trust = "guess";
@@ -65,7 +70,7 @@ export function parseSchema(text) {
     if (type === "ascii") { f.len = nums[0]; if (!f.len) throw err("len"); } else { f.min = nums[0]; f.max = nums[1]; }
     fields.push(f);
   });
-  return { fields, tables };
+  return { fields, tables, seqs };
 }
 const size = f => (f.type === "ascii" ? f.len : TYPES[f.type]);
 const absOff = (f, idx = 0) => {
@@ -96,6 +101,16 @@ export function writeField(buf, f, v, idx = 0) {
   else cur = v;
   for (let i = 0; i < n; i++) { buf[o + (le ? i : n - 1 - i)] = cur % 256; cur = Math.floor(cur / 256); }
 }
+export function getStep(buf, q, idx, step) {
+  const o = q.offset + q.tbl.base + idx * q.tbl.stride + (step >> 3);
+  if (idx < 0 || idx >= q.tbl.count || step < 0 || step >= q.bytes * 8 || o >= buf.length) return null;
+  return (buf[o] >> (step & 7)) & 1;
+}
+export function setStep(buf, q, idx, step, on) {
+  if (getStep(buf, q, idx, step) === null) throw new Error("Step außerhalb");
+  const o = q.offset + q.tbl.base + idx * q.tbl.stride + (step >> 3), m = 1 << (step & 7);
+  buf[o] = on ? buf[o] | m : buf[o] & ~m;
+}
 export function tempoBpm(buf, idx = 0, base = 0x200, stride = 4280) { // 9 Bit ganz (Bit7..) + 4 Bit Dezimal, laut lammas/Korg
   const v = (buf[base + idx * stride + 8] << 8) | buf[base + idx * stride + 9]; return ((v >> 7) & 0x1ff) + (v & 15) / 10;
 }
@@ -121,6 +136,7 @@ export function scanAscii(buf, minLen = 4) {
 export function detectKind(name, buf) {
   const ext = (name.split(".").pop() || "").toLowerCase();
   if (buf.length > 11 && String.fromCharCode(...buf.subarray(0, 4)) === "KORG" && buf[7] === 0x71 && String.fromCharCode(...buf.subarray(8, 11)) === "ESX") return "ESX-1";
+  if (buf.length > 11 && String.fromCharCode(...buf.subarray(0, 4)) === "KORG" && buf[7] === 0x69 && String.fromCharCode(...buf.subarray(8, 11)) === "EMX") return "EMX-1";
   if (ext === "esx") return "ESX-1";
   if (ext === "emx") return "EMX-1";
   if (buf[0] === 0xf0) return "SysEx";

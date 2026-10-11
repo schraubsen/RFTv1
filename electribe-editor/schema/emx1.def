@@ -1,10 +1,220 @@
-# Electribe Schema  (Offsets NICHT aus dem Gedächtnis erfunden)
-# Format:  field <id> <offset> <type> [len] [min] [max] ; Label
-#   offset: 0x.. hex oder dezimal. Präfix "!" = auf echter Hardware verifiziert.
-#           Ohne "!" = Vermutung -> UI zeigt "UNBESTÄTIGT".
-#   type:   u8 | u16le | u16be | ascii (braucht len)
-# Neue Zeilen per Offset-Discovery (Tab "Diff") ermitteln: before.esx / after.esx,
-# genau EIN Parameter geändert, dann Zeile mit "!" eintragen.
-#
-# Beispiel (auskommentiert, kein echter Wert):
-# field pattern01_name 0x0000 ascii 8 ; Pattern 1 Name
+# EMX-1 Schema. Quellen (nicht von uns auf Hardware verifiziert, KEINE echte .emx zur Plausibilisierung vorhanden):
+#  - themesser/EMiX (Dateigröße 0x1A8000, Song-Tabelle, Magic 'KORG..iEMX')
+#  - BerndPeuser/Korg-EMX-Editor (Pattern ab 512, 4806 Byte/Pattern, Part-Offsets)
+# ~ = Referenz, ! = Hardware-verifiziert, ohne Präfix = Vermutung. Step-Bits: Bit0 = Step 1 (Korg TABLE23).
+
+table pattern 512 4806 256 ; Pattern (A01..D64)
+field name ~0 ascii 8 ; Name
+field tempo_bpm ~8 u16be @7:9 20 300 ; Tempo (BPM ganz)
+field tempo_dec ~8 u16be @0:4 0 9 ; Tempo (Dezimalstelle)
+field swing ~10 u8 0 25 ; Swing (50+x %)
+field length ~11 u8 @0:4 0 15 ; Pattern-Länge
+field beat ~11 u8 @4:2 0=16tel 1=32tel 2=8tel-Triole 3=16tel-Triole ; Beat
+field roll ~11 u8 @6:2 0=2 1=3 2=4 ; Roll-Typ
+field fxchain ~12 u8 0 3 ; FX-Kette
+field laststep ~13 u8 0 15 ; Last Step (0-15)
+field arpscale ~14 u8 0 30 ; Arp-Scale
+field arpcenter ~15 u8 0 127 ; Arp Center Note
+
+table drum1 536 4806 256 ; Drum 1
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum2 562 4806 256 ; Drum 2
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum3 588 4806 256 ; Drum 3
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum4 614 4806 256 ; Drum 4
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum5 640 4806 256 ; Drum 5
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum6 666 4806 256 ; Drum 6A
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum7 692 4806 256 ; Drum 6B
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum8 718 4806 256 ; Drum 7A
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table drum9 744 4806 256 ; Drum 7B
+field sample ~0 u8 0 255 ; Sample (Bank-Nr.)
+field pitch ~1 u8 0 127 ; Pitch (64=Original)
+field level ~2 u8 0 127 ; Level
+field pan ~3 u8 0 127 ; Pan (64=Center)
+field egtime ~4 u8 0 127 ; EG Time
+field modspeed ~7 u8 0 127 ; Mod Speed
+field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
+seq steps ~10 16 ; Step-Sequenz (128 Steps)
+
+table synth1 770 4806 256 ; Synth 1
+field waveform ~0 u8 0 255 ; Waveform
+field tune ~1 u8 0 100 ; Tune (50=0)
+field osc ~2 u8 0 255 ; Oscillator
+field osc1 ~3 u8 0 127 ; Osc Edit 1
+field osc2 ~4 u8 0 127 ; Osc Edit 2
+field glide ~5 u8 0 127 ; Glide
+field filtertype ~6 u8 0 3 ; Filter Type
+field cutoff ~7 u8 0 127 ; Cutoff
+field reso ~8 u8 0 127 ; Resonance
+field egint ~9 u8 0 127 ; EG Int (64=0)
+field drive ~10 u8 0 127 ; Drive
+field level ~11 u8 0 127 ; Level
+field pan ~12 u8 0 127 ; Pan (64=Center)
+field egtime ~13 u8 0 127 ; EG Time
+field modspeed ~17 u8 0 127 ; Mod Speed
+field moddepth ~18 u8 0 127 ; Mod Depth
+
+table synth2 1046 4806 256 ; Synth 2
+field waveform ~0 u8 0 255 ; Waveform
+field tune ~1 u8 0 100 ; Tune (50=0)
+field osc ~2 u8 0 255 ; Oscillator
+field osc1 ~3 u8 0 127 ; Osc Edit 1
+field osc2 ~4 u8 0 127 ; Osc Edit 2
+field glide ~5 u8 0 127 ; Glide
+field filtertype ~6 u8 0 3 ; Filter Type
+field cutoff ~7 u8 0 127 ; Cutoff
+field reso ~8 u8 0 127 ; Resonance
+field egint ~9 u8 0 127 ; EG Int (64=0)
+field drive ~10 u8 0 127 ; Drive
+field level ~11 u8 0 127 ; Level
+field pan ~12 u8 0 127 ; Pan (64=Center)
+field egtime ~13 u8 0 127 ; EG Time
+field modspeed ~17 u8 0 127 ; Mod Speed
+field moddepth ~18 u8 0 127 ; Mod Depth
+
+table synth3 1322 4806 256 ; Synth 3
+field waveform ~0 u8 0 255 ; Waveform
+field tune ~1 u8 0 100 ; Tune (50=0)
+field osc ~2 u8 0 255 ; Oscillator
+field osc1 ~3 u8 0 127 ; Osc Edit 1
+field osc2 ~4 u8 0 127 ; Osc Edit 2
+field glide ~5 u8 0 127 ; Glide
+field filtertype ~6 u8 0 3 ; Filter Type
+field cutoff ~7 u8 0 127 ; Cutoff
+field reso ~8 u8 0 127 ; Resonance
+field egint ~9 u8 0 127 ; EG Int (64=0)
+field drive ~10 u8 0 127 ; Drive
+field level ~11 u8 0 127 ; Level
+field pan ~12 u8 0 127 ; Pan (64=Center)
+field egtime ~13 u8 0 127 ; EG Time
+field modspeed ~17 u8 0 127 ; Mod Speed
+field moddepth ~18 u8 0 127 ; Mod Depth
+
+table synth4 1598 4806 256 ; Synth 4
+field waveform ~0 u8 0 255 ; Waveform
+field tune ~1 u8 0 100 ; Tune (50=0)
+field osc ~2 u8 0 255 ; Oscillator
+field osc1 ~3 u8 0 127 ; Osc Edit 1
+field osc2 ~4 u8 0 127 ; Osc Edit 2
+field glide ~5 u8 0 127 ; Glide
+field filtertype ~6 u8 0 3 ; Filter Type
+field cutoff ~7 u8 0 127 ; Cutoff
+field reso ~8 u8 0 127 ; Resonance
+field egint ~9 u8 0 127 ; EG Int (64=0)
+field drive ~10 u8 0 127 ; Drive
+field level ~11 u8 0 127 ; Level
+field pan ~12 u8 0 127 ; Pan (64=Center)
+field egtime ~13 u8 0 127 ; EG Time
+field modspeed ~17 u8 0 127 ; Mod Speed
+field moddepth ~18 u8 0 127 ; Mod Depth
+
+table synth5 1874 4806 256 ; Synth 5
+field waveform ~0 u8 0 255 ; Waveform
+field tune ~1 u8 0 100 ; Tune (50=0)
+field osc ~2 u8 0 255 ; Oscillator
+field osc1 ~3 u8 0 127 ; Osc Edit 1
+field osc2 ~4 u8 0 127 ; Osc Edit 2
+field glide ~5 u8 0 127 ; Glide
+field filtertype ~6 u8 0 3 ; Filter Type
+field cutoff ~7 u8 0 127 ; Cutoff
+field reso ~8 u8 0 127 ; Resonance
+field egint ~9 u8 0 127 ; EG Int (64=0)
+field drive ~10 u8 0 127 ; Drive
+field level ~11 u8 0 127 ; Level
+field pan ~12 u8 0 127 ; Pan (64=Center)
+field egtime ~13 u8 0 127 ; EG Time
+field modspeed ~17 u8 0 127 ; Mod Speed
+field moddepth ~18 u8 0 127 ; Mod Depth
+
+table drumaccent 512 4806 256 ; Accent-Sequenzen
+seq drumaccent ~1640 16 ; Drum Accent Steps
+seq synthaccent ~1658 16 ; Synth Accent Steps
+
+# Song-Tabelle (EMiX): 64 x 528 Byte ab 0x130000
+table song 0x130000 528 64 ; Song (1..64)
+field name ~0 ascii 8 ; Name
+field tempo_whole ~8 u8 20 300 ; Tempo (ganz)
+field tempo_dec ~9 u8 0 9 ; Tempo (Dezimal)
+field length ~11 u8 0 255 ; Länge
+field mute_hold ~12 u8 0=Off 1=On ; Mute Hold
+field next_song ~13 u8 0 255 ; Next Song
+field events ~14 u16be 0 20000 ; Anzahl Events (nur lesen empfohlen)

@@ -11,7 +11,7 @@ button{cursor:pointer}button:hover,button.on{border-color:var(--red);color:#fff}
 main{padding:16px;max-width:1100px;margin:auto}.tab{display:none}.tab.on{display:block}
 .mono{font-family:ui-monospace,monospace;font-size:12px}pre{background:var(--pn);padding:10px;overflow:auto;max-height:420px;border-radius:4px}
 table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1px solid #222;text-align:left}
-.u{color:var(--warn)}.r{color:#6cf}details{margin:6px 0}summary{cursor:pointer}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
+.u{color:var(--warn)}.g{display:grid;grid-template-columns:repeat(16,28px);gap:2px;margin:6px 0}.g button{padding:0;height:26px;font:11px monospace}.g button.on{background:var(--red);color:#fff}.g button.b4{border-left-color:#666}.r{color:#6cf}details{margin:6px 0}summary{cursor:pointer}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}label{color:var(--mu)}
 .hex{display:grid;grid-template-columns:repeat(16,1fr);gap:1px;max-width:760px}.hex input{padding:2px;text-align:center;width:100%;font:12px ui-monospace,monospace}
 .hex input.d{border-color:var(--red)}
@@ -28,6 +28,11 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
  <div class="row"><label>Schema</label><textarea id="schema" rows="8" cols="70" class="mono"></textarea><button id="applySchema">Schema anwenden</button></div>
  <div class="row"><label>Eintrag</label><select id="idx"></select><span id="idxinfo" class="mono"></span></div>
  <div id="fields"></div>
+</section>
+<section class="tab" id="t-steps">
+ <p style="color:var(--mu)">Step-Sequenzen (128 Steps je Part, Bit0 = Step 1). Pattern wählen, Zelle klicken. Quelle: Schema (<code>seq</code>).</p>
+ <div class="row"><label>Pattern</label><select id="idx2"></select><label>Part</label><select id="seqsel"></select></div>
+ <div id="grid"></div>
 </section>
 <section class="tab" id="t-hex">
  <div class="row"><label>Offset</label><input id="hexoff" value="0" size="8"><button id="hexgo">Gehe zu</button><span class="mono" id="hexlbl"></span></div>
@@ -48,7 +53,7 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
  <div id="wavinfo" class="mono"></div>
 </section>
 <section class="tab" id="t-sysex">
- <p style="color:var(--mu)">ESX-1 Model-ID 0x71 (Korg-Doku). EMX-1-ID noch offen (TODO). Web-MIDI braucht Chrome/Edge + MIDI-Interface; Hardware-Test steht aus.</p>
+ <p style="color:var(--mu)">ESX-1 Model-ID 0x71 (Korg-Doku), EMX-1 0x69 (EMiX); Requests nur für ESX-1 freigegeben. Web-MIDI braucht Chrome/Edge + MIDI-Interface; Hardware-Test steht aus.</p>
  <div class="row"><select id="mout"></select><select id="min"></select><button id="mconn">MIDI verbinden</button><label>Kanal</label><input id="mch" type="number" value="1" min="1" max="16" style="width:60px"></div>
  <div class="row"><select id="mreq"><option value="16">Current Pattern Dump Request (10h)</option><option value="28">Pattern Bank Dump Request (1Ch, Bank A=0)</option><option value="10">Current Song Dump Request (0Ah)</option><option value="11">All Song Dump Request (0Bh)</option><option value="14">Global Dump Request (0Eh)</option></select><input id="mbank" type="number" value="0" min="0" max="3" style="width:60px"><button id="mbuild">Request bauen</button><button id="msend">Senden</button><button id="msave">Empfangene SysEx speichern (.syx)</button></div>
  <div id="mlog" class="mono"></div>
@@ -59,8 +64,8 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 <script type="module">
 import * as C from "./core.js";
 const $=id=>document.getElementById(id), hx=n=>n.toString(16).padStart(2,"0");
-const tabs=[["file","Datei"],["params","Parameter"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
-let buf=null,orig=null,name="",fields=[],tables=[],cur="file",idx=0;
+const tabs=[["file","Datei"],["params","Parameter"],["steps","Steps"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
+let buf=null,orig=null,name="",fields=[],tables=[],seqs=[],cur="file",idx=0,seqi=0;
 $("nav").innerHTML=tabs.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join("");
 $("nav").onclick=e=>{const k=e.target.dataset.k;if(k)show(k)};
 function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.id==="t-"+k));
@@ -68,7 +73,7 @@ function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.
 async function loadSchema(kind){const f=kind==="EMX-1"?"emx1":"esx1";
  try{$("schema").value=await (await fetch(`schema/${f}.def`)).text()}catch{ $("schema").value="# Schema konnte nicht geladen werden (file://?). Hier einfügen."}
  applySchema()}
-function applySchema(){try{({fields,tables}=C.parseSchema($("schema").value))}catch(e){alert(e.message);fields=[];tables=[]}render()}
+function applySchema(){try{({fields,tables,seqs}=C.parseSchema($("schema").value))}catch(e){alert(e.message);fields=[];tables=[];seqs=[]}render()}
 $("applySchema").onclick=applySchema;
 $("file").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  buf=new Uint8Array(await f.arrayBuffer());orig=buf.slice();name=f.name;
@@ -80,19 +85,28 @@ function render(){
  if(cur==="params"){
   const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
   if($("idx").options.length!==256){$("idx").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("")}
-  $("idx").value=idx;$("idxinfo").textContent=buf&&C.detectKind(name,buf)==="ESX-1"?`Pattern/Sample-Nr. ${idx+1}`:"";
+  $("idx").value=idx;$("idxinfo").textContent=buf&&C.detectKind(name,buf)==="ESX-1"?`Index ${idx+1} (Song-Tabelle nur 1–64)`:"";
   const tr={ref:'<span class="r">REFERENZ</span>',guess:'<span class="u">UNBESTÄTIGT</span>',verified:'<span class="v">VERIFIZIERT</span>'};
   const groups=[...tables.map(t=>[t,fields.filter(f=>f.tbl===t)]),[null,fields.filter(f=>!f.tbl)]].filter(g=>g[1].length);
   $("fields").innerHTML=groups.map(([t,fs])=>`<details ${t&&["pattern","drum1"].includes(t.id)||!t?"open":""}><summary><b>${t?t.title:"Ohne Tabelle"}</b></summary><table>`+fs.map(f=>{
    const i=fields.indexOf(f);let v=null;try{v=buf?C.readField(buf,f,idx):null}catch{}
    const inp=v===null?"—":f.enum?`<select data-i="${i}" data-x="${idx}">${Object.entries(f.enum).map(([k,l])=>`<option value="${k}" ${+k===v?"selected":""}>${l}</option>`).join("")}</select>`:`<input data-i="${i}" data-x="${idx}" value="${String(v).replace(/"/g,"&quot;")}">`;
    return `<tr><td>${f.label}</td><td class="mono">0x${(f.offset+(t?t.base+idx*t.stride:0)).toString(16)}</td><td>${tr[f.trust]}</td><td>${inp}</td></tr>`}).join("")+"</table></details>").join("")||"<p>Keine Felder im Schema.</p>"}
+ if(cur==="steps"){
+  const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
+  if($("idx2").options.length!==256)$("idx2").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("");
+  $("idx2").value=idx;
+  $("seqsel").innerHTML=seqs.map((q,i)=>`<option value="${i}">${q.tbl.title}${q.label?" – "+q.label:""}</option>`).join("");$("seqsel").value=seqi;
+  const q=seqs[seqi];
+  $("grid").innerHTML=!buf||!q?"Keine Datei oder keine seq im Schema.":Array.from({length:q.bytes*8/16},(_,bar)=>`<div class="g">`+Array.from({length:16},(_,k)=>{const st=bar*16+k,v=C.getStep(buf,q,idx,st);return `<button data-s="${st}" class="${v?"on":""} ${k%4==0?"b4":""}" ${v===null?"disabled":""}>${st+1}</button>`}).join("")+"</div>").join("")}
  if(cur==="hex")hexView();
  if(cur==="scan")$("scanout").innerHTML=buf?"<table>"+(C.scanAscii(buf,+$("minlen").value||4).slice(0,1000).map(r=>`<tr><td class="mono">0x${r.offset.toString(16)}</td><td><input class="nm" data-o="${r.offset}" data-l="${r.text.length}" value="${r.text.replace(/"/g,"&quot;")}" maxlength="${r.text.length}"></td><td><button data-add="${r.offset}" data-l="${r.text.length}">→ Schema</button></td></tr>`).join("")||"<tr><td>nichts gefunden</td></tr>")+"</table>":"Keine Datei.";
 }
 $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
  const x=+e.target.dataset.x;try{C.writeField(buf,fields[i],e.target.value,x);if(e.target.tagName==="INPUT")e.target.value=C.readField(buf,fields[i],x)}catch(x){alert(x.message)}};
 $("idx").onchange=()=>{idx=+$("idx").value;render()};
+$("idx2").onchange=()=>{idx=+$("idx2").value;render()};$("seqsel").onchange=()=>{seqi=+$("seqsel").value;render()};
+$("grid").onclick=e=>{const st=e.target.dataset.s;if(st==null||!buf)return;const q=seqs[seqi];C.setStep(buf,q,idx,+st,!C.getStep(buf,q,idx,+st));e.target.classList.toggle("on")};
 $("minlen").oninput=render;
 $("scanout").onchange=e=>{const t=e.target;if(!t.classList.contains("nm"))return;const f={offset:+t.dataset.o,type:"ascii",len:+t.dataset.l};C.writeField(buf,f,t.value)};
 $("scanout").onclick=e=>{const o=e.target.dataset.add;if(o==null)return;addField(`field text_0x${(+o).toString(16)} 0x${(+o).toString(16)} ascii ${e.target.dataset.l} ; Text @0x${(+o).toString(16)}`);e.target.textContent="✓"};
@@ -119,8 +133,8 @@ const bytes=()=>Uint8Array.from($("sxin").value.trim().split(/[\s,]+/).filter(Bo
 const out=u=>$("sxout").textContent=[...u].map(hx).join(" ");
 $("p7").onclick=()=>out(C.pack7(bytes()));$("u7").onclick=()=>out(C.unpack7(bytes()));
 let midi=null,rx=[];
-const reqFrame=()=>{const f=+$("mreq").value;return C.requestFrame(+$("mch").value-1,C.MODEL_ID.ESX1,f,f===0x1c?+$("mbank").value:null)};
-$("mbuild").onclick=()=>out(reqFrame());
+const reqFrame=()=>{const f=+$("mreq").value;if(buf&&C.detectKind(name,buf)==="EMX-1")throw new Error("EMX-1: Request-Funktionscodes nicht verifiziert (nur ESX-1 freigeschaltet)");return C.requestFrame(+$("mch").value-1,C.MODEL_ID.ESX1,f,f===0x1c?+$("mbank").value:null)};
+$("mbuild").onclick=()=>{try{out(reqFrame())}catch(e){$("sxout").textContent=e.message}};
 $("mconn").onclick=async()=>{try{midi=await navigator.requestMIDIAccess({sysex:true});
  $("mout").innerHTML=[...midi.outputs.values()].map(o=>`<option value="${o.id}">${o.name}</option>`).join("");
  $("min").innerHTML=[...midi.inputs.values()].map(o=>`<option value="${o.id}">${o.name}</option>`).join("");

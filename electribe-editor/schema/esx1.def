@@ -16,6 +16,7 @@ field arpscale ~14 u8 @0:5 0 30 ; Arp-Scale (0=Chromatic .. 30=Octave)
 field arpcenter ~15 u8 0 127 ; Arp Center Note
 
 table drum1 0x218 4280 256 ; Drum Part 1
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -27,6 +28,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum2 0x23a 4280 256 ; Drum Part 2
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -38,6 +40,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum3 0x25c 4280 256 ; Drum Part 3
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -49,6 +52,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum4 0x27e 4280 256 ; Drum Part 4
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -60,6 +64,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum5 0x2a0 4280 256 ; Drum Part 5
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -71,6 +76,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum6 0x2c2 4280 256 ; Drum Part 6
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -82,6 +88,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum7 0x2e4 4280 256 ; Drum Part 7
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -93,6 +100,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum8 0x306 4280 256 ; Drum Part 8
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
@@ -104,6 +112,7 @@ field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
 
 table drum9 0x328 4280 256 ; Drum Part 9
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 field sample ~0 u16be 0 999 ; Sample-Pointer
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
