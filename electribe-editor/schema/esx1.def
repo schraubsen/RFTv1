@@ -440,3 +440,99 @@ field rate ~28 u32be 0 4294967295 ; Samplerate (Hz)
 field tune ~32 u16be @8:8 0 99 ; Tune (Dezimal, 0-99)
 field tunewhole ~32 u16be @1:7 0 127 ; Tune (ganz)
 field playlevel ~34 u8 0=0dB 1=+12dB ; Play Level
+
+# ESX-Songs: 64 x 528 Byte ab 0x130000 (Korg TABLE16)
+table song 0x130000 528 64 ; Song (1..64)
+field name ~0 ascii 8 ; Name
+field tempo_bpm ~8 u16be @7:9 20 300 ; Tempo (BPM ganz)
+field tempo_dec ~8 u16be @0:4 0 9 ; Tempo (Dezimalstelle)
+field tempolock ~10 u8 0=Off 1=On ; Tempo Lock
+field length ~11 u8 0 255 ; Länge (0-255 = 1-256)
+field mutehold ~12 u8 0=Off 1=On ; Mute Hold
+field nextsong ~13 u8 0 64 ; Next Song (0=Off)
+field events ~14 u16be 0 19999 ; Anzahl Events (nur lesen empfohlen)
+arr patterns ~16 256 0 255 ; Pattern-Nr. je Position (0=A01 .. 255=D64)
+arr noteoffsets ~272 256 0 255 ; Note Offset (-24..+24, als Byte; 255=-1)
+
+# Motion-Sequenzen: 24 x 130 Byte je Pattern ab Pattern+1160 (TABLE12): Operation u16 + 128 Werte (MSB=Off)
+table motion1 0x688 4280 256 ; Motion 1
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion2 0x70a 4280 256 ; Motion 2
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion3 0x78c 4280 256 ; Motion 3
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion4 0x80e 4280 256 ; Motion 4
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion5 0x890 4280 256 ; Motion 5
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion6 0x912 4280 256 ; Motion 6
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion7 0x994 4280 256 ; Motion 7
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion8 0xa16 4280 256 ; Motion 8
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion9 0xa98 4280 256 ; Motion 9
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion10 0xb1a 4280 256 ; Motion 10
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion11 0xb9c 4280 256 ; Motion 11
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion12 0xc1e 4280 256 ; Motion 12
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion13 0xca0 4280 256 ; Motion 13
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion14 0xd22 4280 256 ; Motion 14
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion15 0xda4 4280 256 ; Motion 15
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion16 0xe26 4280 256 ; Motion 16
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion17 0xea8 4280 256 ; Motion 17
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion18 0xf2a 4280 256 ; Motion 18
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion19 0xfac 4280 256 ; Motion 19
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion20 0x102e 4280 256 ; Motion 20
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion21 0x10b0 4280 256 ; Motion 21
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion22 0x1132 4280 256 ; Motion 22
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion23 0x11b4 4280 256 ; Motion 23
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+table motion24 0x1236 4280 256 ; Motion 24
+field op ~0 u16be 0 65535 ; Operation-Nr. (TABLE25)
+arr values ~2 128 0 255 ; Werte (MSB=Off)
+
+# MIDI-Kanäle und Drum-Note-Nummern (Global, TABLE13)
+table midi 0x20 192 1 ; MIDI (Global)
+field channel1 ~7 u8 0 15 ; MIDI-Kanal 1 (0=1ch)
+field channel2 ~8 u8 0 15 ; MIDI-Kanal 2 (0=1ch)
+field channel3 ~9 u8 0 15 ; MIDI-Kanal 3 (0=1ch)
+arr drumnotes ~10 13 0 127 ; Drum Note Numbers (13)
+arr ccassign ~23 33 0 255 ; MIDI CC Assign (33, TABLE28)
+arr patternset ~64 128 0 255 ; Pattern Set Parameters (A01..D64)

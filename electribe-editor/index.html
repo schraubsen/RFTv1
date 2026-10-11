@@ -108,8 +108,8 @@ function render(){
   const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
   if($("idx3").options.length!==256)$("idx3").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("");
   $("idx3").value=idx;$("arrsel").innerHTML=arrs.map((a,i)=>`<option value="${i}">${a.tbl.title} – ${a.label}</option>`).join("");$("arrsel").value=arri;
-  const a=arrs[arri];
-  $("arrgrid").innerHTML=!buf||!a?"Keine Datei oder kein arr im Schema.":Array.from({length:a.count},(_,i)=>{const v=C.getArr(buf,a,idx,i);return `<input data-a="${i}" value="${v===null?"":v}" ${v===null?"disabled":""} title="Step ${i+1}">`}).join("")}
+  const a=arrs[arri],ax=a&&a.tbl.count===1?0:idx;
+  $("arrgrid").innerHTML=!buf||!a?"Keine Datei oder kein arr im Schema.":Array.from({length:a.count},(_,i)=>{const v=C.getArr(buf,a,ax,i);return `<input data-a="${i}" value="${v===null?"":v}" ${v===null?"disabled":""} title="Step ${i+1}">`}).join("")}
  if(cur==="hex")hexView();
  if(cur==="scan")$("scanout").innerHTML=buf?"<table>"+(C.scanAscii(buf,+$("minlen").value||4).slice(0,1000).map(r=>`<tr><td class="mono">0x${r.offset.toString(16)}</td><td><input class="nm" data-o="${r.offset}" data-l="${r.text.length}" value="${r.text.replace(/"/g,"&quot;")}" maxlength="${r.text.length}"></td><td><button data-add="${r.offset}" data-l="${r.text.length}">→ Schema</button></td></tr>`).join("")||"<tr><td>nichts gefunden</td></tr>")+"</table>":"Keine Datei.";
 }
@@ -117,7 +117,7 @@ $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
  const x=+e.target.dataset.x;try{C.writeField(buf,fields[i],e.target.value,x);if(e.target.tagName==="INPUT")e.target.value=C.readField(buf,fields[i],x)}catch(x){alert(x.message)}};
 $("idx").onchange=()=>{idx=+$("idx").value;render()};
 $("idx3").onchange=()=>{idx=+$("idx3").value;render()};$("arrsel").onchange=()=>{arri=+$("arrsel").value;render()};
-$("arrgrid").onchange=e=>{const i=e.target.dataset.a;if(i==null)return;try{const a=arrs[arri];C.setArr(buf,a,idx,+i,e.target.value);e.target.value=C.getArr(buf,a,idx,+i)}catch(x){alert(x.message)}};
+$("arrgrid").onchange=e=>{const i=e.target.dataset.a;if(i==null)return;try{const a=arrs[arri],ax=a.tbl.count===1?0:idx;C.setArr(buf,a,ax,+i,e.target.value);e.target.value=C.getArr(buf,a,ax,+i)}catch(x){alert(x.message)}};
 $("idx2").onchange=()=>{idx=+$("idx2").value;render()};$("seqsel").onchange=()=>{seqi=+$("seqsel").value;render()};
 $("grid").onclick=e=>{const st=e.target.dataset.s;if(st==null||!buf)return;const q=seqs[seqi];C.setStep(buf,q,idx,+st,!C.getStep(buf,q,idx,+st));e.target.classList.toggle("on")};
 $("minlen").oninput=render;

@@ -274,3 +274,111 @@ field length ~11 u8 0 255 ; Länge
 field mute_hold ~12 u8 0=Off 1=On ; Mute Hold
 field next_song ~13 u8 0 255 ; Next Song
 field events ~14 u16be 0 20000 ; Anzahl Events (nur lesen empfohlen)
+
+# FX (EMX-Pascal-Editor: FXbase 1674, 3 x 4 Byte)
+table fx1 2186 4806 256 ; FX 1
+field type ~0 u8 0 15 ; Effect Type
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
+table fx2 2190 4806 256 ; FX 2
+field type ~0 u8 0 15 ; Effect Type
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
+table fx3 2194 4806 256 ; FX 3
+field type ~0 u8 0 15 ; Effect Type
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
+
+# UNBESTÄTIGT (abgeleitet, keine Quelle): Synth-Part = 20 Byte Kopf + 128 Noten + 128 Gates (276 Byte, analog ESX-Keyboard)
+table synthseq1 770 4806 256 ; Synth 1 Sequenz (unbestätigt)
+arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
+arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+table synthseq2 1046 4806 256 ; Synth 2 Sequenz (unbestätigt)
+arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
+arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+table synthseq3 1322 4806 256 ; Synth 3 Sequenz (unbestätigt)
+arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
+arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+table synthseq4 1598 4806 256 ; Synth 4 Sequenz (unbestätigt)
+arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
+arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+table synthseq5 1874 4806 256 ; Synth 5 Sequenz (unbestätigt)
+arr notes 20 128 0 255 ; Noten pro Step (unbestätigt)
+arr gates 148 128 0 255 ; Gates pro Step (unbestätigt)
+
+# UNBESTÄTIGT: Motion = 24 x 130 Byte ab Pattern+1686 (1686+3120 = 4806 = Patterngröße)
+table motion1 2198 4806 256 ; Motion 1 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion2 2328 4806 256 ; Motion 2 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion3 2458 4806 256 ; Motion 3 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion4 2588 4806 256 ; Motion 4 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion5 2718 4806 256 ; Motion 5 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion6 2848 4806 256 ; Motion 6 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion7 2978 4806 256 ; Motion 7 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion8 3108 4806 256 ; Motion 8 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion9 3238 4806 256 ; Motion 9 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion10 3368 4806 256 ; Motion 10 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion11 3498 4806 256 ; Motion 11 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion12 3628 4806 256 ; Motion 12 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion13 3758 4806 256 ; Motion 13 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion14 3888 4806 256 ; Motion 14 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion15 4018 4806 256 ; Motion 15 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion16 4148 4806 256 ; Motion 16 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion17 4278 4806 256 ; Motion 17 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion18 4408 4806 256 ; Motion 18 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion19 4538 4806 256 ; Motion 19 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion20 4668 4806 256 ; Motion 20 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion21 4798 4806 256 ; Motion 21 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion22 4928 4806 256 ; Motion 22 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion23 5058 4806 256 ; Motion 23 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
+table motion24 5188 4806 256 ; Motion 24 (unbestätigt)
+field op 0 u16be 0 65535 ; Operation-Nr.
+arr values 2 128 0 255 ; Werte (MSB=Off)
