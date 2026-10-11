@@ -38,7 +38,7 @@ export function sysexFrame(channel, modelId, func, payload) {
 // Vertrauen: "!off" verifiziert (Hardware) | "~off" Referenzquelle (Korg-Doku/lammas, in default.esx plausibilisiert) | "off" Vermutung
 const TYPES = { u8: 1, u16le: 2, u16be: 2, u32be: 4, ascii: 0 };
 export function parseSchema(text) {
-  const fields = [], tables = [], seqs = []; let table = null;
+  const fields = [], tables = [], seqs = [], arrs = []; let table = null;
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim(), err = m => new Error(`Schema Zeile ${i + 1}: ${m}`);
     if (!line || line[0] === "#") return;
@@ -55,6 +55,11 @@ export function parseSchema(text) {
       let o = t[2], trust = "guess"; if (o[0] === "!") { trust = "verified"; o = o.slice(1); } else if (o[0] === "~") { trust = "ref"; o = o.slice(1); }
       seqs.push({ id: t[1], offset: num(o), bytes: num(t[3]), trust, label: label.trim() || t[1], table: table.id, tbl: table }); return;
     }
+    if (t[0] === "arr") { // arr <id> <offset> <count> <min> <max> ; Label   (Byte-Array, z.B. Keyboard-Noten/Gates)
+      if (t.length < 6 || !table) throw err("arr braucht table, id, offset, count, min, max");
+      let o = t[2], trust = "guess"; if (o[0] === "!") { trust = "verified"; o = o.slice(1); } else if (o[0] === "~") { trust = "ref"; o = o.slice(1); }
+      arrs.push({ id: t[1], offset: num(o), count: num(t[3]), min: num(t[4]), max: num(t[5]), trust, label: label.trim() || t[1], table: table.id, tbl: table }); return;
+    }
     if (t[0] !== "field" || t.length < 4) throw err("ungültig");
     let off = t[2], trust = "guess";
     if (off[0] === "!") { trust = "verified"; off = off.slice(1); } else if (off[0] === "~") { trust = "ref"; off = off.slice(1); }
@@ -70,7 +75,7 @@ export function parseSchema(text) {
     if (type === "ascii") { f.len = nums[0]; if (!f.len) throw err("len"); } else { f.min = nums[0]; f.max = nums[1]; }
     fields.push(f);
   });
-  return { fields, tables, seqs };
+  return { fields, tables, seqs, arrs };
 }
 const size = f => (f.type === "ascii" ? f.len : TYPES[f.type]);
 const absOff = (f, idx = 0) => {
@@ -110,6 +115,15 @@ export function setStep(buf, q, idx, step, on) {
   if (getStep(buf, q, idx, step) === null) throw new Error("Step außerhalb");
   const o = q.offset + q.tbl.base + idx * q.tbl.stride + (step >> 3), m = 1 << (step & 7);
   buf[o] = on ? buf[o] | m : buf[o] & ~m;
+}
+export function getArr(buf, a, idx, i) {
+  const o = a.offset + a.tbl.base + idx * a.tbl.stride + i;
+  return idx < 0 || idx >= a.tbl.count || i < 0 || i >= a.count || o >= buf.length ? null : buf[o];
+}
+export function setArr(buf, a, idx, i, v) {
+  if (getArr(buf, a, idx, i) === null) throw new Error("Array-Index außerhalb");
+  v = Math.round(Number(v)); if (!Number.isFinite(v)) throw new Error("Zahl erwartet");
+  buf[a.offset + a.tbl.base + idx * a.tbl.stride + i] = Math.max(a.min, Math.min(a.max, v));
 }
 export function tempoBpm(buf, idx = 0, base = 0x200, stride = 4280) { // 9 Bit ganz (Bit7..) + 4 Bit Dezimal, laut lammas/Korg
   const v = (buf[base + idx * stride + 8] << 8) | buf[base + idx * stride + 9]; return ((v >> 7) & 0x1ff) + (v & 15) / 10;

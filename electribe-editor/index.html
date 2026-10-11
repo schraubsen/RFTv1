@@ -11,7 +11,7 @@ button{cursor:pointer}button:hover,button.on{border-color:var(--red);color:#fff}
 main{padding:16px;max-width:1100px;margin:auto}.tab{display:none}.tab.on{display:block}
 .mono{font-family:ui-monospace,monospace;font-size:12px}pre{background:var(--pn);padding:10px;overflow:auto;max-height:420px;border-radius:4px}
 table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1px solid #222;text-align:left}
-.u{color:var(--warn)}.g{display:grid;grid-template-columns:repeat(16,28px);gap:2px;margin:6px 0}.g button{padding:0;height:26px;font:11px monospace}.g button.on{background:var(--red);color:#fff}.g button.b4{border-left-color:#666}.r{color:#6cf}details{margin:6px 0}summary{cursor:pointer}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
+.u{color:var(--warn)}.ag{display:grid;grid-template-columns:repeat(16,52px);gap:2px;margin:6px 0}.ag input{width:52px;padding:3px;text-align:center}.g{display:grid;grid-template-columns:repeat(16,28px);gap:2px;margin:6px 0}.g button{padding:0;height:26px;font:11px monospace}.g button.on{background:var(--red);color:#fff}.g button.b4{border-left-color:#666}.r{color:#6cf}details{margin:6px 0}summary{cursor:pointer}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}label{color:var(--mu)}
 .hex{display:grid;grid-template-columns:repeat(16,1fr);gap:1px;max-width:760px}.hex input{padding:2px;text-align:center;width:100%;font:12px ui-monospace,monospace}
 .hex input.d{border-color:var(--red)}
@@ -33,6 +33,11 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
  <p style="color:var(--mu)">Step-Sequenzen (128 Steps je Part, Bit0 = Step 1). Pattern wählen, Zelle klicken. Quelle: Schema (<code>seq</code>).</p>
  <div class="row"><label>Pattern</label><select id="idx2"></select><label>Part</label><select id="seqsel"></select></div>
  <div id="grid"></div>
+</section>
+<section class="tab" id="t-notes">
+ <p style="color:var(--mu)">Keyboard-Noten (0–127, ≥128 = Off) und Gate-Zeiten je Step sowie Audio-In-Gates. Quelle: Schema (<code>arr</code>).</p>
+ <div class="row"><label>Pattern</label><select id="idx3"></select><label>Array</label><select id="arrsel"></select></div>
+ <div id="arrgrid" class="ag"></div>
 </section>
 <section class="tab" id="t-hex">
  <div class="row"><label>Offset</label><input id="hexoff" value="0" size="8"><button id="hexgo">Gehe zu</button><span class="mono" id="hexlbl"></span></div>
@@ -64,8 +69,8 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 <script type="module">
 import * as C from "./core.js";
 const $=id=>document.getElementById(id), hx=n=>n.toString(16).padStart(2,"0");
-const tabs=[["file","Datei"],["params","Parameter"],["steps","Steps"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
-let buf=null,orig=null,name="",fields=[],tables=[],seqs=[],cur="file",idx=0,seqi=0;
+const tabs=[["file","Datei"],["params","Parameter"],["steps","Steps"],["notes","Noten"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
+let buf=null,orig=null,name="",fields=[],tables=[],seqs=[],arrs=[],cur="file",idx=0,seqi=0,arri=0;
 $("nav").innerHTML=tabs.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join("");
 $("nav").onclick=e=>{const k=e.target.dataset.k;if(k)show(k)};
 function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.id==="t-"+k));
@@ -73,7 +78,7 @@ function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.
 async function loadSchema(kind){const f=kind==="EMX-1"?"emx1":"esx1";
  try{$("schema").value=await (await fetch(`schema/${f}.def`)).text()}catch{ $("schema").value="# Schema konnte nicht geladen werden (file://?). Hier einfügen."}
  applySchema()}
-function applySchema(){try{({fields,tables,seqs}=C.parseSchema($("schema").value))}catch(e){alert(e.message);fields=[];tables=[];seqs=[]}render()}
+function applySchema(){try{({fields,tables,seqs,arrs}=C.parseSchema($("schema").value))}catch(e){alert(e.message);fields=[];tables=[];seqs=[];arrs=[]}render()}
 $("applySchema").onclick=applySchema;
 $("file").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  buf=new Uint8Array(await f.arrayBuffer());orig=buf.slice();name=f.name;
@@ -89,9 +94,9 @@ function render(){
   const tr={ref:'<span class="r">REFERENZ</span>',guess:'<span class="u">UNBESTÄTIGT</span>',verified:'<span class="v">VERIFIZIERT</span>'};
   const groups=[...tables.map(t=>[t,fields.filter(f=>f.tbl===t)]),[null,fields.filter(f=>!f.tbl)]].filter(g=>g[1].length);
   $("fields").innerHTML=groups.map(([t,fs])=>`<details ${t&&["pattern","drum1"].includes(t.id)||!t?"open":""}><summary><b>${t?t.title:"Ohne Tabelle"}</b></summary><table>`+fs.map(f=>{
-   const i=fields.indexOf(f);let v=null;try{v=buf?C.readField(buf,f,idx):null}catch{}
-   const inp=v===null?"—":f.enum?`<select data-i="${i}" data-x="${idx}">${Object.entries(f.enum).map(([k,l])=>`<option value="${k}" ${+k===v?"selected":""}>${l}</option>`).join("")}</select>`:`<input data-i="${i}" data-x="${idx}" value="${String(v).replace(/"/g,"&quot;")}">`;
-   return `<tr><td>${f.label}</td><td class="mono">0x${(f.offset+(t?t.base+idx*t.stride:0)).toString(16)}</td><td>${tr[f.trust]}</td><td>${inp}</td></tr>`}).join("")+"</table></details>").join("")||"<p>Keine Felder im Schema.</p>"}
+   const i=fields.indexOf(f);let v=null;const ix=t&&t.count===1?0:idx;try{v=buf?C.readField(buf,f,ix):null}catch{}
+   const inp=v===null?"—":f.enum?`<select data-i="${i}" data-f="${f.table}.${f.id}" data-x="${ix}">${Object.entries(f.enum).map(([k,l])=>`<option value="${k}" ${+k===v?"selected":""}>${l}</option>`).join("")}</select>`:`<input data-i="${i}" data-f="${f.table}.${f.id}" data-x="${ix}" value="${String(v).replace(/"/g,"&quot;")}">`;
+   return `<tr><td>${f.label}</td><td class="mono">0x${(f.offset+(t?t.base+ix*t.stride:0)).toString(16)}</td><td>${tr[f.trust]}</td><td>${inp}</td></tr>`}).join("")+"</table></details>").join("")||"<p>Keine Felder im Schema.</p>"}
  if(cur==="steps"){
   const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
   if($("idx2").options.length!==256)$("idx2").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("");
@@ -99,12 +104,20 @@ function render(){
   $("seqsel").innerHTML=seqs.map((q,i)=>`<option value="${i}">${q.tbl.title}${q.label?" – "+q.label:""}</option>`).join("");$("seqsel").value=seqi;
   const q=seqs[seqi];
   $("grid").innerHTML=!buf||!q?"Keine Datei oder keine seq im Schema.":Array.from({length:q.bytes*8/16},(_,bar)=>`<div class="g">`+Array.from({length:16},(_,k)=>{const st=bar*16+k,v=C.getStep(buf,q,idx,st);return `<button data-s="${st}" class="${v?"on":""} ${k%4==0?"b4":""}" ${v===null?"disabled":""}>${st+1}</button>`}).join("")+"</div>").join("")}
+ if(cur==="notes"){
+  const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
+  if($("idx3").options.length!==256)$("idx3").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("");
+  $("idx3").value=idx;$("arrsel").innerHTML=arrs.map((a,i)=>`<option value="${i}">${a.tbl.title} – ${a.label}</option>`).join("");$("arrsel").value=arri;
+  const a=arrs[arri];
+  $("arrgrid").innerHTML=!buf||!a?"Keine Datei oder kein arr im Schema.":Array.from({length:a.count},(_,i)=>{const v=C.getArr(buf,a,idx,i);return `<input data-a="${i}" value="${v===null?"":v}" ${v===null?"disabled":""} title="Step ${i+1}">`}).join("")}
  if(cur==="hex")hexView();
  if(cur==="scan")$("scanout").innerHTML=buf?"<table>"+(C.scanAscii(buf,+$("minlen").value||4).slice(0,1000).map(r=>`<tr><td class="mono">0x${r.offset.toString(16)}</td><td><input class="nm" data-o="${r.offset}" data-l="${r.text.length}" value="${r.text.replace(/"/g,"&quot;")}" maxlength="${r.text.length}"></td><td><button data-add="${r.offset}" data-l="${r.text.length}">→ Schema</button></td></tr>`).join("")||"<tr><td>nichts gefunden</td></tr>")+"</table>":"Keine Datei.";
 }
 $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
  const x=+e.target.dataset.x;try{C.writeField(buf,fields[i],e.target.value,x);if(e.target.tagName==="INPUT")e.target.value=C.readField(buf,fields[i],x)}catch(x){alert(x.message)}};
 $("idx").onchange=()=>{idx=+$("idx").value;render()};
+$("idx3").onchange=()=>{idx=+$("idx3").value;render()};$("arrsel").onchange=()=>{arri=+$("arrsel").value;render()};
+$("arrgrid").onchange=e=>{const i=e.target.dataset.a;if(i==null)return;try{const a=arrs[arri];C.setArr(buf,a,idx,+i,e.target.value);e.target.value=C.getArr(buf,a,idx,+i)}catch(x){alert(x.message)}};
 $("idx2").onchange=()=>{idx=+$("idx2").value;render()};$("seqsel").onchange=()=>{seqi=+$("seqsel").value;render()};
 $("grid").onclick=e=>{const st=e.target.dataset.s;if(st==null||!buf)return;const q=seqs[seqi];C.setStep(buf,q,idx,+st,!C.getStep(buf,q,idx,+st));e.target.classList.toggle("on")};
 $("minlen").oninput=render;

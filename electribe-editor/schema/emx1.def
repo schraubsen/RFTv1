@@ -22,6 +22,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -33,6 +37,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -44,6 +52,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -55,6 +67,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -66,6 +82,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -77,6 +97,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -88,6 +112,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -99,6 +127,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -110,6 +142,10 @@ field pitch ~1 u8 0 127 ; Pitch (64=Original)
 field level ~2 u8 0 127 ; Level
 field pan ~3 u8 0 127 ; Pan (64=Center)
 field egtime ~4 u8 0 127 ; EG Time
+field fxselect ~5 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~5 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~5 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~5 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~7 u8 0 127 ; Mod Speed
 field moddepth ~8 u8 0 127 ; Mod Depth (64=0)
 field motionseq ~9 u8 0 2 ; Motion Seq (0=Off,1=Smooth,2=TrigHold)
@@ -130,6 +166,10 @@ field drive ~10 u8 0 127 ; Drive
 field level ~11 u8 0 127 ; Level
 field pan ~12 u8 0 127 ; Pan (64=Center)
 field egtime ~13 u8 0 127 ; EG Time
+field fxselect ~14 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~14 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~14 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~14 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~17 u8 0 127 ; Mod Speed
 field moddepth ~18 u8 0 127 ; Mod Depth
 
@@ -148,6 +188,10 @@ field drive ~10 u8 0 127 ; Drive
 field level ~11 u8 0 127 ; Level
 field pan ~12 u8 0 127 ; Pan (64=Center)
 field egtime ~13 u8 0 127 ; EG Time
+field fxselect ~14 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~14 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~14 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~14 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~17 u8 0 127 ; Mod Speed
 field moddepth ~18 u8 0 127 ; Mod Depth
 
@@ -166,6 +210,10 @@ field drive ~10 u8 0 127 ; Drive
 field level ~11 u8 0 127 ; Level
 field pan ~12 u8 0 127 ; Pan (64=Center)
 field egtime ~13 u8 0 127 ; EG Time
+field fxselect ~14 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~14 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~14 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~14 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~17 u8 0 127 ; Mod Speed
 field moddepth ~18 u8 0 127 ; Mod Depth
 
@@ -184,6 +232,10 @@ field drive ~10 u8 0 127 ; Drive
 field level ~11 u8 0 127 ; Level
 field pan ~12 u8 0 127 ; Pan (64=Center)
 field egtime ~13 u8 0 127 ; EG Time
+field fxselect ~14 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~14 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~14 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~14 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~17 u8 0 127 ; Mod Speed
 field moddepth ~18 u8 0 127 ; Mod Depth
 
@@ -202,6 +254,10 @@ field drive ~10 u8 0 127 ; Drive
 field level ~11 u8 0 127 ; Level
 field pan ~12 u8 0 127 ; Pan (64=Center)
 field egtime ~13 u8 0 127 ; EG Time
+field fxselect ~14 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~14 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~14 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~14 u8 @4:1 0=Gate 1=EG ; Amp EG
 field modspeed ~17 u8 0 127 ; Mod Speed
 field moddepth ~18 u8 0 127 ; Mod Depth
 

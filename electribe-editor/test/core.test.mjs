@@ -43,6 +43,9 @@ import("node:fs").then(({ existsSync, readFileSync }) => { // echte Datei, falls
   assert.equal(c.detectKind("x", d), "ESX-1"); assert.equal(g("pattern", "tempo_bpm"), 120); assert.equal(g("sample", "rate"), 44100);
   assert.equal(g("drum1", "pan"), 64);
   const q = sc.seqs[0]; assert.equal(Array.from({ length: 16 }, (_, i) => c.getStep(d, q, 0, i)).join(""), "1000100010001000"); // Four-on-the-floor
+  const kb = sc.arrs.find(a => a.table === "keyboard1" && a.id === "notes"); assert.ok(c.getArr(d, kb, 0, 0) >= 0);
+  assert.equal(g("accent", "level"), 64); assert.equal(g("audioin", "level"), 100); assert.equal(g("keyboard1", "cutoff"), 127);
+  c.setArr(d, kb, 3, 5, 60); assert.equal(c.getArr(d, kb, 3, 5), 60); assert.throws(() => c.setArr(d, kb, 3, 128, 1));
   console.log("Realdatei-Test ok");
 });
 console.log("alle Tests ok");

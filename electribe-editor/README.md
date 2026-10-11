@@ -5,6 +5,8 @@ Tests: `node test/core.test.mjs` · UI: `node test/ui.test.mjs` (Playwright; `de
 
 ## Funktionen
 - `.esx` **und `.emx`** laden/speichern (Erkennung per Magic); ESX-1: Parameter-Editor für alle 256 Pattern (A01–D64): Name, Tempo, Swing, Länge, Beat, Roll, FX-Kette, Last Step, Arp; 9 Drum-Parts (Cutoff, Reso, Pitch, Level, Pan …); Sample-Header (Name, Rate, Tune, Play Level)
+- ESX-1 Schema vollständig bis auf Motion-Sequenzen: Global, Pattern, 9 Drum-, 2 Keyboard-, 2 Stretch-, 1 Slice-, Audio-In-, Accent-Part, 3 FX, Sample-Header
+- **Noten-Tab:** Keyboard-Noten/Gates und Audio-In-Gates je Step (`arr`-Direktive)
 - **Steps-Tab:** 128-Step-Sequenzen aller Drum-Parts (EMX zusätzlich Accent) per Klick editieren
 - EMX-1: Pattern (Name, Tempo, Swing …), 9 Drum-Parts, 5 Synth-Parts, 64 Songs (Name, Tempo, Länge …)
 - Hex-Editor, Diff (Offset-Discovery → Schema-Zeile per Klick), ASCII-Scan mit editierbaren Namen
@@ -20,4 +22,5 @@ Model-ID 0x69 und Song-Tabelle: [themesser/EMiX](https://github.com/themesser/EM
 
 ## Offen
 - EMX-1-Request-Funktionscodes (SysEx) nicht verifiziert → Requests nur für ESX-1 freigegeben
-- Web-MIDI/SysEx nicht an echter Hardware getestet; Song-/Global-Felder fehlen im Schema
+- Web-MIDI/SysEx nicht an echter Hardware getestet
+- Motion-Sequenzen (TABLE12), Song-Events, MIDI-CC-Zuordnung, ESX-Songs fehlen im Schema; EMX: Keyboard-/Synth-Sequenzen, FX, Motion fehlen

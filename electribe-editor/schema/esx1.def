@@ -1,8 +1,15 @@
-# ESX-1 Schema. Vertrauen: ~ = Referenz (Korg ESX1midiimp.txt + lammas/electribe), gegen Standard-default.esx plausibilisiert,
+# ESX-1 Schema. Vertrauen: ~ = Referenz (Korg ESX1midiimp.txt TABLE4-13 + lammas/electribe), gegen Standard-default.esx plausibilisiert,
 # NICHT von uns auf Hardware verifiziert. ! = Hardware-verifiziert. Ohne Präfix = Vermutung.
-# table: Pattern 1..256 (A01..D64) -> index*4280 ab 0x200. Teile (parts) laut Korg TABLE4.
+# Direktiven: table / field / seq (Step-Bits, Bit0 = Step 1) / arr (Byte-Array). Nicht abgedeckt: Motion-Sequenzen (TABLE12), Song-Events.
 
-table pattern 0x200 4280 256 ; Pattern
+table global 0x20 192 1 ; Global (192 Byte ab 0x20)
+field memprotect ~0 u8 0=Off 1=On ; Memory Protect
+field arpcontrol ~2 u8 0=Normal 1=Reverse ; Arp Control
+field audioinmode ~3 u8 0=L/Mono 1=Stereo ; Audio-In Mode
+field midiclock ~4 u8 0=Int 1=Ext 2=Auto ; MIDI Clock
+field pitchbend ~6 u8 0 24 ; Pitch Bend Range (12 = keine)
+
+table pattern 0x200 4280 256 ; Pattern (A01..D64)
 field name ~0 ascii 8 ; Name
 field tempo_bpm ~8 u16be @7:9 20 300 ; Tempo (BPM ganz)
 field tempo_dec ~8 u16be @0:4 0 9 ; Tempo (Dezimalstelle)
@@ -14,10 +21,16 @@ field fxchain ~12 u8 0=None 1=1-2 2=2-3 3=1-2-3 ; FX-Kette
 field laststep ~13 u8 0 15 ; Last Step (0-15)
 field arpscale ~14 u8 @0:5 0 30 ; Arp-Scale (0=Chromatic .. 30=Octave)
 field arpcenter ~15 u8 0 127 ; Arp Center Note
+field mutestatus ~16 u16le 0 65535 ; Part Mute/Solo Status (Bitmaske)
+field swingstatus ~18 u16le 0 65535 ; Part Swing Status (Bitmaske)
+field outbus ~20 u16le 0 65535 ; Part OutputBus Status (Bitmaske)
+field accentstatus ~22 u16le 0 65535 ; Part Accent Status (Bitmaske)
 
 table drum1 0x218 4280 256 ; Drum Part 1
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -26,10 +39,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum2 0x23a 4280 256 ; Drum Part 2
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -38,10 +65,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum3 0x25c 4280 256 ; Drum Part 3
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -50,10 +91,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum4 0x27e 4280 256 ; Drum Part 4
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -62,10 +117,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum5 0x2a0 4280 256 ; Drum Part 5
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -74,10 +143,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum6 0x2c2 4280 256 ; Drum Part 6
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -86,10 +169,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum7 0x2e4 4280 256 ; Drum Part 7
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -98,10 +195,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum8 0x306 4280 256 ; Drum Part 8
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -110,10 +221,24 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
 
 table drum9 0x328 4280 256 ; Drum Part 9
-seq steps ~18 16 ; Step-Sequenz (128 Steps)
-field sample ~0 u16be 0 999 ; Sample-Pointer
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field filtertype ~4 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
 field cutoff ~5 u8 0 127 ; Cutoff
 field reso ~6 u8 0 127 ; Resonance
 field egint ~7 u8 0 127 ; EG Int (64=0)
@@ -122,6 +247,191 @@ field level ~9 u8 0 127 ; Level
 field pan ~10 u8 0 127 ; Pan (64=Center)
 field egtime ~11 u8 0 127 ; EG Time
 field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~18 16 ; Step-Sequenz (128 Steps)
+
+table keyboard1 0x34a 4280 256 ; Keyboard Part 1
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field glide ~4 u8 0 127 ; Glide
+field filtertype ~5 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~6 u8 0 127 ; Cutoff
+field reso ~7 u8 0 127 ; Resonance
+field egint ~8 u8 0 127 ; EG Int (64=0)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+arr notes ~18 128 0 255 ; Noten pro Step (0-127, MSB/128+ = Off)
+arr gates ~146 128 0 255 ; Gate-Zeit pro Step (T7-1)
+
+table keyboard2 0x45c 4280 256 ; Keyboard Part 2
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field slice ~2 u8 0 255 ; Slice No. (MSB=ALL)
+field glide ~4 u8 0 127 ; Glide
+field filtertype ~5 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~6 u8 0 127 ; Cutoff
+field reso ~7 u8 0 127 ; Resonance
+field egint ~8 u8 0 127 ; EG Int (64=0)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+field fxselect ~13 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~13 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~13 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~13 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~13 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~14 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~14 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~14 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~15 u8 0 127 ; Mod Speed
+field moddepth ~16 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~17 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+arr notes ~18 128 0 255 ; Noten pro Step (0-127, MSB/128+ = Off)
+arr gates ~146 128 0 255 ; Gate-Zeit pro Step (T7-1)
+
+table stretch1 0x56e 4280 256 ; Stretch 1 Part
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field filtertype ~2 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~3 u8 0 127 ; Cutoff
+field reso ~4 u8 0 127 ; Resonance
+field egint ~5 u8 0 127 ; EG Int (64=0)
+field pitch ~6 u8 0 127 ; Pitch (64=Original)
+field level ~7 u8 0 127 ; Level
+field pan ~8 u8 0 127 ; Pan (64=Center)
+field egtime ~9 u8 0 127 ; EG Time
+field start ~10 u8 0 127 ; Start Point
+field fxselect ~11 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~11 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~11 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~11 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~11 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~12 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~12 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~12 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~13 u8 0 127 ; Mod Speed
+field moddepth ~14 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~15 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~16 16 ; Step-Sequenz (128 Steps)
+
+table stretch2 0x58e 4280 256 ; Stretch 2 Part
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field filtertype ~2 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~3 u8 0 127 ; Cutoff
+field reso ~4 u8 0 127 ; Resonance
+field egint ~5 u8 0 127 ; EG Int (64=0)
+field pitch ~6 u8 0 127 ; Pitch (64=Original)
+field level ~7 u8 0 127 ; Level
+field pan ~8 u8 0 127 ; Pan (64=Center)
+field egtime ~9 u8 0 127 ; EG Time
+field start ~10 u8 0 127 ; Start Point
+field fxselect ~11 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~11 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~11 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~11 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~11 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~12 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~12 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~12 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~13 u8 0 127 ; Mod Speed
+field moddepth ~14 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~15 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~16 16 ; Step-Sequenz (128 Steps)
+
+table slice 0x5ae 4280 256 ; Slice Part
+field sample ~0 u16be @0:15 0 999 ; Sample-Nr.
+field sample_off ~0 u16be @15:1 0=Aktiv 1=OFF ; Sample OFF
+field filtertype ~2 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~3 u8 0 127 ; Cutoff
+field reso ~4 u8 0 127 ; Resonance
+field egint ~5 u8 0 127 ; EG Int (64=0)
+field pitch ~6 u8 0 127 ; Pitch (64=Original)
+field level ~7 u8 0 127 ; Level
+field pan ~8 u8 0 127 ; Pan (64=Center)
+field egtime ~9 u8 0 127 ; EG Time
+field start ~10 u8 0 127 ; Start Point
+field fxselect ~11 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~11 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~11 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~11 u8 @4:1 0=Gate 1=EG ; Amp EG
+field reverse ~11 u8 @5:1 0=Off 1=On ; Reverse
+field moddest ~12 u8 @0:3 0=Pitch 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~12 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~12 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~13 u8 0 127 ; Mod Speed
+field moddepth ~14 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~15 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~16 16 ; Step-Sequenz (128 Steps)
+
+table audioin 0x5ce 4280 256 ; Audio-In Part
+field filtertype ~0 u8 0=LPF 1=HPF 2=BPF 3=BPF+ ; Filter Type
+field cutoff ~1 u8 0 127 ; Cutoff
+field reso ~2 u8 0 127 ; Resonance
+field egint ~3 u8 0 127 ; EG Int (64=0)
+field level ~4 u8 0 127 ; Level
+field pan ~5 u8 0 127 ; Pan (64=Center)
+field egtime ~6 u8 0 127 ; EG Time
+field fxselect ~7 u8 @0:2 0 2 ; FX Select (0=FX1..2=FX3)
+field fxsend ~7 u8 @2:1 0=Off 1=On ; FX Send
+field roll ~7 u8 @3:1 0=Off 1=On ; Roll
+field ampeg ~7 u8 @4:1 0=Gate 1=EG ; Amp EG
+field moddest ~8 u8 @0:3 1=Cutoff 2=Amp 3=Pan ; Mod Dest
+field modtype ~8 u8 @4:3 0=Saw 1=Squ 2=Tri 3=S&H 4=EG ; Mod Type
+field bpmsync ~8 u8 @7:1 0=Off 1=On ; BPM Sync
+field modspeed ~9 u8 0 127 ; Mod Speed
+field moddepth ~10 u8 0 127 ; Mod Depth (64=0)
+field motionseq ~11 u8 0=Off 1=Smooth 2=TrigHold ; Motion Seq
+seq steps ~12 16 ; Step-Sequenz (128 Steps)
+arr gates ~28 128 0 255 ; Gate-Zeit pro Step (T7-1)
+
+table accent 0x66a 4280 256 ; Accent Part
+field level ~0 u8 0 127 ; Accent Level
+field motionseq ~1 u8 0=Off 2=TrigHold ; Motion Seq
+seq steps ~2 16 ; Accent-Steps (128 Steps)
+
+table fx1 0x67c 4280 256 ; FX 1
+field type ~0 u8 0 15 ; Effect Type (0-15 = 1-16)
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
+
+table fx2 0x680 4280 256 ; FX 2
+field type ~0 u8 0 15 ; Effect Type (0-15 = 1-16)
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
+
+table fx3 0x684 4280 256 ; FX 3
+field type ~0 u8 0 15 ; Effect Type (0-15 = 1-16)
+field edit1 ~1 u8 0 127 ; Edit 1
+field edit2 ~2 u8 0 127 ; Edit 2
+field motion ~3 u8 0=Off 1=On ; Motion Seq
 
 # Sample-Header mono: 256 Stück à 40 Byte ab 0x1B0100
 table sample 0x1b0100 40 256 ; Sample (mono)
