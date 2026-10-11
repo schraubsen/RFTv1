@@ -39,7 +39,7 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 </section>
 <section class="tab" id="t-scan">
  <div class="row"><label>Min. Länge</label><input id="minlen" type="number" value="4" min="2" style="width:70px"></div>
- <pre id="scanout"></pre>
+ <p style="color:var(--mu)">Gefundene Texte sind direkt editierbar (Länge bleibt gleich, UNBESTÄTIGTE Zuordnung).</p><div id="scanout"></div>
 </section>
 <section class="tab" id="t-sample">
  <p style="color:var(--mu)">Beliebige WAV → mono, 32 kHz, 16 Bit, normalisiert. (MP3/FLAC vorher in WAV wandeln.) Sample-Audio gehört auf die Karte, nicht in SysEx.</p>
@@ -79,11 +79,14 @@ function render(){
    return `<tr><td>${f.label}</td><td class="mono">0x${f.offset.toString(16)}</td><td class="${f.verified?"v":"u"}">${f.verified?"VERIFIZIERT":"UNBESTÄTIGT"}</td>
    <td>${buf&&v!==null?`<input data-i="${i}" value="${String(v).replace(/"/g,"&quot;")}">`:"—"}</td></tr>`}).join("")||"<tr><td colspan=4>Keine Felder im Schema – Offsets per Diff-Tab entdecken und eintragen.</td></tr>"}
  if(cur==="hex")hexView();
- if(cur==="scan")$("scanout").textContent=buf?C.scanAscii(buf,+$("minlen").value||4).map(r=>`0x${r.offset.toString(16).padStart(6,"0")}  ${r.text}`).join("\n")||"nichts gefunden":"Keine Datei.";
+ if(cur==="scan")$("scanout").innerHTML=buf?"<table>"+(C.scanAscii(buf,+$("minlen").value||4).slice(0,1000).map(r=>`<tr><td class="mono">0x${r.offset.toString(16)}</td><td><input class="nm" data-o="${r.offset}" data-l="${r.text.length}" value="${r.text.replace(/"/g,"&quot;")}" maxlength="${r.text.length}"></td><td><button data-add="${r.offset}" data-l="${r.text.length}">→ Schema</button></td></tr>`).join("")||"<tr><td>nichts gefunden</td></tr>")+"</table>":"Keine Datei.";
 }
 $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
  try{C.writeField(buf,fields[i],e.target.value);e.target.value=C.readField(buf,fields[i])}catch(x){alert(x.message)}};
 $("minlen").oninput=render;
+$("scanout").onchange=e=>{const t=e.target;if(!t.classList.contains("nm"))return;const f={offset:+t.dataset.o,type:"ascii",len:+t.dataset.l};C.writeField(buf,f,t.value)};
+$("scanout").onclick=e=>{const o=e.target.dataset.add;if(o==null)return;addField(`field text_0x${(+o).toString(16)} 0x${(+o).toString(16)} ascii ${e.target.dataset.l} ; Text @0x${(+o).toString(16)}`);e.target.textContent="✓"};
+function addField(line){$("schema").value=$("schema").value.replace(/\n*$/,"\n")+line+"\n";applySchema()}
 let hexBase=0;
 function hexView(){if(!buf){$("hex").textContent="Keine Datei.";return}
  const n=256;let h="";for(let i=0;i<n;i++){const o=hexBase+i;if(o>=buf.length)break;
@@ -91,11 +94,12 @@ function hexView(){if(!buf){$("hex").textContent="Keine Datei.";return}
  $("hex").innerHTML=h;$("hexlbl").textContent=`0x${hexBase.toString(16)} / ${buf.length} Bytes`}
 $("hexgo").onclick=()=>{hexBase=Math.max(0,(parseInt($("hexoff").value)||0)&~15);hexView()};
 $("hex").onchange=e=>{const o=+e.target.dataset.o,v=parseInt(e.target.value,16);if(Number.isNaN(v))return hexView();buf[o]=v;hexView()};
+$("diffout").onclick=e=>{const o=e.target.dataset.o;if(e.target.id==="addDiff"){const h=(+o).toString(16);addField(`field p_0x${h} 0x${h} u8 0 255 ; Parameter @0x${h}`);e.target.textContent="✓"}};
 $("after").onchange=async e=>{const f=e.target.files[0];if(!f||!buf)return $("diffout").textContent="Erst Datei laden.";
  const a=new Uint8Array(await f.arrayBuffer()),d=C.diff(orig,a);
  $("diffout").innerHTML=(d.length===0?"identisch":d.length===1?`<b class="v">1 Byte</b> – eindeutig:`:`<b class="u">${d.length} Bytes</b> – mehrere Änderungen, Zuordnung mehrdeutig! Nur EINEN Parameter ändern.`)+
   `<table>${d.slice(0,500).map(r=>`<tr><td>0x${r.offset.toString(16)}</td><td>${r.a==null?"—":hx(r.a)}</td><td>→</td><td>${r.b==null?"—":hx(r.b)}</td></tr>`).join("")}</table>
-  ${d.length===1?`<p>Schema-Zeile:<br><code>field neu !0x${d[0].offset.toString(16)} u8 0 255 ; Beschreibung</code></p>`:""}`};
+  ${d.length===1?`<p><code>field neu 0x${d[0].offset.toString(16)} u8 0 255 ; Parameter @0x${d[0].offset.toString(16)}</code> <button id="addDiff" data-o="${d[0].offset}">→ Schema (unbestätigt)</button></p>`:""}`};
 let wavSrc=null;
 $("wav").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{wavSrc={name:f.name,w:C.parseWav(new Uint8Array(await f.arrayBuffer()))};
  $("wavinfo").textContent=`${f.name}: ${wavSrc.w.rate} Hz, ${wavSrc.w.channels.length} Kanal/Kanäle, ${wavSrc.w.channels[0].length} Frames`}catch(x){wavSrc=null;$("wavinfo").textContent=x.message}};
