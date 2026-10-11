@@ -11,7 +11,7 @@ button{cursor:pointer}button:hover,button.on{border-color:var(--red);color:#fff}
 main{padding:16px;max-width:1100px;margin:auto}.tab{display:none}.tab.on{display:block}
 .mono{font-family:ui-monospace,monospace;font-size:12px}pre{background:var(--pn);padding:10px;overflow:auto;max-height:420px;border-radius:4px}
 table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1px solid #222;text-align:left}
-.u{color:var(--warn)}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
+.u{color:var(--warn)}.r{color:#6cf}details{margin:6px 0}summary{cursor:pointer}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}label{color:var(--mu)}
 .hex{display:grid;grid-template-columns:repeat(16,1fr);gap:1px;max-width:760px}.hex input{padding:2px;text-align:center;width:100%;font:12px ui-monospace,monospace}
 .hex input.d{border-color:var(--red)}
@@ -26,7 +26,8 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 <section class="tab" id="t-params">
  <p style="color:var(--mu)">Felder kommen aus dem Schema. <span class="u">UNBESTÄTIGT</span> = Offset geraten, <span class="v">VERIFIZIERT</span> = Hardware-getestet (<code>!</code>).</p>
  <div class="row"><label>Schema</label><textarea id="schema" rows="8" cols="70" class="mono"></textarea><button id="applySchema">Schema anwenden</button></div>
- <table id="fields"></table>
+ <div class="row"><label>Eintrag</label><select id="idx"></select><span id="idxinfo" class="mono"></span></div>
+ <div id="fields"></div>
 </section>
 <section class="tab" id="t-hex">
  <div class="row"><label>Offset</label><input id="hexoff" value="0" size="8"><button id="hexgo">Gehe zu</button><span class="mono" id="hexlbl"></span></div>
@@ -47,7 +48,10 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
  <div id="wavinfo" class="mono"></div>
 </section>
 <section class="tab" id="t-sysex">
- <p style="color:var(--mu)">7-Bit-Kodierung (Korg). Model-IDs sind offen (<code>TODO: verifizieren</code>), Framing daher gesperrt.</p>
+ <p style="color:var(--mu)">ESX-1 Model-ID 0x71 (Korg-Doku). EMX-1-ID noch offen (TODO). Web-MIDI braucht Chrome/Edge + MIDI-Interface; Hardware-Test steht aus.</p>
+ <div class="row"><select id="mout"></select><select id="min"></select><button id="mconn">MIDI verbinden</button><label>Kanal</label><input id="mch" type="number" value="1" min="1" max="16" style="width:60px"></div>
+ <div class="row"><select id="mreq"><option value="16">Current Pattern Dump Request (10h)</option><option value="28">Pattern Bank Dump Request (1Ch, Bank A=0)</option><option value="10">Current Song Dump Request (0Ah)</option><option value="11">All Song Dump Request (0Bh)</option><option value="14">Global Dump Request (0Eh)</option></select><input id="mbank" type="number" value="0" min="0" max="3" style="width:60px"><button id="mbuild">Request bauen</button><button id="msend">Senden</button><button id="msave">Empfangene SysEx speichern (.syx)</button></div>
+ <div id="mlog" class="mono"></div>
  <div class="row"><textarea id="sxin" rows="3" cols="60" class="mono" placeholder="Hex-Bytes, z.B. 80 FF 12"></textarea></div>
  <div class="row"><button id="p7">pack7</button><button id="u7">unpack7</button></div><pre id="sxout"></pre>
 </section>
@@ -56,7 +60,7 @@ table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1p
 import * as C from "./core.js";
 const $=id=>document.getElementById(id), hx=n=>n.toString(16).padStart(2,"0");
 const tabs=[["file","Datei"],["params","Parameter"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
-let buf=null,orig=null,name="",fields=[],cur="file";
+let buf=null,orig=null,name="",fields=[],tables=[],cur="file",idx=0;
 $("nav").innerHTML=tabs.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join("");
 $("nav").onclick=e=>{const k=e.target.dataset.k;if(k)show(k)};
 function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.id==="t-"+k));
@@ -64,7 +68,7 @@ function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.
 async function loadSchema(kind){const f=kind==="EMX-1"?"emx1":"esx1";
  try{$("schema").value=await (await fetch(`schema/${f}.def`)).text()}catch{ $("schema").value="# Schema konnte nicht geladen werden (file://?). Hier einfügen."}
  applySchema()}
-function applySchema(){try{fields=C.parseSchema($("schema").value)}catch(e){alert(e.message);fields=[]}render()}
+function applySchema(){try{({fields,tables}=C.parseSchema($("schema").value))}catch(e){alert(e.message);fields=[];tables=[]}render()}
 $("applySchema").onclick=applySchema;
 $("file").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  buf=new Uint8Array(await f.arrayBuffer());orig=buf.slice();name=f.name;
@@ -74,15 +78,21 @@ function dl(data,fn){const a=document.createElement("a");a.href=URL.createObject
 function render(){
  if(cur==="file")$("info").textContent=buf?`${name}\n${buf.length} Bytes\nTyp: ${$("kind").textContent}\nGeändert: ${C.diff(orig,buf).length} Bytes\nSchema-Felder: ${fields.length}`:"Keine Datei geladen.";
  if(cur==="params"){
-  $("fields").innerHTML="<tr><th>Feld</th><th>Offset</th><th>Status</th><th>Wert</th></tr>"+fields.map((f,i)=>{
-   const v=buf?C.readField(buf,f):null;
-   return `<tr><td>${f.label}</td><td class="mono">0x${f.offset.toString(16)}</td><td class="${f.verified?"v":"u"}">${f.verified?"VERIFIZIERT":"UNBESTÄTIGT"}</td>
-   <td>${buf&&v!==null?`<input data-i="${i}" value="${String(v).replace(/"/g,"&quot;")}">`:"—"}</td></tr>`}).join("")||"<tr><td colspan=4>Keine Felder im Schema – Offsets per Diff-Tab entdecken und eintragen.</td></tr>"}
+  const pn=i=>"ABCD"[i>>6]+String((i&63)+1).padStart(2,"0");
+  if($("idx").options.length!==256){$("idx").innerHTML=Array.from({length:256},(_,i)=>`<option value="${i}">${pn(i)}</option>`).join("")}
+  $("idx").value=idx;$("idxinfo").textContent=buf&&C.detectKind(name,buf)==="ESX-1"?`Pattern/Sample-Nr. ${idx+1}`:"";
+  const tr={ref:'<span class="r">REFERENZ</span>',guess:'<span class="u">UNBESTÄTIGT</span>',verified:'<span class="v">VERIFIZIERT</span>'};
+  const groups=[...tables.map(t=>[t,fields.filter(f=>f.tbl===t)]),[null,fields.filter(f=>!f.tbl)]].filter(g=>g[1].length);
+  $("fields").innerHTML=groups.map(([t,fs])=>`<details ${t&&["pattern","drum1"].includes(t.id)||!t?"open":""}><summary><b>${t?t.title:"Ohne Tabelle"}</b></summary><table>`+fs.map(f=>{
+   const i=fields.indexOf(f);let v=null;try{v=buf?C.readField(buf,f,idx):null}catch{}
+   const inp=v===null?"—":f.enum?`<select data-i="${i}" data-x="${idx}">${Object.entries(f.enum).map(([k,l])=>`<option value="${k}" ${+k===v?"selected":""}>${l}</option>`).join("")}</select>`:`<input data-i="${i}" data-x="${idx}" value="${String(v).replace(/"/g,"&quot;")}">`;
+   return `<tr><td>${f.label}</td><td class="mono">0x${(f.offset+(t?t.base+idx*t.stride:0)).toString(16)}</td><td>${tr[f.trust]}</td><td>${inp}</td></tr>`}).join("")+"</table></details>").join("")||"<p>Keine Felder im Schema.</p>"}
  if(cur==="hex")hexView();
  if(cur==="scan")$("scanout").innerHTML=buf?"<table>"+(C.scanAscii(buf,+$("minlen").value||4).slice(0,1000).map(r=>`<tr><td class="mono">0x${r.offset.toString(16)}</td><td><input class="nm" data-o="${r.offset}" data-l="${r.text.length}" value="${r.text.replace(/"/g,"&quot;")}" maxlength="${r.text.length}"></td><td><button data-add="${r.offset}" data-l="${r.text.length}">→ Schema</button></td></tr>`).join("")||"<tr><td>nichts gefunden</td></tr>")+"</table>":"Keine Datei.";
 }
 $("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
- try{C.writeField(buf,fields[i],e.target.value);e.target.value=C.readField(buf,fields[i])}catch(x){alert(x.message)}};
+ const x=+e.target.dataset.x;try{C.writeField(buf,fields[i],e.target.value,x);if(e.target.tagName==="INPUT")e.target.value=C.readField(buf,fields[i],x)}catch(x){alert(x.message)}};
+$("idx").onchange=()=>{idx=+$("idx").value;render()};
 $("minlen").oninput=render;
 $("scanout").onchange=e=>{const t=e.target;if(!t.classList.contains("nm"))return;const f={offset:+t.dataset.o,type:"ascii",len:+t.dataset.l};C.writeField(buf,f,t.value)};
 $("scanout").onclick=e=>{const o=e.target.dataset.add;if(o==null)return;addField(`field text_0x${(+o).toString(16)} 0x${(+o).toString(16)} ascii ${e.target.dataset.l} ; Text @0x${(+o).toString(16)}`);e.target.textContent="✓"};
@@ -108,5 +118,15 @@ $("wavgo").onclick=()=>{if(!wavSrc)return;const s=C.toKorgSample(wavSrc.w,{norma
 const bytes=()=>Uint8Array.from($("sxin").value.trim().split(/[\s,]+/).filter(Boolean).map(x=>parseInt(x,16)&255));
 const out=u=>$("sxout").textContent=[...u].map(hx).join(" ");
 $("p7").onclick=()=>out(C.pack7(bytes()));$("u7").onclick=()=>out(C.unpack7(bytes()));
+let midi=null,rx=[];
+const reqFrame=()=>{const f=+$("mreq").value;return C.requestFrame(+$("mch").value-1,C.MODEL_ID.ESX1,f,f===0x1c?+$("mbank").value:null)};
+$("mbuild").onclick=()=>out(reqFrame());
+$("mconn").onclick=async()=>{try{midi=await navigator.requestMIDIAccess({sysex:true});
+ $("mout").innerHTML=[...midi.outputs.values()].map(o=>`<option value="${o.id}">${o.name}</option>`).join("");
+ $("min").innerHTML=[...midi.inputs.values()].map(o=>`<option value="${o.id}">${o.name}</option>`).join("");
+ midi.inputs.forEach(i=>i.onmidimessage=m=>{if(m.data[0]===0xf0&&i.id===$("min").value){rx.push(m.data);$("mlog").textContent=`${rx.length} SysEx-Nachricht(en) empfangen, zuletzt ${m.data.length} Bytes`}});
+ $("mlog").textContent="MIDI verbunden"}catch(e){$("mlog").textContent="MIDI nicht verfügbar: "+e.message}};
+$("msend").onclick=()=>{try{const o=midi&&midi.outputs.get($("mout").value);if(!o)throw new Error("Erst MIDI verbinden");o.send(reqFrame());$("mlog").textContent="Request gesendet"}catch(e){$("mlog").textContent=e.message}};
+$("msave").onclick=()=>{if(rx.length)dl(new Blob(rx),"dump.syx");else $("mlog").textContent="Nichts empfangen"};
 show("file");
 </script></body></html>

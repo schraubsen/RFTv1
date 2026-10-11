@@ -1,10 +1,123 @@
-# Electribe Schema  (Offsets NICHT aus dem Gedächtnis erfunden)
-# Format:  field <id> <offset> <type> [len] [min] [max] ; Label
-#   offset: 0x.. hex oder dezimal. Präfix "!" = auf echter Hardware verifiziert.
-#           Ohne "!" = Vermutung -> UI zeigt "UNBESTÄTIGT".
-#   type:   u8 | u16le | u16be | ascii (braucht len)
-# Neue Zeilen per Offset-Discovery (Tab "Diff") ermitteln: before.esx / after.esx,
-# genau EIN Parameter geändert, dann Zeile mit "!" eintragen.
-#
-# Beispiel (auskommentiert, kein echter Wert):
-# field pattern01_name 0x0000 ascii 8 ; Pattern 1 Name
+# ESX-1 Schema. Vertrauen: ~ = Referenz (Korg ESX1midiimp.txt + lammas/electribe), gegen Standard-default.esx plausibilisiert,
+# NICHT von uns auf Hardware verifiziert. ! = Hardware-verifiziert. Ohne Präfix = Vermutung.
+# table: Pattern 1..256 (A01..D64) -> index*4280 ab 0x200. Teile (parts) laut Korg TABLE4.
+
+table pattern 0x200 4280 256 ; Pattern
+field name ~0 ascii 8 ; Name
+field tempo_bpm ~8 u16be @7:9 20 300 ; Tempo (BPM ganz)
+field tempo_dec ~8 u16be @0:4 0 9 ; Tempo (Dezimalstelle)
+field swing ~10 u8 0 25 ; Swing (50+x %)
+field length ~11 u8 @0:3 0 7 ; Pattern-Länge (0-7 = 1-8 Takte)
+field beat ~11 u8 @4:2 0=16tel 1=32tel 2=8tel-Triole 3=16tel-Triole ; Beat
+field roll ~11 u8 @6:2 0=2 1=3 2=4 ; Roll-Typ
+field fxchain ~12 u8 0=None 1=1-2 2=2-3 3=1-2-3 ; FX-Kette
+field laststep ~13 u8 0 15 ; Last Step (0-15)
+field arpscale ~14 u8 @0:5 0 30 ; Arp-Scale (0=Chromatic .. 30=Octave)
+field arpcenter ~15 u8 0 127 ; Arp Center Note
+
+table drum1 0x218 4280 256 ; Drum Part 1
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum2 0x23a 4280 256 ; Drum Part 2
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum3 0x25c 4280 256 ; Drum Part 3
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum4 0x27e 4280 256 ; Drum Part 4
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum5 0x2a0 4280 256 ; Drum Part 5
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum6 0x2c2 4280 256 ; Drum Part 6
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum7 0x2e4 4280 256 ; Drum Part 7
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum8 0x306 4280 256 ; Drum Part 8
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+table drum9 0x328 4280 256 ; Drum Part 9
+field sample ~0 u16be 0 999 ; Sample-Pointer
+field cutoff ~5 u8 0 127 ; Cutoff
+field reso ~6 u8 0 127 ; Resonance
+field egint ~7 u8 0 127 ; EG Int (64=0)
+field pitch ~8 u8 0 127 ; Pitch (64=Original)
+field level ~9 u8 0 127 ; Level
+field pan ~10 u8 0 127 ; Pan (64=Center)
+field egtime ~11 u8 0 127 ; EG Time
+field start ~12 u8 0 127 ; Start Point
+
+# Sample-Header mono: 256 Stück à 40 Byte ab 0x1B0100
+table sample 0x1b0100 40 256 ; Sample (mono)
+field name ~0 ascii 8 ; Name
+field rate ~28 u32be 0 4294967295 ; Samplerate (Hz)
+field tune ~32 u16be @8:8 0 99 ; Tune (Dezimal, 0-99)
+field tunewhole ~32 u16be @1:7 0 127 ; Tune (ganz)
+field playlevel ~34 u8 0=0dB 1=+12dB ; Play Level

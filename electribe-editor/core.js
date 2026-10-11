@@ -1,5 +1,11 @@
 // electribe core: kein DOM, läuft im Browser und in Node.
-export const MODEL_ID = { ESX1: null, EMX1: null }; // TODO: verifizieren (ESX1midiimp.txt)
+// ESX-1: 0x71 laut Korg ESX1midiimp.txt (Header F0,42,3g,71). EMX-1: TODO verifizieren (EMX1midiimp.txt).
+export const MODEL_ID = { ESX1: 0x71, EMX1: null };
+export const FUNC = { CURRENT_PATTERN_REQ: 0x10, PATTERN_REQ: 0x1c, CURRENT_SONG_REQ: 0x0a, ALL_SONG_REQ: 0x0b, GLOBAL_REQ: 0x0e };
+export function requestFrame(channel, modelId, func, arg) {
+  if (modelId == null) throw new Error("Model-ID unbekannt (TODO: verifizieren)");
+  return Uint8Array.from([0xf0, 0x42, 0x30 | (channel & 15), modelId, func, ...(arg == null ? [] : [arg & 0x7f]), 0xf7]);
+}
 
 // ---- Korg 7-Bit-Kodierung: Carrier-Byte (MSBs) + bis zu 7 Nutzbytes ----
 export function pack7(data) {
@@ -27,52 +33,71 @@ export function sysexFrame(channel, modelId, func, payload) {
 }
 
 // ---- Schema ----
+// table <id> <base> <stride> <count> ; Titel   -> folgende fields sind relativ zu base + index*stride
+// field <id> <offset> <type> [@lo:n] [min max] [wert=name ...] ; Label
+// Vertrauen: "!off" verifiziert (Hardware) | "~off" Referenzquelle (Korg-Doku/lammas, in default.esx plausibilisiert) | "off" Vermutung
+const TYPES = { u8: 1, u16le: 2, u16be: 2, u32be: 4, ascii: 0 };
 export function parseSchema(text) {
-  const fields = [];
+  const fields = [], tables = []; let table = null;
   text.split(/\r?\n/).forEach((raw, i) => {
-    const line = raw.trim();
+    const line = raw.trim(), err = m => new Error(`Schema Zeile ${i + 1}: ${m}`);
     if (!line || line[0] === "#") return;
     const [spec, label = ""] = line.split(";");
     const t = spec.trim().split(/\s+/);
-    if (t[0] !== "field" || t.length < 4) throw new Error(`Schema Zeile ${i + 1}: ungültig`);
-    let off = t[2], verified = false;
-    if (off[0] === "!") { verified = true; off = off.slice(1); }
-    const offset = Number(off);
-    if (!Number.isInteger(offset) || offset < 0) throw new Error(`Schema Zeile ${i + 1}: Offset`);
+    const num = x => { const n = Number(x); if (!Number.isInteger(n) || n < 0) throw err("Zahl " + x); return n; };
+    if (t[0] === "table") {
+      if (t.length < 5) throw err("table braucht id base stride count");
+      table = { id: t[1], base: num(t[2]), stride: num(t[3]), count: num(t[4]), title: label.trim() || t[1] };
+      tables.push(table); return;
+    }
+    if (t[0] !== "field" || t.length < 4) throw err("ungültig");
+    let off = t[2], trust = "guess";
+    if (off[0] === "!") { trust = "verified"; off = off.slice(1); } else if (off[0] === "~") { trust = "ref"; off = off.slice(1); }
     const type = t[3];
-    if (!["u8", "u16le", "u16be", "ascii"].includes(type)) throw new Error(`Schema Zeile ${i + 1}: Typ ${type}`);
-    const rest = t.slice(4).map(Number);
-    const f = { id: t[1], offset, verified, type, label: label.trim() || t[1] };
-    if (type === "ascii") { f.len = rest[0]; if (!f.len) throw new Error(`Schema Zeile ${i + 1}: len`); }
-    else { f.min = rest[0]; f.max = rest[1]; }
+    if (!(type in TYPES)) throw err("Typ " + type);
+    const f = { id: t[1], offset: num(off), trust, verified: trust === "verified", type, label: label.trim() || t[1], table: table && table.id, tbl: table };
+    const rest = t.slice(4), nums = [];
+    for (const r of rest) {
+      if (r[0] === "@") { const [lo, n] = r.slice(1).split(":").map(Number); if (!(n > 0) || lo < 0 || lo + n > TYPES[type] * 8) throw err("Bitbereich"); f.lo = lo; f.bits = n; }
+      else if (r.includes("=")) { const [k, ...v] = r.split("="); (f.enum ||= {})[num(k)] = v.join("=").replace(/_/g, " "); }
+      else nums.push(num(r));
+    }
+    if (type === "ascii") { f.len = nums[0]; if (!f.len) throw err("len"); } else { f.min = nums[0]; f.max = nums[1]; }
     fields.push(f);
   });
-  return fields;
+  return { fields, tables };
 }
-const size = f => (f.type === "u8" ? 1 : f.type === "ascii" ? f.len : 2);
-export function readField(buf, f) {
-  if (f.offset + size(f) > buf.length) return null;
+const size = f => (f.type === "ascii" ? f.len : TYPES[f.type]);
+const absOff = (f, idx = 0) => {
+  if (f.tbl && (idx < 0 || idx >= f.tbl.count)) throw new Error("Index außerhalb der Tabelle");
+  return f.offset + (f.tbl ? f.tbl.base + idx * f.tbl.stride : 0);
+};
+export function readField(buf, f, idx = 0) {
+  const o = absOff(f, idx);
+  if (o + size(f) > buf.length) return null;
+  if (f.type === "ascii") return String.fromCharCode(...buf.subarray(o, o + f.len)).replace(/[\0 ]+$/, "");
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  switch (f.type) {
-    case "u8": return buf[f.offset];
-    case "u16le": return dv.getUint16(f.offset, true);
-    case "u16be": return dv.getUint16(f.offset, false);
-    case "ascii": return String.fromCharCode(...buf.subarray(f.offset, f.offset + f.len)).replace(/\0+$/, "");
-  }
+  let v = f.type === "u8" ? buf[o] : f.type === "u16le" ? dv.getUint16(o, true) : f.type === "u16be" ? dv.getUint16(o, false) : dv.getUint32(o, false);
+  if (f.bits) v = Math.floor(v / 2 ** f.lo) % 2 ** f.bits;
+  return v;
 }
-export function writeField(buf, f, v) {
-  if (f.offset + size(f) > buf.length) throw new Error("Offset außerhalb der Datei");
-  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  if (f.type === "ascii") {
-    for (let i = 0; i < f.len; i++) buf[f.offset + i] = i < v.length ? v.charCodeAt(i) & 0x7f : 0;
-    return;
-  }
+export function writeField(buf, f, v, idx = 0) {
+  const o = absOff(f, idx);
+  if (o + size(f) > buf.length) throw new Error("Offset außerhalb der Datei");
+  if (f.type === "ascii") { for (let i = 0; i < f.len; i++) buf[o + i] = i < v.length ? v.charCodeAt(i) & 0x7f : 0x20; return; }
   v = Number(v);
   if (!Number.isFinite(v)) throw new Error("Zahl erwartet");
-  if (f.min != null && v < f.min) v = f.min;
-  if (f.max != null && v > f.max) v = f.max;
-  if (f.type === "u8") buf[f.offset] = v & 255;
-  else dv.setUint16(f.offset, v & 0xffff, f.type === "u16le");
+  v = Math.round(v);
+  const lim = f.bits ? 2 ** f.bits - 1 : 2 ** (TYPES[f.type] * 8) - 1;
+  v = Math.max(f.min ?? 0, Math.min(f.max ?? lim, lim, v));
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength), n = TYPES[f.type], le = f.type === "u16le";
+  let cur = 0; for (let i = 0; i < n; i++) cur = cur * 256 + buf[o + (le ? n - 1 - i : i)];
+  if (f.bits) { const m = 2 ** f.bits, hi = Math.floor(cur / 2 ** (f.lo + f.bits)); cur = hi * 2 ** (f.lo + f.bits) + v * 2 ** f.lo + (cur % 2 ** f.lo); }
+  else cur = v;
+  for (let i = 0; i < n; i++) { buf[o + (le ? i : n - 1 - i)] = cur % 256; cur = Math.floor(cur / 256); }
+}
+export function tempoBpm(buf, idx = 0, base = 0x200, stride = 4280) { // 9 Bit ganz (Bit7..) + 4 Bit Dezimal, laut lammas/Korg
+  const v = (buf[base + idx * stride + 8] << 8) | buf[base + idx * stride + 9]; return ((v >> 7) & 0x1ff) + (v & 15) / 10;
 }
 
 // ---- Analyse ----
@@ -95,6 +120,7 @@ export function scanAscii(buf, minLen = 4) {
 }
 export function detectKind(name, buf) {
   const ext = (name.split(".").pop() || "").toLowerCase();
+  if (buf.length > 11 && String.fromCharCode(...buf.subarray(0, 4)) === "KORG" && buf[7] === 0x71 && String.fromCharCode(...buf.subarray(8, 11)) === "ESX") return "ESX-1";
   if (ext === "esx") return "ESX-1";
   if (ext === "emx") return "EMX-1";
   if (buf[0] === 0xf0) return "SysEx";
