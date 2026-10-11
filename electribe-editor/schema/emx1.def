@@ -1,0 +1,10 @@
+# Electribe Schema  (Offsets NICHT aus dem Gedächtnis erfunden)
+# Format:  field <id> <offset> <type> [len] [min] [max] ; Label
+#   offset: 0x.. hex oder dezimal. Präfix "!" = auf echter Hardware verifiziert.
+#           Ohne "!" = Vermutung -> UI zeigt "UNBESTÄTIGT".
+#   type:   u8 | u16le | u16be | ascii (braucht len)
+# Neue Zeilen per Offset-Discovery (Tab "Diff") ermitteln: before.esx / after.esx,
+# genau EIN Parameter geändert, dann Zeile mit "!" eintragen.
+#
+# Beispiel (auskommentiert, kein echter Wert):
+# field pattern01_name 0x0000 ascii 8 ; Pattern 1 Name

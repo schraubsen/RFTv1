@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Electribe Matrix Studio</title>
+<style>
+:root{--bg:#0b0b0e;--pn:#15151b;--tx:#e8e8ee;--mu:#8a8a99;--red:#ff2a3c;--ok:#3ddc84;--warn:#ffb020}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif}
+header{padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #222}
+h1{font:700 16px monospace;color:var(--red);margin:0;letter-spacing:2px;text-shadow:0 0 8px var(--red)}
+nav{display:flex;gap:4px;flex-wrap:wrap}button,input,select,textarea{font:inherit;color:var(--tx);background:var(--pn);border:1px solid #333;border-radius:4px;padding:6px 10px}
+button{cursor:pointer}button:hover,button.on{border-color:var(--red);color:#fff}
+main{padding:16px;max-width:1100px;margin:auto}.tab{display:none}.tab.on{display:block}
+.mono{font-family:ui-monospace,monospace;font-size:12px}pre{background:var(--pn);padding:10px;overflow:auto;max-height:420px;border-radius:4px}
+table{border-collapse:collapse;width:100%}td,th{padding:4px 8px;border-bottom:1px solid #222;text-align:left}
+.u{color:var(--warn)}.v{color:var(--ok)}.led{font:700 22px monospace;color:var(--red);text-shadow:0 0 6px var(--red)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}label{color:var(--mu)}
+.hex{display:grid;grid-template-columns:repeat(16,1fr);gap:1px;max-width:760px}.hex input{padding:2px;text-align:center;width:100%;font:12px ui-monospace,monospace}
+.hex input.d{border-color:var(--red)}
+</style></head><body>
+<header><h1>ELECTRIBE MATRIX STUDIO</h1><span class="led" id="kind">—</span>
+<nav id="nav"></nav></header>
+<main>
+<section class="tab" id="t-file">
+ <div class="row"><input type="file" id="file" accept=".esx,.emx,.syx,*/*"><button id="save">Speichern (Download)</button></div>
+ <div id="info" class="mono">Keine Datei geladen. Lade eine .esx/.emx (All Data von der Karte).</div>
+</section>
+<section class="tab" id="t-params">
+ <p style="color:var(--mu)">Felder kommen aus dem Schema. <span class="u">UNBESTÄTIGT</span> = Offset geraten, <span class="v">VERIFIZIERT</span> = Hardware-getestet (<code>!</code>).</p>
+ <div class="row"><label>Schema</label><textarea id="schema" rows="8" cols="70" class="mono"></textarea><button id="applySchema">Schema anwenden</button></div>
+ <table id="fields"></table>
+</section>
+<section class="tab" id="t-hex">
+ <div class="row"><label>Offset</label><input id="hexoff" value="0" size="8"><button id="hexgo">Gehe zu</button><span class="mono" id="hexlbl"></span></div>
+ <div class="hex" id="hex"></div>
+</section>
+<section class="tab" id="t-diff">
+ <p style="color:var(--mu)">Offset-Discovery: <b>before</b> = geladene Datei, <b>after</b> = Datei mit genau EINEM geänderten Parameter.</p>
+ <div class="row"><label>after</label><input type="file" id="after"></div>
+ <div id="diffout" class="mono"></div>
+</section>
+<section class="tab" id="t-scan">
+ <div class="row"><label>Min. Länge</label><input id="minlen" type="number" value="4" min="2" style="width:70px"></div>
+ <pre id="scanout"></pre>
+</section>
+<section class="tab" id="t-sample">
+ <p style="color:var(--mu)">Beliebige WAV → mono, 32 kHz, 16 Bit, normalisiert. (MP3/FLAC vorher in WAV wandeln.) Sample-Audio gehört auf die Karte, nicht in SysEx.</p>
+ <div class="row"><input type="file" id="wav" accept=".wav"><label><input type="checkbox" id="norm" checked> Normalisieren</label><button id="wavgo">Konvertieren & Download</button></div>
+ <div id="wavinfo" class="mono"></div>
+</section>
+<section class="tab" id="t-sysex">
+ <p style="color:var(--mu)">7-Bit-Kodierung (Korg). Model-IDs sind offen (<code>TODO: verifizieren</code>), Framing daher gesperrt.</p>
+ <div class="row"><textarea id="sxin" rows="3" cols="60" class="mono" placeholder="Hex-Bytes, z.B. 80 FF 12"></textarea></div>
+ <div class="row"><button id="p7">pack7</button><button id="u7">unpack7</button></div><pre id="sxout"></pre>
+</section>
+</main>
+<script type="module">
+import * as C from "./core.js";
+const $=id=>document.getElementById(id), hx=n=>n.toString(16).padStart(2,"0");
+const tabs=[["file","Datei"],["params","Parameter"],["hex","Hex"],["diff","Diff"],["scan","Scan"],["sample","Sample"],["sysex","SysEx"]];
+let buf=null,orig=null,name="",fields=[],cur="file";
+$("nav").innerHTML=tabs.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join("");
+$("nav").onclick=e=>{const k=e.target.dataset.k;if(k)show(k)};
+function show(k){cur=k;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.id==="t-"+k));
+ document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.k===k));render()}
+async function loadSchema(kind){const f=kind==="EMX-1"?"emx1":"esx1";
+ try{$("schema").value=await (await fetch(`schema/${f}.def`)).text()}catch{ $("schema").value="# Schema konnte nicht geladen werden (file://?). Hier einfügen."}
+ applySchema()}
+function applySchema(){try{fields=C.parseSchema($("schema").value)}catch(e){alert(e.message);fields=[]}render()}
+$("applySchema").onclick=applySchema;
+$("file").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+ buf=new Uint8Array(await f.arrayBuffer());orig=buf.slice();name=f.name;
+ const k=C.detectKind(name,buf);$("kind").textContent=k;await loadSchema(k);render()};
+$("save").onclick=()=>{if(!buf)return;dl(buf,name.replace(/(\.\w+)?$/,"_edit$1"))};
+function dl(data,fn){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=fn;a.click()}
+function render(){
+ if(cur==="file")$("info").textContent=buf?`${name}\n${buf.length} Bytes\nTyp: ${$("kind").textContent}\nGeändert: ${C.diff(orig,buf).length} Bytes\nSchema-Felder: ${fields.length}`:"Keine Datei geladen.";
+ if(cur==="params"){
+  $("fields").innerHTML="<tr><th>Feld</th><th>Offset</th><th>Status</th><th>Wert</th></tr>"+fields.map((f,i)=>{
+   const v=buf?C.readField(buf,f):null;
+   return `<tr><td>${f.label}</td><td class="mono">0x${f.offset.toString(16)}</td><td class="${f.verified?"v":"u"}">${f.verified?"VERIFIZIERT":"UNBESTÄTIGT"}</td>
+   <td>${buf&&v!==null?`<input data-i="${i}" value="${String(v).replace(/"/g,"&quot;")}">`:"—"}</td></tr>`}).join("")||"<tr><td colspan=4>Keine Felder im Schema – Offsets per Diff-Tab entdecken und eintragen.</td></tr>"}
+ if(cur==="hex")hexView();
+ if(cur==="scan")$("scanout").textContent=buf?C.scanAscii(buf,+$("minlen").value||4).map(r=>`0x${r.offset.toString(16).padStart(6,"0")}  ${r.text}`).join("\n")||"nichts gefunden":"Keine Datei.";
+}
+$("fields").onchange=e=>{const i=e.target.dataset.i;if(i==null)return;
+ try{C.writeField(buf,fields[i],e.target.value);e.target.value=C.readField(buf,fields[i])}catch(x){alert(x.message)}};
+$("minlen").oninput=render;
+let hexBase=0;
+function hexView(){if(!buf){$("hex").textContent="Keine Datei.";return}
+ const n=256;let h="";for(let i=0;i<n;i++){const o=hexBase+i;if(o>=buf.length)break;
+  h+=`<input data-o="${o}" value="${hx(buf[o])}" maxlength="2" class="${buf[o]!==orig[o]?"d":""}">`}
+ $("hex").innerHTML=h;$("hexlbl").textContent=`0x${hexBase.toString(16)} / ${buf.length} Bytes`}
+$("hexgo").onclick=()=>{hexBase=Math.max(0,(parseInt($("hexoff").value)||0)&~15);hexView()};
+$("hex").onchange=e=>{const o=+e.target.dataset.o,v=parseInt(e.target.value,16);if(Number.isNaN(v))return hexView();buf[o]=v;hexView()};
+$("after").onchange=async e=>{const f=e.target.files[0];if(!f||!buf)return $("diffout").textContent="Erst Datei laden.";
+ const a=new Uint8Array(await f.arrayBuffer()),d=C.diff(orig,a);
+ $("diffout").innerHTML=(d.length===0?"identisch":d.length===1?`<b class="v">1 Byte</b> – eindeutig:`:`<b class="u">${d.length} Bytes</b> – mehrere Änderungen, Zuordnung mehrdeutig! Nur EINEN Parameter ändern.`)+
+  `<table>${d.slice(0,500).map(r=>`<tr><td>0x${r.offset.toString(16)}</td><td>${r.a==null?"—":hx(r.a)}</td><td>→</td><td>${r.b==null?"—":hx(r.b)}</td></tr>`).join("")}</table>
+  ${d.length===1?`<p>Schema-Zeile:<br><code>field neu !0x${d[0].offset.toString(16)} u8 0 255 ; Beschreibung</code></p>`:""}`};
+let wavSrc=null;
+$("wav").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{wavSrc={name:f.name,w:C.parseWav(new Uint8Array(await f.arrayBuffer()))};
+ $("wavinfo").textContent=`${f.name}: ${wavSrc.w.rate} Hz, ${wavSrc.w.channels.length} Kanal/Kanäle, ${wavSrc.w.channels[0].length} Frames`}catch(x){wavSrc=null;$("wavinfo").textContent=x.message}};
+$("wavgo").onclick=()=>{if(!wavSrc)return;const s=C.toKorgSample(wavSrc.w,{normalize:$("norm").checked});
+ dl(C.encodeWav16(s.rate,s.data),wavSrc.name.replace(/\.wav$/i,"")+"_32k.wav");$("wavinfo").textContent+=`\n→ ${s.data.length} Samples @ ${s.rate} Hz`};
+const bytes=()=>Uint8Array.from($("sxin").value.trim().split(/[\s,]+/).filter(Boolean).map(x=>parseInt(x,16)&255));
+const out=u=>$("sxout").textContent=[...u].map(hx).join(" ");
+$("p7").onclick=()=>out(C.pack7(bytes()));$("u7").onclick=()=>out(C.unpack7(bytes()));
+show("file");
+</script></body></html>
