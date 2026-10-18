@@ -46,6 +46,10 @@ Geprüft an fünf echten `.esx` (ESX-Werksdaten mit 256 Patterns, 200 Samples un
 - **Zweiter Kopf** bei 0x1B0000: „KORG … q“ gefolgt von „BPS “ oder „BPA “ und einer ASCII-Ziffernfolge.
 - **Song-Events:** 8 Bytes je Ereignis ab 0x138400 (z. B. „PartyOn!“ mit 293 Events); Aufbau noch nicht entschlüsselt.
 
+## Schreiben
+
+Der Open Electribe Editor speichert, indem er die Originaldatei kopiert und Global-Parameter, Patterns, Songs, Song-Events und Sample-Header an ihren Adressen überschreibt; eine Prüfsumme wird nicht berechnet. Das Tool schreibt Patterns genauso: nur der 4 280-Byte-Block des Ziel-Slots ändert sich (im Test: 0 geänderte Bytes außerhalb des Slots, Rücklesen in Browser und Python identisch). Kodierung: Tempo = ganzzahlig << 7 | Zehntel, Swing = Prozent − 50, Länge = Takte − 1 in Bits 0–2, Beat 16tel, Last Step 16, Steps LSB-zuerst, Keyboard-Note mit Bit 7 = aus, Gate 2 bei neuen Noten, leere Motion-Spur = 0xFFFF + 128 × 0x80.
+
 ## Offen / Vermutungen
 
 - Bedeutung der Bytes 4–12 im 16-Byte-Vorspann der Samples und des Bereichs „BPS“ bei 0x1B0000.

@@ -624,7 +624,7 @@ function zipStore(name,u8){return zipFiles([{name,data:u8}])}
 async function dl(name,data,type){
   let blob=data instanceof Blob?data:new Blob([data],{type});
   let d=null;try{d=await window.claude?.use?.("downloads")}catch(e){}
-  if(d){if(/\.(mid|wav)$/i.test(name)){blob=zipStore(name,new Uint8Array(await blob.arrayBuffer()));name+=".zip"}
+  if(d){if(/\.(mid|wav|esx)$/i.test(name)){blob=zipStore(name,new Uint8Array(await blob.arrayBuffer()));name+=".zip"}
     try{await d.save({filename:name,data:blob});return}catch(e){if(e&&e.code==="declined")return;note("Speichern hier nicht möglich: "+(e&&e.code||"unbekannt"));return}}
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 function note(m){const e=$("e-note")||$("k-meas");if(e)e.insertAdjacentHTML("afterend",'<div class="warn">'+m+'</div>')}
@@ -1506,7 +1506,7 @@ function buildInsp(){
     <div class="card"><h3>Hex-Viewer (Datei A)</h3><div class="row"><label>Offset <input id="in-off" value="0x000000" style="width:110px"></label><button id="in-go">Springen</button><button id="in-prev">◀ 256</button><button id="in-next">256 ▶</button></div><pre id="in-hex" style="max-height:420px"></pre></div>
     <div class="card"><h3>Schema</h3><textarea id="in-schema" rows="9" style="width:100%;background:#000;color:var(--fg);border:1px solid var(--line);font:12px monospace;padding:8px"></textarea>
     <div class="row"><button id="in-sdl">⬇ Schema (.txt)</button><span style="color:var(--dim)">Wird in diesem Browser gemerkt. Werte unten aus Datei A.</span></div><div id="in-sval"></div></div>`;
-    const load=(which,f)=>{if(!f)return;f.arrayBuffer().then(b=>{INS[which]=new Uint8Array(b);INS[which==="A"?"an":"bn"]=f.name;INS.hexOff=0;renderInsp()})};
+    const load=(which,f)=>{if(!f)return;f.arrayBuffer().then(b=>{INS[which]=new Uint8Array(b);if(which==="A"){INS.orig=null;ESX.wmsg=""}INS[which==="A"?"an":"bn"]=f.name;INS.hexOff=0;renderInsp()})};
     $("in-a").onchange=e=>load("A",e.target.files[0]);$("in-b").onchange=e=>load("B",e.target.files[0]);
     $("in-min").onchange=renderAscii;$("in-flt").oninput=renderAscii;
     $("in-go").onclick=()=>{INS.hexOff=Math.max(0,parseInt($("in-off").value)||0);renderHex()};
@@ -2249,6 +2249,9 @@ function renderEsx(){
   <div class="row"><span>Patterns belegt: <b>${pats.filter(used).length}</b>/256 · Samples: <b>${smp.length}</b> (Mono ${nm.nummono}, Stereo ${nm.numstereo}) · Songs: <b>${songs.length}</b></span></div>
   <div class="row"><label>Suche <input id="esx-f" value="${ESX.flt.replace(/"/g,"&quot;")}" style="width:140px"></label><label><input type="checkbox" id="esx-all" ${ESX.all?"checked":""}> auch leere</label><label><input type="checkbox" id="esx-msb" ${ESX.lsb?"":"checked"}> Step-Bits MSB zuerst</label>
   <button id="esx-pv">◀</button><span>Seite ${ESX.pg+1}/${np}</span><button id="esx-pn">▶</button><button id="esx-def">⬇ Schema esx1.def</button></div>
+  <div class="card" style="margin:8px 0"><h3>Designer → ESX schreiben</h3><div class="warn">Schreibt das Designer-Pattern in einen Pattern-Slot dieser Datei. Sample-Zuordnung, Filter, Effekte und Sound-Einstellungen des Slots bleiben, ersetzt werden Name, Tempo, Swing, Länge, Steps (Drum 1–7B, Accent) und Noten (Synth 1/2 → Keyboard 1/2). Prüfsummen hat die Datei nicht (wie beim Open Electribe Editor). Am Gerät noch nicht getestet: geänderte Datei als Kopie auf die Karte, Original behalten.</div>
+  <div class="row"><label>Ziel-Pattern <input id="esxw-slot" type="number" min="1" max="256" value="${ESX.wslot||1}" style="width:70px"></label><label>Name <input id="esxw-name" maxlength="8" value="${(ESX.wname||"RFT").replace(/"/g,"")}" style="width:100px"></label><label><input type="checkbox" id="esxw-mot"> Motion im Slot löschen</label>
+  <button id="esxw-one" class="on">Aktuelles Pattern schreiben</button><button id="esxw-set">Alle Set-Slots ab hier</button>${INS.orig?'<button id="esxw-dl">⬇ Geänderte .esx</button><button id="esxw-reset">Änderungen verwerfen</button>':""}</div><div id="esxw-msg" style="color:var(--dim)">${ESX.wmsg||""}</div></div>
   <table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Swing</th><th>Takte</th><th>Beat</th><th>FX-Kette</th><th>Drum-Steps</th><th></th></tr>`+
   list.slice(ESX.pg*PG,ESX.pg*PG+PG).map(({p,i})=>{const n=(p.length+1)*16,ds=p.drum.reduce((a,d)=>a+esxSteps(d.steps,n).reduce((x,y)=>x+y,0),0);
     return`<tr${i===ESX.sel?' style="background:rgba(255,138,31,.25)"':""}><td>${String(i+1).padStart(3,"0")}</td><td>${p.name.replace(/</g,"&lt;")}</td><td>${p.tempo.toFixed(1)}</td><td>${swp(p)}</td><td>${p.length+1}</td><td>${p.beat}</td><td>${p.fxchain}</td><td>${ds}</td><td><button data-esx="${i}">öffnen</button></td></tr>`}).join("")+"</table>";
@@ -2271,6 +2274,13 @@ function renderEsx(){
   $("esx-def").onclick=()=>dl("esx1.def",ESX1_DEF,"text/plain");
   box.querySelectorAll("[data-esx]").forEach(b=>b.onclick=()=>{ESX.sel=+b.dataset.esx;renderEsx()});
   const imp=$("esx-imp");if(imp)imp.onclick=()=>esxImport(pats[ESX.sel]);
+  const wsl=()=>Math.max(1,Math.min(256,+$("esxw-slot").value||1)),wnm=()=>($("esxw-name").value||"RFT");
+  $("esxw-slot").onchange=()=>ESX.wslot=wsl();$("esxw-name").oninput=()=>ESX.wname=$("esxw-name").value;
+  $("esxw-one").onclick=()=>{const r=esxWriteMany([{name:wnm(),bpm:bpmNow(),swing:S.swing,bars:S.bars,steps:S.steps,notes:S.notes}],wsl()-1,$("esxw-mot").checked);ESX.sel=wsl()-1;ESX.wmsg=r;renderEsx()};
+  $("esxw-set").onclick=()=>{const list=S.slots.filter(Boolean).map((o,i)=>({name:(o.name||wnm()+(i+1)).slice(0,8),bpm:o.bpm||bpmNow(),swing:S.swing,bars:o.bars,steps:o.steps,notes:o.notes}));if(!list.length){alert("Keine Set-Slots belegt (Tab Set / Song).");return}
+    if(wsl()-1+list.length>256){alert("Nicht genug Pattern-Plätze ab "+wsl()+".");return}ESX.wmsg=esxWriteMany(list,wsl()-1,$("esxw-mot").checked);ESX.sel=wsl()-1;renderEsx()};
+  const wd=$("esxw-dl");if(wd)wd.onclick=()=>dl((INS.an||"set.esx").replace(/\.[^.]+$/,"")+"-RFT.esx",new Blob([INS.A],{type:"application/octet-stream"}),"application/octet-stream");
+  const wr=$("esxw-reset");if(wr)wr.onclick=()=>{INS.A=INS.orig;INS.orig=null;ESX.wmsg="Änderungen verworfen.";renderInsp()};
   const em=$("esx-mid");if(em)em.onclick=()=>dl(esxMidName(pats[ESX.sel],ESX.sel),new Blob([esxMidi(pats[ESX.sel])],{type:"audio/midi"}),"audio/midi");
   const ea=$("esx-midall");if(ea)ea.onclick=()=>{const files=pats.map((p,i)=>({p,i})).filter(o=>used(o.p)).map(o=>({name:esxMidName(o.p,o.i),data:esxMidi(o.p)}));if(!files.length){alert("Keine belegten Patterns.");return}dl((INS.an||"esx").replace(/\.[^.]+$/,"")+"-patterns-midi.zip",zipFiles(files),"application/zip")};
   box.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>esxPlay(ESX.smp[+b.dataset.sp]));
@@ -2303,6 +2313,22 @@ function esxMidi(p){const ppq=480,st=ppq/4,n=(p.length+1)*16,tempo=Math.round(60
   p.kbd.forEach((k,j)=>{const ev=[];for(let i=0;i<n;i++)if(!(k.notes[i]&0x80)){const note=k.notes[i]&0x7f,vel=acc[i]?127:100,gl=Math.max(1,Math.round(st*0.9));ev.push([i*st,0x90|j,note,vel],[i*st+gl,0x80|j,note,0])}if(ev.length)track("Keyboard "+(j+1),ev)});
   const out=[...Array.from("MThd",c=>c.charCodeAt(0)),0,0,0,6,0,1,0,tr.length,ppq>>8,ppq&255];tr.forEach(t=>out.push(...Array.from("MTrk",c=>c.charCodeAt(0)),(t.length>>>24)&255,(t.length>>>16)&255,(t.length>>>8)&255,t.length&255,...t));return new Uint8Array(out)}
 const esxMidName=(p,i)=>String(i+1).padStart(3,"0")+"_"+(p.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"pattern")+"_"+Math.round(p.tempo)+"bpm.mid";
+/* ESX-Schreiber: Tempo-Kodierung wie beim Lesen (Bits 7–15 ganzzahlig, Bits 0–3 Zehntel), Steps LSB = erster Step,
+   Keyboard-Noten Bit 7 = aus, Gate 2 als Standard, leere Motion-Spur = 0xFFFF + 128 × 0x80 (alles an echten Dateien geprüft) */
+function esxEncodeTempo(b){b=Math.max(20,Math.min(300,b));let i=Math.floor(b+1e-9),t=Math.round((b-i)*10);if(t>9){i++;t=0}return((i&511)<<7)|(t&15)}
+function esxWritePattern(P,slot,src,clearMot){const b=0x200+slot*4280,n=Math.min(128,src.bars*16),warn=[];
+  const nm=(src.name+"        ").slice(0,8);for(let i=0;i<8;i++){const c=nm.charCodeAt(i);P[b+i]=c>=32&&c<127?c:95}
+  const tv=esxEncodeTempo(src.bpm);P[b+8]=tv>>8;P[b+9]=tv&255;P[b+10]=Math.max(0,Math.min(25,Math.round(src.swing-50)));
+  P[b+11]=(P[b+11]&0xC8)|((src.bars-1)&7);P[b+13]=15;
+  const put=(off,arr)=>{for(let k=0;k<16;k++)P[off+k]=0;for(let i=0;i<n;i++)if(arr&&arr[i])P[off+(i>>3)]|=1<<(i&7)};
+  for(let k=0;k<9;k++){const id="D"+(k+1),o=b+24+k*34;put(o+18,src.steps[id]);if(src.steps[id]&&src.steps[id].slice(0,n).some(Boolean)&&((P[o]<<8)|P[o+1])===0x8000)warn.push("Drum "+ESX_DRUM[k])}
+  put(b+1130+2,src.steps.AC);
+  for(let j=0;j<2;j++){const id="S"+(j+1),o=b+330+j*274;for(let i=0;i<128;i++){if(i<n&&src.steps[id]&&src.steps[id][i]){P[o+18+i]=src.notes[id][i]&0x7f;if(!P[o+146+i])P[o+146+i]=2}else P[o+18+i]=0x80|(P[o+18+i]&0x7f)}}
+  if(clearMot)for(let k=0;k<24;k++){const o=b+1160+k*130;P[o]=0xFF;P[o+1]=0xFF;P.fill(0x80,o+2,o+130)}
+  return warn}
+function esxWriteMany(list,start,clearMot){if(!INS.orig)INS.orig=INS.A;const W=INS.A===INS.orig?new Uint8Array(INS.A):INS.A,out=[];
+  list.forEach((src,i)=>{const w=esxWritePattern(W,start+i,src,clearMot);out.push(`Pattern ${String(start+i+1).padStart(3,"0")} „${src.name.slice(0,8)}“ ${src.bpm} BPM, ${src.bars} Takt(e)`+(w.length?` · ohne Sample im Slot: ${w.join(", ")}`:""))});
+  INS.A=W;return out.join("<br>")+"<br>Synth 3–5 haben auf der ESX kein Gegenstück und werden nicht geschrieben. Jetzt „⬇ Geänderte .esx“ laden."}
 function esxImport(p){
   snap();const n=(p.length+1)*16,bars=[1,2,4,8].find(b=>b>=p.length+1)||8;S.bars=bars;$("bars").value=String(bars);
   PARTS.forEach(q=>{S.steps[q.id].fill(0);S.notes[q.id].fill(0)});S.motion=[];

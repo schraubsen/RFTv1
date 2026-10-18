@@ -6,7 +6,7 @@ Stand dieses Projekts, getrennt nach „im Tool“, „am Gerät möglich“ und
 
 - **MIDI-Live** (Chrome/Edge am Rechner, DIN-MIDI-Interface): MIDI Clock mit Start/Stop (EMX auf Clock Ext), Steps als Noten, Panel-Regler und Motion als CC, Program Change, Panic. Kanäle, Drum-Noten und CC-Nummern wie im Export-Tab (an der EMX frei zuweisbar). Getestet mit einem simulierten Gerät: 24 Clock-Impulse pro Viertel, richtige Kanäle und Noten; an echter Hardware noch nicht.
 - **SysEx-Mitschnitt**: Dumps der EMX empfangen, als .syx speichern, zwei Dumps nach Korg-7-Bit-Entpackung vergleichen, .syx an das Gerät senden (mit Rückfrage). Die Kopflänge vor den Nutzdaten ist eine Vermutung (Standard 5 Bytes) und am echten Dump zu prüfen.
-- **ESX-1-Dateien**: komplett lesen, Samples als WAV exportieren, Patterns übernehmen (siehe `open-electribe-editor-analyse.md`).
+- **ESX-1-Dateien**: komplett lesen, Samples als WAV exportieren, Patterns übernehmen oder als MIDI exportieren, und Designer-Patterns in Pattern-Slots zurückschreiben (Datei hat keine Prüfsumme; Schreiben im Test bytegenau auf den Ziel-Slot begrenzt; am Gerät noch nicht getestet).
 - **Röhren-Messung**: Tube 50 wirkt wie ein sanfter Limiter (+2,7 dB RMS, Crest −2,1 dB, Klangbalance unverändert).
 
 ## Am Gerät möglich, als nächster Schritt
