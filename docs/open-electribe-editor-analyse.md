@@ -28,8 +28,18 @@ Steht vollständig in `schema/esx1.def` und wird vom Datei-Inspektor geladen. Ke
 
 Im Pattern: Name 8 Bytes, Tempo als 16-Bit-Wert (Bits 7–15 ganzzahlig, Bits 0–3 Zehntel), Swing (0 = 50 %), Länge/Beat/Roll als Bitfelder, FX-Kette, Last Step, Arpeggiator-Skala, vier 16-Bit-Masken (Mute, Swing, Output-Bus, Accent). Danach 9 Drum-Parts à 34, 2 Keyboard-Parts à 274, 3 Slice-Parts à 32, Audio In 156, Accent 18, 3 FX à 4 und 24 Motion-Spuren à 130 Bytes.
 
+## Gegenprobe an echten Dateien
+
+Geprüft an fünf echten `.esx` (ESX-Werksdaten mit 256 Patterns, 200 Samples und 4 Songs; ES-1-Werksdaten; ES-1 Sound Designer; zwei Nutzer-Sets) und elf aus der Werksdatei exportierten WAVs:
+
+- Kopf „KORG … q ESX“ und zweiter Kopf „KORG … q BPS“ bei 0x1B0000 in allen Dateien.
+- Pattern-Namen (House1 …, ES1_A.01 …), Tempi (69–183 BPM), Swing-Werte, Songs (PartyOn!, WhusHot, D&B mix, >AsTrAl<) plausibel.
+- Step-Bits: LSB = erster Step. Drum 1 hat über alle Dateien 3960 Treffer auf den Zählzeiten gegenüber 594, 1591 und 904 auf den anderen Positionen; MSB-zuerst ergäbe genau das gespiegelte, unplausible Bild.
+- Keyboard-Noten: Bit 7 gesetzt = Step aus. Belegte Noten liegen bevorzugt auf Zählzeiten, im Bereich MIDI 16–101, am häufigsten A1, rund 27 % der Steps.
+- Sample-Audio: 16-Bit-PCM Big-Endian ab 0x250000 + `off1start` + 16 Byte Vorspann (beginnt immer mit `80 00 7F FF`), Frames = `end` + 1, Rate aus dem Header (31 250, 32 000 oder 44 100 Hz). Alle elf WAVs stimmen Sample für Sample überein.
+- Sample-Tune: 32-kHz-Samples tragen −5,55 Halbtöne (= 12·log2(32000/44100)), 44,1-kHz-Samples 0.
+
 ## Offen / Vermutungen
 
-- Bit-Reihenfolge der Step-Bytes: Der Editor behandelt sie als Rohbytes. Unsere Annahme „LSB = erster Step“ ist am Gerät zu prüfen (Pattern mit nur Step 1 speichern).
-- Keyboard-Noten: In der Werksdatei steht überall 0xBC. Annahme: Bit 7 = Step aus, Bits 0–6 = MIDI-Note.
+- Bedeutung der Bytes 4–12 im 16-Byte-Vorspann der Samples und des Bereichs „BPS“ bei 0x1B0000.
 - EMX-1: kein Layout vorhanden. Der Inspektor bietet für EMX-Dateien eine Struktur-Sonde (wiederkehrende Namen → Chunk-Größe), die an der ESX-Datei die bekannten 4 280 und 528 Bytes korrekt wiederfindet.

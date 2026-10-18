@@ -1,6 +1,10 @@
 # ESX-1 (.esx) – Datei-Layout
 # Quelle: Open Electribe Editor 1.0.0 (skratchdot.com, EPL-1.0). Aus dem Bytecode der Klassen EsxUtil und *Impl abgeleitet.
-# Kein "!" = nicht von uns am Gerät verifiziert. Byte-Reihenfolge Big-Endian. Bit-Reihenfolge der Steps: Vermutung (LSB = erster Step).
+# Kein "!" = nicht von uns am Gerät verifiziert. Byte-Reihenfolge Big-Endian.
+# Gegenprobe an 5 echten .esx (Werks- und Nutzerdaten): Namen, Tempi, Songs, Sample-Header plausibel.
+# Steps: LSB = erster Step, statistisch belegt (Drum 1: 3960 Treffer auf Zählzeiten vs. 594/1591/904).
+# Keyboard-Noten: Bit 7 gesetzt = Step aus, gestützt durch Verteilung (belegte Noten auf Zählzeiten, Bereich 16–101).
+# Sample-Audio: 16-Bit-PCM Big-Endian ab @audio + off1start + 16 Byte Vorspann, Frames = end + 1; an 11 exportierten WAVs Sample für Sample bestätigt.
 @magic 0x000000 KORG
 @magic 0x000008 ESX
 @magic 0x1B0000 KORG
@@ -63,7 +67,7 @@
 +15 1 u8 modspeed
 +16 1 u8 moddepth
 +17 1 u8 motion
-+18 128 bytes notes      # Vermutung: Bit 7 = Step aus, Bits 0-6 = MIDI-Note
++18 128 bytes notes      # Bit 7 = Step aus, Bits 0-6 = MIDI-Note (statistisch gestützt)
 +146 128 bytes gates
 @end
 @struct slice 32
@@ -168,7 +172,7 @@
 +20 4 u32 end
 +24 4 u32 loopstart
 +28 4 u32 rate
-+32 2 tune tune
++32 2 tune tune         # Halbtöne; 32-kHz-Samples tragen −5,55 (= 32000/44100)
 +34 1 u8 playlevel
 +36 1 s8 stretchstep
 @end
@@ -185,6 +189,7 @@
 +38 1 u8 playlevel
 +40 1 s8 stretchstep
 @end
+@audio 0x250000 16
 @array pattern 0x000200 256 pattern
 @array song 0x130000 64 song
 @array smono 0x1B0100 256 smono

@@ -1972,7 +1972,11 @@ function buildPanel(){
 /* ============ ESX-1-Decoder: Layout als Schema-Text, generischer Parser ============ */
 const ESX1_DEF=`# ESX-1 (.esx) – Datei-Layout
 # Quelle: Open Electribe Editor 1.0.0 (skratchdot.com, EPL-1.0). Aus dem Bytecode der Klassen EsxUtil und *Impl abgeleitet.
-# Kein "!" = nicht von uns am Gerät verifiziert. Byte-Reihenfolge Big-Endian. Bit-Reihenfolge der Steps: Vermutung (LSB = erster Step).
+# Kein "!" = nicht von uns am Gerät verifiziert. Byte-Reihenfolge Big-Endian.
+# Gegenprobe an 5 echten .esx (Werks- und Nutzerdaten): Namen, Tempi, Songs, Sample-Header plausibel.
+# Steps: LSB = erster Step, statistisch belegt (Drum 1: 3960 Treffer auf Zählzeiten vs. 594/1591/904).
+# Keyboard-Noten: Bit 7 gesetzt = Step aus, gestützt durch Verteilung (belegte Noten auf Zählzeiten, Bereich 16–101).
+# Sample-Audio: 16-Bit-PCM Big-Endian ab @audio + off1start + 16 Byte Vorspann, Frames = end + 1; an 11 exportierten WAVs Sample für Sample bestätigt.
 @magic 0x000000 KORG
 @magic 0x000008 ESX
 @magic 0x1B0000 KORG
@@ -2035,7 +2039,7 @@ const ESX1_DEF=`# ESX-1 (.esx) – Datei-Layout
 +15 1 u8 modspeed
 +16 1 u8 moddepth
 +17 1 u8 motion
-+18 128 bytes notes      # Vermutung: Bit 7 = Step aus, Bits 0-6 = MIDI-Note
++18 128 bytes notes      # Bit 7 = Step aus, Bits 0-6 = MIDI-Note (statistisch gestützt)
 +146 128 bytes gates
 @end
 @struct slice 32
@@ -2140,7 +2144,7 @@ const ESX1_DEF=`# ESX-1 (.esx) – Datei-Layout
 +20 4 u32 end
 +24 4 u32 loopstart
 +28 4 u32 rate
-+32 2 tune tune
++32 2 tune tune         # Halbtöne; 32-kHz-Samples tragen −5,55 (= 32000/44100)
 +34 1 u8 playlevel
 +36 1 s8 stretchstep
 @end
@@ -2157,6 +2161,7 @@ const ESX1_DEF=`# ESX-1 (.esx) – Datei-Layout
 +38 1 u8 playlevel
 +40 1 s8 stretchstep
 @end
+@audio 0x250000 16
 @array pattern 0x000200 256 pattern
 @array song 0x130000 64 song
 @array smono 0x1B0100 256 smono
@@ -2176,6 +2181,7 @@ function parseDef(txt){const D={magic:[],enums:{},structs:{},arrays:[],abs:[]};l
     else if(w[0]==="@struct"){cur={name:w[1],size:+w[2],f:[],sub:[]};D.structs[w[1]]=cur}
     else if(w[0]==="@end")cur=null;
     else if(w[0]==="@sub"&&cur)cur.sub.push({st:w[1],off:+w[2],n:+w[3],name:w[4]});
+    else if(w[0]==="@audio")D.audio={off:parseInt(w[1]),pre:+w[2]};
     else if(w[0]==="@array")D.arrays.push({name:w[1],off:parseInt(w[2]),n:+w[3],st:w[4]});
     else if(w[0][0]==="+"&&cur)cur.f.push({off:+w[0].slice(1),len:+w[1],type:w[2],name:w[3]});
     else if(/^0x/i.test(w[0]))D.abs.push({off:parseInt(w[0]),len:+w[1],type:w[2],name:w[3]})});return D}
@@ -2208,7 +2214,7 @@ function renderEsx(){
   const f=ESX.flt.toLowerCase(),list=pats.map((p,i)=>({p,i})).filter(o=>(!f||o.p.name.toLowerCase().includes(f))&&(ESX.all||used(o.p)));
   const PG=32,np=Math.max(1,Math.ceil(list.length/PG));ESX.pg=Math.min(ESX.pg,np-1);
   const swp=p=>50+p.swing+"%";
-  let h=`<h3>ESX-1-Datei erkannt</h3><div class="warn">Feldkarte aus dem Open Electribe Editor (skratchdot, EPL-1.0), aus dessen Bytecode abgeleitet. Gegen eine echte Werksdatei geprüft (Tempo 120, Level 100, Pan 64, Cutoff 127), aber nicht von uns am Gerät verifiziert. Bit-Reihenfolge der Steps ist eine Vermutung: Pattern mit nur Step 1 speichern und hier prüfen.</div>
+  let h=`<h3>ESX-1-Datei erkannt</h3><div class="warn">Feldkarte aus dem Open Electribe Editor (skratchdot, EPL-1.0), aus dessen Bytecode abgeleitet. Gegen eine echte Werksdatei geprüft (Tempo 120, Level 100, Pan 64, Cutoff 127), aber nicht von uns am Gerät verifiziert. Step-Reihenfolge und Keyboard-Noten-Flag sind an fünf echten Dateien statistisch belegt, die Sample-Audiodaten an elf exportierten WAVs.</div>
   <div class="row"><span>Patterns belegt: <b>${pats.filter(used).length}</b>/256 · Samples: <b>${smp.length}</b> (Mono ${nm.nummono}, Stereo ${nm.numstereo}) · Songs: <b>${songs.length}</b></span></div>
   <div class="row"><label>Suche <input id="esx-f" value="${ESX.flt.replace(/"/g,"&quot;")}" style="width:140px"></label><label><input type="checkbox" id="esx-all" ${ESX.all?"checked":""}> auch leere</label><label><input type="checkbox" id="esx-msb" ${ESX.lsb?"":"checked"}> Step-Bits MSB zuerst</label>
   <button id="esx-pv">◀</button><span>Seite ${ESX.pg+1}/${np}</span><button id="esx-pn">▶</button><button id="esx-def">⬇ Schema esx1.def</button></div>
@@ -2224,7 +2230,8 @@ function renderEsx(){
     <table><tr><th>Part</th><th>Sample</th><th>Filter</th><th>Cutoff</th><th>Reso</th><th>EG Int</th><th>Level</th><th>Pan</th><th>FX</th><th>Mod</th><th>Amp EG</th></tr>`+
     [...p.drum.map((d,k)=>["Drum "+ESX_DRUM[k],d]),...p.kbd.map((d,k)=>["Keyboard "+(k+1),d]),...p.slice.map((d,k)=>["Slice "+(k+1),d]),["Audio In",p.audioin[0]]].map(([l,d])=>`<tr><td>${l}</td><td>${d.sample!=null?d.sample:"–"}</td><td>${d.filter}</td><td>${d.cutoff}</td><td>${d.resonance}</td><td>${d.egint}</td><td>${d.level}</td><td>${d.pan-64}</td><td>${d.fxsend==="an"?d.fxselect:"–"}</td><td>${d.modtype}→${d.moddest} ${d.modspeed}/${d.moddepth}</td><td>${d.ampeg}</td></tr>`).join("")+"</table>"+
     `<table><tr><th>FX</th><th>Typ</th><th>Edit 1</th><th>Edit 2</th></tr>${p.fx.map((x,k)=>`<tr><td>FX${k+1}</td><td>${x.type}</td><td>${x.edit1}</td><td>${x.edit2}</td></tr>`).join("")}</table>`}
-  if(smp.length)h+=`<h3 style="margin-top:12px">Samples</h3><div style="max-height:260px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge ≈</th><th>Tune</th><th>Level</th></tr>${smp.slice(0,400).map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?((s.end-s.start+1)/s.rate).toFixed(2)+" s":"–"}</td><td>${s.tune.toFixed(2)}</td><td>${s.playlevel?"+12 dB":"0 dB"}</td></tr>`).join("")}</table></div>`;
+  ESX.smp=smp;
+  if(smp.length)h+=`<h3 style="margin-top:12px">Samples</h3><div class="row"><button id="esx-zip">⬇ Alle ${smp.length} Samples als WAV (ZIP)</button><button id="esx-lab">Alle ins Sample-Lab</button><span style="color:var(--dim)">Audio direkt aus der Datei (16 Bit, Original-Rate). Rechte an den Samples liegen bei den Urhebern.</span></div><div style="max-height:320px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge</th><th>Tune</th><th>Level</th><th></th></tr>${smp.slice(0,400).map((s,k)=>`<tr><td>${String(s.i+1).padStart(3,"0")}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?((s.end+1)/s.rate).toFixed(2)+" s":"–"}</td><td>${s.tune.toFixed(2)} HT</td><td>${s.playlevel?"+12 dB":"0 dB"}</td><td><button data-sp="${k}">▶</button> <button data-sw="${k}">⬇ WAV</button></td></tr>`).join("")}</table></div>`;
   if(songs.length)h+=`<h3 style="margin-top:12px">Songs</h3><table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Länge</th><th>Events</th><th>Pattern-Folge (Anfang)</th></tr>${songs.map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.tempo.toFixed(1)}</td><td>${s.length+1}</td><td>${s.events}</td><td>${[...s.patterns.subarray(0,Math.min(16,s.length+1))].map(x=>x+1).join(" ")}</td></tr>`).join("")}</table>`;
   box.innerHTML=h;
   $("esx-f").oninput=e=>{ESX.flt=e.target.value;ESX.pg=0;renderEsx();const i=$("esx-f");i.focus();i.setSelectionRange(i.value.length,i.value.length)};
@@ -2232,7 +2239,19 @@ function renderEsx(){
   $("esx-pv").onclick=()=>{ESX.pg=Math.max(0,ESX.pg-1);renderEsx()};$("esx-pn").onclick=()=>{ESX.pg++;renderEsx()};
   $("esx-def").onclick=()=>dl("esx1.def",ESX1_DEF,"text/plain");
   box.querySelectorAll("[data-esx]").forEach(b=>b.onclick=()=>{ESX.sel=+b.dataset.esx;renderEsx()});
-  const imp=$("esx-imp");if(imp)imp.onclick=()=>esxImport(pats[ESX.sel])}
+  const imp=$("esx-imp");if(imp)imp.onclick=()=>esxImport(pats[ESX.sel]);
+  box.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>esxPlay(ESX.smp[+b.dataset.sp]));
+  box.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{const s=ESX.smp[+b.dataset.sw];dl(esxFile(s),new Blob([esxWav(esxPcm(s))],{type:"audio/wav"}),"audio/wav")});
+  const z=$("esx-zip");if(z)z.onclick=()=>{const files=ESX.smp.map(s=>({name:esxFile(s),data:new Uint8Array(esxWav(esxPcm(s)))}));dl((INS.an||"esx").replace(/\.[^.]+$/,"")+"-samples.zip",zipFiles(files),"application/zip")};
+  const lb=$("esx-lab");if(lb)lb.onclick=()=>{initAudio();let n=0;ESX.smp.forEach(s=>{const ab=esxBuffer(s),a=analyzeBuf(ab);LAB.items.push({id:LAB.items.length,name:s.name.trim()||("ESX "+(s.i+1)),buf:ab,...a,tag:{src:"ESX #"+(s.i+1)}});n++});lb.textContent=n+" Samples im Sample-Lab";try{if(LAB.built)renderLab()}catch(e){}}}
+function esxPcm(s){const A=INS.A,au=ESX.def.audio,n=s.end+1,rd=o=>{const a=new Int16Array(n);for(let i=0;i<n;i++){const j=au.off+o+au.pre+i*2;a[i]=(A[j]<<24>>16)|A[j+1]}return a};
+  return{rate:s.rate||32000,ch:s.st?[rd(s.off1start),rd(s.off2start)]:[rd(s.off1start)]}}
+function esxWav(P){const c=P.ch.length,n=P.ch[0].length,b=new DataView(new ArrayBuffer(44+n*2*c)),w=(o,t)=>[...t].forEach((x,i)=>b.setUint8(o+i,x.charCodeAt(0)));
+  w(0,"RIFF");b.setUint32(4,36+n*2*c,true);w(8,"WAVEfmt ");b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,c,true);b.setUint32(24,P.rate,true);b.setUint32(28,P.rate*2*c,true);b.setUint16(32,2*c,true);b.setUint16(34,16,true);w(36,"data");b.setUint32(40,n*2*c,true);
+  for(let i=0;i<n;i++)for(let k=0;k<c;k++)b.setInt16(44+(i*c+k)*2,P.ch[k][i],true);return b.buffer}
+function esxBuffer(s){const P=esxPcm(s),ab=ac.createBuffer(P.ch.length,P.ch[0].length,P.rate);P.ch.forEach((a,k)=>{const f=ab.getChannelData(k);for(let i=0;i<a.length;i++)f[i]=a[i]/32768});return ab}
+function esxPlay(s){initAudio();ac.resume();const src=ac.createBufferSource();src.buffer=esxBuffer(s);src.connect(master);src.start()}
+const esxFile=s=>String(s.i+1).padStart(3,"0")+"_"+(s.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"sample")+(s.st?"_st":"")+".wav";
 function esxImport(p){
   snap();const n=(p.length+1)*16,bars=[1,2,4,8].find(b=>b>=p.length+1)||8;S.bars=bars;$("bars").value=String(bars);
   PARTS.forEach(q=>{S.steps[q.id].fill(0);S.notes[q.id].fill(0)});S.motion=[];
