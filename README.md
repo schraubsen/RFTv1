@@ -18,13 +18,13 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - **Sample-Lab:** ZIP/WAV laden, analysieren, klassifizieren, RFT-Score für Kicks, Kit bauen, ESX-fertig exportieren (mono, 44,1 kHz, −1 dBFS, 8.3-Namen). Sample-Editor mit Schnitt (Nulldurchgang), Fades, Attack/Punch/Klick, Pitch, Reverse. Ein Pack mit 207 Dateien wird als EMX-PCM-Satz erkannt (Nummer = vermutlich PCM-Nummer am Gerät). Dateinamen aus Slopes ReFill („PRC - EMX-1 ([138] Bng…)“) und dem Schema „EMX-1 BD-25“ liefern Kategorie und PCM-Nummer; die Messung bleibt sichtbar.
 - **Spektrum:** Analyzer im SPAN-Stil (FFT bis 32768, Glättung, 4,5 dB/Okt-Neigung, Peak-Hold, Einfrieren, Maus-Readout mit Note), Pegel/RMS/Crest/Korrelation, Clip-Zähler und Bus-Headroom vor der Röhre, Bänder gegen Ziel, Low-End-Balance und Sweetspot (Kick gegen Bass-Töne, Intervalle, Sub-Verteilung live). Alle Zeichenflächen in HiDPI.
 - **RFT-Analyse:** Referenztracks messen (Tempo über Kick-Raster, Kick-Grundton, Tail, Bänder, Bassmauer, Bass-Mono-Kompatibilität, Groove-Profil, Transienten, Clipping) und auf den Designer anwenden. Die Arrangement-Erkennung teilt den Track in Takte und Abschnitte (Intro, Groove, Break, Build, Drop, Outro). „Arrangement als Set-Kette übernehmen“ legt dafür Slots und die Song-Kette an.
-- **Datei-Inspektor:** .esx/.emx laden, ASCII-Scan (Pattern-/Sample-Namen), Hex-Viewer, Diff zweier Speicherstände, Schema mit `!` = verifiziert. Keine geratenen Offsets.
+- **Datei-Inspektor:** .esx/.emx laden, ASCII-Scan (Pattern-/Sample-Namen), Hex-Viewer, Diff zweier Speicherstände, Schema mit `!` = verifiziert. ESX-Dateien werden komplett decodiert (256 Patterns mit Tempo, Swing, Länge, Beat, FX-Kette, Part-Parametern und Step-Raster, Samples, Songs); Feldkarte in `schema/esx1.def`, abgeleitet aus dem Open Electribe Editor (siehe `docs/open-electribe-editor-analyse.md`). Ein ESX-Pattern lässt sich in den Designer übernehmen. Für EMX- und unbekannte Dateien schätzt eine Struktur-Sonde Chunk-Größe und Startadresse.
 - **Motion, FX, Set/Song, Export:** MIDI (Drums Kanal 10), Step-Sheet, Projekt-JSON.
 
 ## Bekannte Grenzen
 
 - EMX-MIDI-Noten und CC-Nummern sind Platzhalter, bis sie aus Korgs MIDI-Implementation übernommen werden.
-- Kein `.emx`-Schreiben (Offsets nicht verifiziert).
+- Kein `.emx`-Schreiben (Offsets nicht verifiziert). Für die EMX gibt es noch keine Feldkarte; die ESX-Karte stammt aus dem Open Electribe Editor und ist nicht von uns am Gerät geprüft. Bit-Reihenfolge der Steps und das Keyboard-Noten-Flag sind Vermutungen.
 - Szene-Zielwerte stammen aus acht vermessenen Tracks; Bandanteile sind bei Live-Mitschnitten/MP3 nur grob.
 - Die Stil-Vorgaben sind Mittelwerte aus Szene-Tracks, nicht an RFT-Record-Veröffentlichungen gemessen. Für echte RFT-Werte eigene Tracks in der RFT-Analyse laden.
 - Arrangement-Erkennung: Im Test (170 BPM, 64 Takte) lagen Intro, Groove, Break und Outro taktgenau. Build und Drop waren um 2 Takte verschoben, weil laute Snare-Rolls wie ein Drop wirken.

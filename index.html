@@ -1472,6 +1472,7 @@ function buildInsp(){
   const t=$("t-insp");if(!INS.built){INS.built=true;
     t.innerHTML=`<div class="warn">Die Byte-Layouts von .esx/.emx sind von Korg nicht dokumentiert. Dieses Werkzeug rät keine Offsets. Es zeigt, was in der Datei steht, und findet Offsets per Vergleich: Speicherstand sichern, <b>genau einen</b> Parameter am Gerät ändern, erneut speichern, beide Dateien vergleichen. Gefundene Offsets kommen ins Schema, mit „!“ erst, wenn sie am Gerät bestätigt sind. Die Dateien bleiben im Browser.</div>
     <div class="card"><h3>Dateien</h3><div class="row"><label>A (vorher) <input id="in-a" type="file"></label><label>B (nachher, optional) <input id="in-b" type="file"></label></div><div id="in-info" style="color:var(--dim)">Noch keine Datei geladen.</div></div>
+    <div class="card" id="in-esx" style="display:none"></div><div class="card" id="in-probe" style="display:none"></div>
     <div class="card"><h3>Vergleich A ↔ B</h3><div id="in-diff" style="color:var(--dim)">Zwei Dateien laden, um Unterschiede zu sehen.</div></div>
     <div class="card"><h3>Text in der Datei (ASCII-Scan)</h3><div class="row"><label>Mindestlänge <input id="in-min" type="number" min="3" max="16" value="4" style="width:60px"></label><label>Filter <input id="in-flt" placeholder="z. B. Kick" style="width:160px"></label></div><div id="in-asc"></div><div style="color:var(--dim)">Pattern- und Sample-Namen sind gute Ankerpunkte für die Struktur. Klick auf einen Eintrag springt im Hex-Viewer dorthin.</div></div>
     <div class="card"><h3>Hex-Viewer (Datei A)</h3><div class="row"><label>Offset <input id="in-off" value="0x000000" style="width:110px"></label><button id="in-go">Springen</button><button id="in-prev">◀ 256</button><button id="in-next">256 ▶</button></div><pre id="in-hex" style="max-height:420px"></pre></div>
@@ -1496,7 +1497,7 @@ function renderInsp(){
       `<div class="${INS.diffs.length<=4?"ok":"warn"}">${INS.diffs.length} geänderte Bereiche, ${tot} Bytes.${INS.diffs.length>4?" Viele Änderungen: vermutlich wurde mehr als ein Parameter geändert oder eine Prüfsumme/Zeitangabe ändert sich mit. Für eine eindeutige Zuordnung genau einen Parameter ändern.":""}</div>`+
       (INS.diffs.length?"<table><tr><th>Offset</th><th>Länge</th><th>A</th><th>B</th><th></th></tr>"+INS.diffs.slice(0,200).map(([o,l])=>`<tr><td>${hexOffs(o)}</td><td>${l}</td><td>${[...A.subarray(o,o+Math.min(l,12))].map(hex2).join(" ")}${l>12?" …":""}</td><td>${[...B.subarray(o,o+Math.min(l,12))].map(hex2).join(" ")}${l>12?" …":""}</td><td><button data-dj="${o}">zeigen</button> <button data-dadd="${o}:${l}">ins Schema</button></td></tr>`).join("")+"</table>":"")}
   else $("in-diff").innerHTML='<span style="color:var(--dim)">Zwei Dateien laden, um Unterschiede zu sehen.</span>';
-  renderAscii();renderHex();renderSchemaVals()}
+  renderAscii();renderHex();renderSchemaVals();renderEsx()}
 function renderAscii(){const A=INS.A;if(!A){$("in-asc").innerHTML="";return}const f=($("in-flt").value||"").toLowerCase(),runs=asciiRuns(A,+$("in-min").value||4).filter(r=>!f||r[1].toLowerCase().includes(f));
   $("in-asc").innerHTML=`<div style="color:var(--dim)">${runs.length} Textstellen</div><div style="max-height:260px;overflow:auto"><table>${runs.slice(0,600).map(([o,s])=>`<tr data-off="${o}" style="cursor:pointer"><td>${hexOffs(o)}</td><td>${s.replace(/&/g,"&amp;").replace(/</g,"&lt;").slice(0,80)}</td></tr>`).join("")}</table></div>`}
 function renderHex(){const A=INS.A;if(!A){$("in-hex").textContent="";return}INS.hexOff=Math.min(INS.hexOff,Math.max(0,A.length-1)&~15);$("in-off").value=hexOffs(INS.hexOff);
@@ -1810,7 +1811,8 @@ const P_DEF={S1:{osc:"Waveform",e1:10,flt:"LPF",cut:45,res:65,egi:65,drv:95,att:
 const P_KEY={D1:"1",D2:"2",D3:"3",D4:"4",D5:"5",D6:"6A",D7:"6B",D8:"7A",D9:"7B",AC:"ACC",S1:"1",S2:"2",S3:"3",S4:"4",S5:"5"};
 const P_PREV_FX=["Short Delay","BPM Delay 3/16","Reverb"];
 const pPart=()=>PARTS.find(p=>p.id===PN.part);
-const fxNames=()=>Object.keys(FXTYPES);
+/* Reihenfolge = Effekt-Nummer in der ESX-Datei (laut Open Electribe Editor); bei der EMX vermutlich gleich */
+const fxNames=()=>["Reverb","BPM Delay 3/16","Short Delay","Mod Delay","Grain Shifter","Cho/Flg","Phaser","Ring Mod","Talking Mod","Pitch Shifter","Compressor","Distortion","Decimator","EQ","LPF","HPF"].filter(k=>k in FXTYPES);
 const fxLbl=k=>k==="BPM Delay 3/16"?"BPM Sync Delay":k;
 function pOscApply(P){P.uni=P.osc==="Unison";P.wave=P.osc==="Waveform"?["sawtooth","square","triangle","sine"][Math.min(3,P.e1>>5)]:(P_WAVE[P.osc]||"sawtooth")}
 function pPatch(create){const id=PN.part;if(id[0]!=="S")return null;let P=S.patch[id];
@@ -1966,6 +1968,287 @@ function buildPanel(){
   const near=()=>ST.reduce((b,x,i)=>Math.abs(x-z)<Math.abs(ST[b]-z)?i:b,0);
   $("zm").onclick=()=>set(ST[Math.max(0,near()-1)]);$("zp").onclick=()=>set(ST[Math.min(ST.length-1,near()+1)]);set(z);
   $("hxt").onclick=()=>document.querySelector("header").classList.toggle("open")})();
+
+/* ============ ESX-1-Decoder: Layout als Schema-Text, generischer Parser ============ */
+const ESX1_DEF=`# ESX-1 (.esx) – Datei-Layout
+# Quelle: Open Electribe Editor 1.0.0 (skratchdot.com, EPL-1.0). Aus dem Bytecode der Klassen EsxUtil und *Impl abgeleitet.
+# Kein "!" = nicht von uns am Gerät verifiziert. Byte-Reihenfolge Big-Endian. Bit-Reihenfolge der Steps: Vermutung (LSB = erster Step).
+@magic 0x000000 KORG
+@magic 0x000008 ESX
+@magic 0x1B0000 KORG
+@enum fx Reverb,BPM Sync Delay,Short Delay,Mod Delay,Grain Shifter,Cho/Flg,Phaser,Ring Mod,Talking Mod,Pitch Shifter,Compressor,Distortion,Decimator,EQ,LPF,HPF
+@enum flt LPF,HPF,BPF,BPF+
+@enum modtype Saw,Square,Triangle,S&H,Envelope
+@enum moddest Pitch,Cutoff,Amp,Pan
+@enum beat 16tel,32tel,8tel-Triole,16tel-Triole
+@enum roll 2,3,4
+@enum chain –,1→2,2→3,1→2→3
+@enum fxsel FX1,FX2,FX3
+@enum onoff aus,an
+@enum ampeg Gate,EG
+@enum arp Chromatic,Ionian,Dorian,Phrygian,Lydian,Mixolydian,Aeolian,Locrian,Major Blues,minor Blues,Diminish,Comb. Diminish,Major Penta,minor Penta,Raga Bhairav,Raga Gamanasrama,Raga Todi,Spanish,Gypsy,Arabian,Egyptian,Hawaiian,Bali Island,Miyakobushi,Ryukyu,Wholetone,m3rd,M3rd,4th,5th,Octave
+@struct drum 34
++0 2 u16 sample
++2 1 u8 slice
++4 1 enum:flt filter
++5 1 u8 cutoff
++6 1 u8 resonance
++7 1 u8 egint
++8 1 s8 pitch
++9 1 u8 level
++10 1 u8 pan
++11 1 u8 egtime
++12 1 u8 start
++13 1 bits0-1:fxsel fxselect
++13 1 bits2:onoff fxsend
++13 1 bits3:onoff roll
++13 1 bits4:ampeg ampeg
++13 1 bits5:onoff reverse
++14 1 bits0-2:moddest moddest
++14 1 bits4-6:modtype modtype
++14 1 bits7:onoff bpmsync
++15 1 u8 modspeed
++16 1 u8 moddepth
++17 1 u8 motion
++18 16 steps steps
+@end
+@struct kbd 274
++0 2 u16 sample
++2 1 u8 slice
++4 1 u8 glide
++5 1 enum:flt filter
++6 1 u8 cutoff
++7 1 u8 resonance
++8 1 u8 egint
++9 1 u8 level
++10 1 u8 pan
++11 1 u8 egtime
++12 1 u8 start
++13 1 bits0-1:fxsel fxselect
++13 1 bits2:onoff fxsend
++13 1 bits3:onoff roll
++13 1 bits4:ampeg ampeg
++13 1 bits5:onoff reverse
++14 1 bits0-2:moddest moddest
++14 1 bits4-6:modtype modtype
++14 1 bits7:onoff bpmsync
++15 1 u8 modspeed
++16 1 u8 moddepth
++17 1 u8 motion
++18 128 bytes notes      # Vermutung: Bit 7 = Step aus, Bits 0-6 = MIDI-Note
++146 128 bytes gates
+@end
+@struct slice 32
++0 2 u16 sample
++2 1 enum:flt filter
++3 1 u8 cutoff
++4 1 u8 resonance
++5 1 u8 egint
++6 1 s8 pitch
++7 1 u8 level
++8 1 u8 pan
++9 1 u8 egtime
++10 1 u8 start
++11 1 bits0-1:fxsel fxselect
++11 1 bits2:onoff fxsend
++11 1 bits3:onoff roll
++11 1 bits4:ampeg ampeg
++11 1 bits5:onoff reverse
++12 1 bits0-2:moddest moddest
++12 1 bits4-6:modtype modtype
++12 1 bits7:onoff bpmsync
++13 1 u8 modspeed
++14 1 u8 moddepth
++15 1 u8 motion
++16 16 steps steps
+@end
+@struct audioin 156
++0 1 enum:flt filter
++1 1 u8 cutoff
++2 1 u8 resonance
++3 1 u8 egint
++4 1 u8 level
++5 1 u8 pan
++6 1 u8 egtime
++7 1 bits0-1:fxsel fxselect
++7 1 bits2:onoff fxsend
++7 1 bits3:onoff roll
++7 1 bits4:ampeg ampeg
++8 1 bits0-2:moddest moddest
++8 1 bits4-6:modtype modtype
++8 1 bits7:onoff bpmsync
++9 1 u8 modspeed
++10 1 u8 moddepth
++11 1 u8 motion
++12 16 steps steps
++28 128 bytes gates
+@end
+@struct accent 18
++0 1 u8 level
++1 1 u8 motion
++2 16 steps steps
+@end
+@struct fx 4
++0 1 enum:fx type
++1 1 u8 edit1
++2 1 u8 edit2
++3 1 u8 motion
+@end
+@struct motion 130
++0 2 u16 operation
++2 128 bytes values
+@end
+@struct pattern 4280
++0 8 str name
++8 2 tempo tempo
++10 1 u8 swing          # 0 = 50 %, 25 = 75 %
++11 1 bits0-2 length   # +1 = Takte
++11 1 bits4-5:beat beat
++11 1 bits6-7:roll rolltype
++12 1 enum:chain fxchain
++13 1 u8 laststep      # +1 = Step
++14 1 bits0-4:arp arpscale
++15 1 u8 arpcenter
++16 2 u16 mute
++18 2 u16 swingsw
++20 2 u16 outbus
++22 2 u16 accentsw
+@sub drum 24 9 drum
+@sub kbd 330 2 kbd
+@sub slice 878 3 slice
+@sub audioin 974 1 audioin
+@sub accent 1130 1 accent
+@sub fx 1148 3 fx
+@sub motion 1160 24 motion
+@end
+@struct song 528
++0 8 str name
++8 2 tempo tempo
++10 1 u8 tempolock
++11 1 u8 length        # +1
++12 1 u8 mutehold
++13 1 u8 nextsong
++14 2 u16 events
++16 256 bytes patterns
++272 256 bytes noteoffsets
+@end
+@struct smono 40
++0 8 str name
++8 4 u32 off1start
++12 4 u32 off1end
++16 4 u32 start
++20 4 u32 end
++24 4 u32 loopstart
++28 4 u32 rate
++32 2 tune tune
++34 1 u8 playlevel
++36 1 s8 stretchstep
+@end
+@struct sstereo 44
++0 8 str name
++8 4 u32 off1start
++12 4 u32 off1end
++16 4 u32 off2start
++20 4 u32 off2end
++24 4 u32 start
++28 4 u32 end
++32 4 u32 rate
++36 2 tune tune
++38 1 u8 playlevel
++40 1 s8 stretchstep
+@end
+@array pattern 0x000200 256 pattern
+@array song 0x130000 64 song
+@array smono 0x1B0100 256 smono
+@array sstereo 0x1B2900 128 sstereo
+0x000020 1 u8 memprotect
+0x000022 1 u8 arpcontrol
+0x000023 1 u8 audioinmode
+0x000024 1 u8 midiclock
+0x000026 1 u8 pitchbend
+0x1B0020 4 u32 nummono
+0x1B0024 4 u32 numstereo
+`;
+function parseDef(txt){const D={magic:[],enums:{},structs:{},arrays:[],abs:[]};let cur=null;
+  txt.split("\n").forEach(raw=>{const l=raw.replace(/\s+#.*$/,"").trim();if(!l||l.startsWith("#"))return;const w=l.split(/\s+/);
+    if(w[0]==="@magic")D.magic.push({off:parseInt(w[1]),s:w.slice(2).join(" ")});
+    else if(w[0]==="@enum")D.enums[w[1]]=l.slice(l.indexOf(w[1])+w[1].length).trim().split(",");
+    else if(w[0]==="@struct"){cur={name:w[1],size:+w[2],f:[],sub:[]};D.structs[w[1]]=cur}
+    else if(w[0]==="@end")cur=null;
+    else if(w[0]==="@sub"&&cur)cur.sub.push({st:w[1],off:+w[2],n:+w[3],name:w[4]});
+    else if(w[0]==="@array")D.arrays.push({name:w[1],off:parseInt(w[2]),n:+w[3],st:w[4]});
+    else if(w[0][0]==="+"&&cur)cur.f.push({off:+w[0].slice(1),len:+w[1],type:w[2],name:w[3]});
+    else if(/^0x/i.test(w[0]))D.abs.push({off:parseInt(w[0]),len:+w[1],type:w[2],name:w[3]})});return D}
+function readField(u,o,f,D){const be16=()=>(u[o]<<8)|u[o+1],t=f.type;
+  if(t==="str")return String.fromCharCode(...u.subarray(o,o+f.len)).replace(/[^\x20-\x7e]/g,"·");
+  if(t==="u8")return u[o];if(t==="s8")return u[o]<<24>>24;if(t==="u16")return be16();
+  if(t==="u32")return((u[o]<<24)>>>0)+(u[o+1]<<16)+(u[o+2]<<8)+u[o+3];
+  if(t==="tempo"){const v=be16();return((v>>7)&511)+(v&15)/10}
+  if(t==="tune"){const v=be16();return(v&0x8000?-1:1)*(((v>>8)&127)+(v&255)/100)}
+  if(t==="bytes"||t==="steps")return u.subarray(o,o+f.len);
+  if(t.startsWith("enum:")){const e=D.enums[t.slice(5)];return e[u[o]]!=null?e[u[o]]:u[o]}
+  const m=t.match(/^bits(\d+)(?:-(\d+))?(?::(\w+))?$/);if(m){const a=+m[1],b=m[2]!=null?+m[2]:a,v=(u[o]>>a)&((1<<(b-a+1))-1);return m[3]&&D.enums[m[3]]?(D.enums[m[3]][v]!=null?D.enums[m[3]][v]:v):v}
+  return null}
+function decodeStruct(u,base,st,D){const r={_off:base};st.f.forEach(f=>{r[f.name]=readField(u,base+f.off,f,D)});
+  st.sub.forEach(s=>{const S2=D.structs[s.st];r[s.name]=Array.from({length:s.n},(_,i)=>decodeStruct(u,base+s.off+i*S2.size,S2,D))});return r}
+function esxMatch(u,D){return D.magic.every(m=>{for(let i=0;i<m.s.length;i++)if(u[m.off+i]!==m.s.charCodeAt(i))return false;return true})}
+const ESX={def:null,lsb:true,pg:0,sel:-1,flt:""};
+function esxSteps(b,n){const out=[];for(let i=0;i<n;i++){const byte=b[i>>3],bit=ESX.lsb?(i&7):7-(i&7);out.push((byte>>bit)&1)}return out}
+const ESX_DRUM=["1","2","3","4","5","6A","6B","7A","7B"];
+function renderEsx(){
+  const box=$("in-esx");if(!box)return;const A=INS.A;if(!A){box.style.display="none";$("in-probe").style.display="none";return}
+  ESX.def=ESX.def||parseDef(ESX1_DEF);const D=ESX.def;
+  if(!esxMatch(A,D)){box.style.display="none";renderProbe();return}
+  $("in-probe").style.display="none";box.style.display="";
+  const pats=Array.from({length:256},(_,i)=>decodeStruct(A,0x200+i*4280,D.structs.pattern,D));
+  const nm=D.abs.reduce((o,f)=>{o[f.name]=readField(A,f.off,f,D);return o},{});
+  const smp=[...Array.from({length:256},(_,i)=>({i,st:0,...decodeStruct(A,0x1B0100+i*40,D.structs.smono,D)})),...Array.from({length:128},(_,i)=>({i:i+256,st:1,...decodeStruct(A,0x1B2900+i*44,D.structs.sstereo,D)}))].filter(s=>s.off1start!==0xFFFFFFFF&&s.off1end>s.off1start);
+  const songs=Array.from({length:64},(_,i)=>({i,...decodeStruct(A,0x130000+i*528,D.structs.song,D)})).filter(s=>s.name.trim()||s.events>0);
+  const used=p=>p.name.trim()!==""||p.drum.some((d,k)=>{const s=d.steps;return k===0?s.some(v=>v!==0x11):s.some(v=>v)})||p.kbd.some(k=>k.notes.some(v=>!(v&0x80)))||p.slice.some(d=>d.steps.some(v=>v))||p.audioin[0].steps.some(v=>v);
+  const f=ESX.flt.toLowerCase(),list=pats.map((p,i)=>({p,i})).filter(o=>(!f||o.p.name.toLowerCase().includes(f))&&(ESX.all||used(o.p)));
+  const PG=32,np=Math.max(1,Math.ceil(list.length/PG));ESX.pg=Math.min(ESX.pg,np-1);
+  const swp=p=>50+p.swing+"%";
+  let h=`<h3>ESX-1-Datei erkannt</h3><div class="warn">Feldkarte aus dem Open Electribe Editor (skratchdot, EPL-1.0), aus dessen Bytecode abgeleitet. Gegen eine echte Werksdatei geprüft (Tempo 120, Level 100, Pan 64, Cutoff 127), aber nicht von uns am Gerät verifiziert. Bit-Reihenfolge der Steps ist eine Vermutung: Pattern mit nur Step 1 speichern und hier prüfen.</div>
+  <div class="row"><span>Patterns belegt: <b>${pats.filter(used).length}</b>/256 · Samples: <b>${smp.length}</b> (Mono ${nm.nummono}, Stereo ${nm.numstereo}) · Songs: <b>${songs.length}</b></span></div>
+  <div class="row"><label>Suche <input id="esx-f" value="${ESX.flt.replace(/"/g,"&quot;")}" style="width:140px"></label><label><input type="checkbox" id="esx-all" ${ESX.all?"checked":""}> auch leere</label><label><input type="checkbox" id="esx-msb" ${ESX.lsb?"":"checked"}> Step-Bits MSB zuerst</label>
+  <button id="esx-pv">◀</button><span>Seite ${ESX.pg+1}/${np}</span><button id="esx-pn">▶</button><button id="esx-def">⬇ Schema esx1.def</button></div>
+  <table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Swing</th><th>Takte</th><th>Beat</th><th>FX-Kette</th><th>Drum-Steps</th><th></th></tr>`+
+  list.slice(ESX.pg*PG,ESX.pg*PG+PG).map(({p,i})=>{const n=(p.length+1)*16,ds=p.drum.reduce((a,d)=>a+esxSteps(d.steps,n).reduce((x,y)=>x+y,0),0);
+    return`<tr${i===ESX.sel?' style="background:rgba(255,138,31,.25)"':""}><td>${String(i+1).padStart(3,"0")}</td><td>${p.name.replace(/</g,"&lt;")}</td><td>${p.tempo.toFixed(1)}</td><td>${swp(p)}</td><td>${p.length+1}</td><td>${p.beat}</td><td>${p.fxchain}</td><td>${ds}</td><td><button data-esx="${i}">öffnen</button></td></tr>`}).join("")+"</table>";
+  if(ESX.sel>=0){const p=pats[ESX.sel],n=(p.length+1)*16;
+    const grid=(lbl,st)=>`<tr><td>${lbl}</td><td style="font:11px monospace;white-space:nowrap">${esxSteps(st,n).map((v,k)=>(k&&k%16===0?" ":"")+(v?"■":"·")).join("")}</td></tr>`;
+    h+=`<h3 style="margin-top:12px">Pattern ${String(ESX.sel+1).padStart(3,"0")} „${p.name.replace(/</g,"&lt;")}“ · ${p.tempo.toFixed(1)} BPM · Swing ${swp(p)} · ${p.length+1} Takt(e) · Last Step ${p.laststep+1} · Arp ${p.arpscale}</h3>
+    <div class="row"><button id="esx-imp" class="on">In Designer übernehmen (EMX)</button><span style="color:var(--dim)">Drum 1–7B → Drum 1–7B, Accent → Accent, Keyboard 1/2 → Synth 1/2 (Note = Byte &amp; 0x7F, Bit 7 gesetzt = Step aus: Vermutung, Werksdatei hat überall 0xBC)</span></div>
+    <div style="overflow-x:auto"><table>${p.drum.map((d,k)=>grid("Drum "+ESX_DRUM[k],d.steps)).join("")}${p.slice.map((d,k)=>grid("Slice "+(k+1),d.steps)).join("")}${grid("Audio In",p.audioin[0].steps)}${grid("Accent",p.accent[0].steps)}
+    ${p.kbd.map((k,j)=>`<tr><td>Keyboard ${j+1}</td><td style="font:11px monospace;white-space:nowrap">${Array.from({length:n},(_,s)=>(s&&s%16===0?" ":"")+(k.notes[s]&0x80?"·":"♪")).join("")}</td></tr>`).join("")}</table></div>
+    <table><tr><th>Part</th><th>Sample</th><th>Filter</th><th>Cutoff</th><th>Reso</th><th>EG Int</th><th>Level</th><th>Pan</th><th>FX</th><th>Mod</th><th>Amp EG</th></tr>`+
+    [...p.drum.map((d,k)=>["Drum "+ESX_DRUM[k],d]),...p.kbd.map((d,k)=>["Keyboard "+(k+1),d]),...p.slice.map((d,k)=>["Slice "+(k+1),d]),["Audio In",p.audioin[0]]].map(([l,d])=>`<tr><td>${l}</td><td>${d.sample!=null?d.sample:"–"}</td><td>${d.filter}</td><td>${d.cutoff}</td><td>${d.resonance}</td><td>${d.egint}</td><td>${d.level}</td><td>${d.pan-64}</td><td>${d.fxsend==="an"?d.fxselect:"–"}</td><td>${d.modtype}→${d.moddest} ${d.modspeed}/${d.moddepth}</td><td>${d.ampeg}</td></tr>`).join("")+"</table>"+
+    `<table><tr><th>FX</th><th>Typ</th><th>Edit 1</th><th>Edit 2</th></tr>${p.fx.map((x,k)=>`<tr><td>FX${k+1}</td><td>${x.type}</td><td>${x.edit1}</td><td>${x.edit2}</td></tr>`).join("")}</table>`}
+  if(smp.length)h+=`<h3 style="margin-top:12px">Samples</h3><div style="max-height:260px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge ≈</th><th>Tune</th><th>Level</th></tr>${smp.slice(0,400).map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?((s.end-s.start+1)/s.rate).toFixed(2)+" s":"–"}</td><td>${s.tune.toFixed(2)}</td><td>${s.playlevel?"+12 dB":"0 dB"}</td></tr>`).join("")}</table></div>`;
+  if(songs.length)h+=`<h3 style="margin-top:12px">Songs</h3><table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Länge</th><th>Events</th><th>Pattern-Folge (Anfang)</th></tr>${songs.map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.tempo.toFixed(1)}</td><td>${s.length+1}</td><td>${s.events}</td><td>${[...s.patterns.subarray(0,Math.min(16,s.length+1))].map(x=>x+1).join(" ")}</td></tr>`).join("")}</table>`;
+  box.innerHTML=h;
+  $("esx-f").oninput=e=>{ESX.flt=e.target.value;ESX.pg=0;renderEsx();const i=$("esx-f");i.focus();i.setSelectionRange(i.value.length,i.value.length)};
+  $("esx-all").onchange=e=>{ESX.all=e.target.checked;ESX.pg=0;renderEsx()};$("esx-msb").onchange=e=>{ESX.lsb=!e.target.checked;renderEsx()};
+  $("esx-pv").onclick=()=>{ESX.pg=Math.max(0,ESX.pg-1);renderEsx()};$("esx-pn").onclick=()=>{ESX.pg++;renderEsx()};
+  $("esx-def").onclick=()=>dl("esx1.def",ESX1_DEF,"text/plain");
+  box.querySelectorAll("[data-esx]").forEach(b=>b.onclick=()=>{ESX.sel=+b.dataset.esx;renderEsx()});
+  const imp=$("esx-imp");if(imp)imp.onclick=()=>esxImport(pats[ESX.sel])}
+function esxImport(p){
+  snap();const n=(p.length+1)*16,bars=[1,2,4,8].find(b=>b>=p.length+1)||8;S.bars=bars;$("bars").value=String(bars);
+  PARTS.forEach(q=>{S.steps[q.id].fill(0);S.notes[q.id].fill(0)});S.motion=[];
+  p.drum.forEach((d,k)=>{const st=esxSteps(d.steps,n);st.forEach((v,i)=>S.steps["D"+(k+1)][i]=v)});
+  esxSteps(p.accent[0].steps,n).forEach((v,i)=>S.steps.AC[i]=v);
+  p.kbd.forEach((k,j)=>{const id="S"+(j+1);for(let i=0;i<n;i++)if(!(k.notes[i]&0x80)){S.steps[id][i]=1;S.notes[id][i]=k.notes[i]&0x7f}});
+  $("bpm").value=Math.round(Math.min(220,Math.max(100,p.tempo)));S.swing=Math.min(75,50+p.swing);applyFx();
+  buildGrid();if(typeof pRefresh==="function")pRefresh();
+  alert(`Pattern „${p.name.trim()||"ohne Namen"}“ übernommen: ${p.length+1} Takt(e)${bars!==p.length+1?` (Designer nutzt ${bars})`:""}, ${p.tempo.toFixed(1)} BPM, Swing ${50+p.swing} %. Drum-Sounds der ESX sind Samples – Klänge im Designer sind EMX-Vorschau.`)}
+/* Struktur-Sonde: schätzt Chunk-Größe und Start über wiederkehrende 8-Zeichen-Namen (für EMX und unbekannte Dateien) */
+function renderProbe(){const A=INS.A,box=$("in-probe");if(!A||!box)return;
+  const runs=asciiRuns(A.subarray(0,Math.min(A.length,0x200000)),8).filter(r=>r[1].length<=24).map(r=>r[0]);
+  const gaps={};for(let i=1;i<runs.length;i++){const g=runs[i]-runs[i-1];if(g>=64&&g<=20000)gaps[g]=(gaps[g]||0)+1}
+  const top=Object.entries(gaps).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  box.style.display="";box.innerHTML=`<h3>Struktur-Sonde (Hypothese)</h3><div class="warn">Kein bekanntes Layout erkannt${String.fromCharCode(...A.subarray(8,11))==="EMX"||/EMX/.test(String.fromCharCode(...A.subarray(0,16)))?" (EMX-Kopf). Der Open Electribe Editor kennt nur die ESX":""}. Die Sonde sucht wiederkehrende 8-Zeichen-Namen und schätzt daraus Chunk-Größe und Startadresse. Das ist eine Vermutung, bis sie per Vorher/Nachher-Vergleich bestätigt ist.</div>`+
+    (top.length?`<table><tr><th>Abstand (Bytes)</th><th>Treffer</th><th>erster Start</th></tr>${top.map(([g,c])=>{const i=runs.findIndex((r,k)=>k>0&&r-runs[k-1]==g);return`<tr><td>${g}</td><td>${c}</td><td>${i>0?hexOffs(runs[i-1]):"–"}</td></tr>`}).join("")}</table>`:'<div style="color:var(--dim)">Keine wiederkehrenden Namen gefunden.</div>')}
 /* ============ Init ============ */
 buildMotionUi();buildSound();buildFx();$("tpl").value="Groove";retuneKick();gen("Groove");showTab("panel");
 </script>
