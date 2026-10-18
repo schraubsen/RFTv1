@@ -103,6 +103,8 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
 </section>
 
 <section id="t-kick"></section>
+<section id="t-lab"></section>
+<section id="t-spec"></section>
 <section id="t-set"></section>
 <section id="t-export"></section>
 <section id="t-research"></section>
@@ -138,7 +140,7 @@ const PARTS=[
 const S={ // Zustand
  bars:8, root:8 /*G#*/, brush:56, mute:{}, solo:{}, steps:{}, notes:{}, motion:[],
  fxType:["Short Delay","BPM Delay 3/16","Reverb"], fxAmt:[0.35,0.4,0.3],
- slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},scale:"minor",seed:1337,prog:[0,0,5,6],ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
+ slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{mode:0,base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},scale:"minor",seed:1337,prog:[0,0,5,6],ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
 };
 PARTS.forEach(p=>{S.steps[p.id]=new Array(MAXSTEPS).fill(0);S.notes[p.id]=new Array(MAXSTEPS).fill(0);if(p.note)S.midiNotes[p.id]=p.note;S.mute[p.id]=false;S.solo[p.id]=false;});
 const $=id=>document.getElementById(id);
@@ -201,9 +203,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="set")buildSet();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
 Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
@@ -308,8 +310,8 @@ function buildSound(){
   let h=`<div class="warn">Hardware-Parameternamen und Wertebereiche des EMX sind hier <b>Empfehlungen</b>, nicht ausgelesen. <span class="tag v">v</span> = aus vermessenen Szene-Tracks / Skill-Referenz, <span class="tag u">u</span> = Erfahrungswert, am Gerät gegenhören.</div>
   <div class="card"><h3>Zielwerte Kick (gemessen aus 8 Szene-Tracks)</h3>
   Tempo 155–190 BPM (Cluster bei 155–175 und ~190) · Kick-Grundton 41–58 Hz, Median 51 Hz ≈ G#1 · Tail bis −20 dB: 147–388 ms (~200 ms) · ~78 % der Energie unter 120 Hz · Crest 6–14 dB (hart limitiert). Hats/Perc sind Würze, nicht Fundament.</div>
-  <div class="card"><h3>Part-Belegung</h3><table><tr><th>Part</th><th>Rolle</th><th>Einstellung</th></tr>`;
-  PARTS.forEach(p=>{const s=SOUND[p.id];h+=`<tr><td>${p.name}</td><td>${s.what}<span class="tag ${s.src}">${s.src}</span></td><td>${s.set}</td></tr>`});
+  <div class="card"><h3>Part-Belegung</h3><table><tr><th>Part</th><th>Rolle</th><th>Einstellung</th><th>Level</th></tr>`;
+  PARTS.forEach(p=>{const s=SOUND[p.id];h+=`<tr><td>${p.name}</td><td>${s.what}<span class="tag ${s.src}">${s.src}</span></td><td>${s.set}</td><td><input type="range" min="0" max="127" value="${p.lvl}" data-lv="${p.id}" style="width:110px"> <span id="lvv-${p.id}">${p.lvl}</span></td></tr>`});
   h+=`</table></div>
   <div class="card"><h3>Regeln, die den Sound entscheiden</h3><ul>
   <li><b>Bass auf Offbeats</b> (Steps 3/7/11/15), nie auf der Eins – zwei Tiefbässe summieren sich, die Röhre geht in die Knie.</li>
@@ -319,6 +321,7 @@ function buildSound(){
   <li><b>EMX-Filtertypen:</b> LPF, HPF, BPF, BPF+. Comb gibt es nur als Oszillatortyp (Audio In + Comb).</li>
   <li><b>Tempo Lock an</b>, bevor Pattern gewechselt wird.</li></ul></div>`;
   t.innerHTML=h;
+  t.querySelectorAll("[data-lv]").forEach(e=>e.oninput=()=>{const p=PARTS.find(x=>x.id===e.dataset.lv);p.lvl=+e.value;$("lvv-"+p.id).textContent=e.value;if(partGain[p.id])partGain[p.id].gain.value=p.lvl/127});
 }
 
 /* ============ FX-Tab ============ */
@@ -370,12 +373,12 @@ function initAudio(){
   master=ac.createGain();master.gain.value=$("mvol").value/100;
   const comp=ac.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=8;comp.attack.value=0.003;
   tubeNode=ac.createWaveShaper();tubeNode.curve=satCurve(2.2);tubeNode.oversample="4x";
-  master.connect(tubeNode);tubeNode.connect(comp);comp.connect(ac.destination);
+  master.connect(tubeNode);tubeNode.connect(comp);comp.connect(ac.destination);anMix=mkAn(comp);
   noiseBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   // FX-Busse
   for(let i=0;i<3;i++){const inp=ac.createGain();fxIn.push(inp);const out=ac.createGain();out.connect(master);fxNodes.push({inp,out});}
   buildFxGraph();
-  PARTS.forEach(p=>{const g=ac.createGain();g.gain.value=p.lvl/127;g.connect(master);partGain[p.id]=g;
+  PARTS.forEach(p=>{const g=ac.createGain();g.gain.value=p.lvl/127;g.connect(grpNode(p));partGain[p.id]=g;
     p.fx.forEach((on,i)=>{});cutoffNow[p.id]=0.6;});
   audioReady=true;
 }
@@ -400,6 +403,7 @@ function env(g,t,a,d,peak){g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToVa
 function noise(t,dur){const s=ac.createBufferSource();s.buffer=noiseBuf;s.start(t,Math.random(),dur);return s}
 function trig(p,i,t){
   if(!audioReady)return;const out=ac.createGain();out.connect(partGain[p.id]);
+  const sa=sampAssign[p.id];if(sa){playSample(p,sa,i,t,out);return}
   const stepDur=60/(+$("bpm").value)/4;
   const g=ac.createGain();g.connect(out);
   switch(p.id){
@@ -503,7 +507,7 @@ function buildMidi(){
   return new Uint8Array(out);
 }
 function stepSheet(){
-  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]} ${SCALES[S.scale].n}\nX=Accent-Step  o=Step an  -=aus\n\n`;
+  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]} ${SCALES[S.scale].n}\nX=Accent-Step  o=Step an  -=aus\nPart-Level: ${PARTS.filter(p=>p.kind!=="acc").map(p=>p.id+" "+p.lvl).join(" · ")}\n\n`;
   for(let b=0;b<S.bars;b++){{const c=chordInfo(S.prog[b%4]);o+=`--- Takt ${b+1} · Akkord ${c.name} (EMX Chord-Typ: ${c.q}) ---\n`;}
     PARTS.forEach(p=>{let s="";for(let i=b*16;i<b*16+16;i++){if(i%4===0&&i%16)s+=" ";const on=S.steps[p.id][i];s+=on?(p.kind==="syn"?"":(S.steps.AC[i]&&p.kind!=="acc"?"X":"o")):"-";if(on&&p.kind==="syn")s+=nn(S.notes[p.id][i])+" "}
       if(s.replace(/[- ]/g,"")||p.kind==="acc")o+=(p.id+" "+p.name).padEnd(30)+s+"\n"});o+="\n"}
@@ -512,11 +516,15 @@ function stepSheet(){
 }
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 function crc32(u){let c=~0;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(~c)>>>0}
-function zipStore(name,u8){const nm=new TextEncoder().encode(name),crc=crc32(u8),n=u8.length;
-  const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,n,true);lh.setUint32(22,n,true);lh.setUint16(26,nm.length,true);
-  const cd=new DataView(new ArrayBuffer(46));cd.setUint32(0,0x02014b50,true);cd.setUint16(4,20,true);cd.setUint16(6,20,true);cd.setUint16(14,0x21,true);cd.setUint32(16,crc,true);cd.setUint32(20,n,true);cd.setUint32(24,n,true);cd.setUint16(28,nm.length,true);
-  const eo=new DataView(new ArrayBuffer(22));eo.setUint32(0,0x06054b50,true);eo.setUint16(8,1,true);eo.setUint16(10,1,true);eo.setUint32(12,46+nm.length,true);eo.setUint32(16,30+nm.length+n,true);
-  return new Blob([lh,nm,u8,cd,nm,eo],{type:"application/zip"})}
+function zipFiles(files){
+  const enc=new TextEncoder(),parts=[],cds=[];let off=0,cdSize=0;
+  for(const f of files){const nm=enc.encode(f.name),u8=f.data,crc=crc32(u8),n=u8.length;
+    const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,n,true);lh.setUint32(22,n,true);lh.setUint16(26,nm.length,true);
+    const cd=new DataView(new ArrayBuffer(46));cd.setUint32(0,0x02014b50,true);cd.setUint16(4,20,true);cd.setUint16(6,20,true);cd.setUint16(14,0x21,true);cd.setUint32(16,crc,true);cd.setUint32(20,n,true);cd.setUint32(24,n,true);cd.setUint16(28,nm.length,true);cd.setUint32(42,off,true);
+    parts.push(lh,nm,u8);cds.push(cd,nm);off+=30+nm.length+n;cdSize+=46+nm.length}
+  const eo=new DataView(new ArrayBuffer(22));eo.setUint32(0,0x06054b50,true);eo.setUint16(8,files.length,true);eo.setUint16(10,files.length,true);eo.setUint32(12,cdSize,true);eo.setUint32(16,off,true);
+  return new Blob([...parts,...cds,eo],{type:"application/zip"})}
+function zipStore(name,u8){return zipFiles([{name,data:u8}])}
 /* Im Artifact-Viewer läuft der Download über die downloads-Capability (nur bestimmte Dateitypen: .mid/.wav gehen als ZIP). Standalone: normaler Download. */
 async function dl(name,data,type){
   let blob=data instanceof Blob?data:new Blob([data],{type});
@@ -575,6 +583,11 @@ $("t-research").innerHTML=`
 <li><b>Lead:</b> ein Motiv (Rhythmus + Kontur), pro Takt auf den Akkordgrundton transponiert; Anfang und Ende auf Akkordtönen; Takt 4 = Antwort (rückwärts) mit Auflösung auf die Tonika. Per Seed reproduzierbar.</li>
 <li><b>Chord-Part:</b> Dreiklang entsteht aus der Skala (Moll/Dur/vermindert je Stufe). Am EMX ist der Chord-Typ ein Oszillator-Parameter – bei Wechsel Moll↔Dur den Typ per Motion/Hand umstellen (Step-Sheet nennt ihn pro Takt).</li>
 <li><b>Rhythmus:</b> Hauptkick auf jedem Viertel, Open Hat nur auf Offbeats, Clap auf 2 und 4, Fill/Roll am Phrasenende (Takt 4/8), Riser vor dem Drop, Impact auf der Eins.</li></ul></div>
+<div class="card"><h3>Ausgewertet: EMX-Sample-Pack „50tube“ (Beispiel)</h3><ul>
+<li>207 Stereo-WAVs, 44,1 kHz, 16 Bit, zusammen 80 s. Reihenfolge: ca. 1–40 Kicks, 41 langer Sub-Ton, 42–90 Snare/Clap/Perc, 91–130 Hats/Becken, 131–207 Toms und tiefe Percussion.</li>
+<li>Die Kicks haben ihren Schwerpunkt bei 35–75 Hz und mehr als 95 % Energie unter 120 Hz. Viele liegen bei ca. 50 Hz und damit im Szene-Fenster. Sie lassen sich im Sample-Lab auf den Grundton stimmen.</li>
+<li>Das Sample-Lab klassifiziert nach Länge, Spektrum und Tonhöhe, baut ein Kit und exportiert es ESX-fertig (mono, 44,1 kHz, 5-ms-Fade, −1 dBFS, 8.3-Namen).</li>
+<li>Installer „EMX1Config 3.01“ (Freeware von PhiLiZound Software, www.philizound.co.uk): nur der Installer-Header wurde gelesen, nicht ausgeführt, die Funktion des Programms ist daher nicht geprüft.</li></ul></div>
 <div class="card"><h3>Samples & Quellen</h3><ul>
 <li>Hardtekk-/Schranz-Packs: <a style="color:var(--hot)" href="https://sinee.de/en/doht-hardtechno-schranz-vol.1/TSOHT-2/">SINEE DOHT Hardtechno & Schranz</a> (u. a. Vocal-Pack mit Wörtern, Phrasen, Growls), <a style="color:var(--hot)" href="https://samplesrevolution.gumroad.com/l/lakjo">Samples Revolution VERKNIPT</a> (Screeches, Vocals, Perc) – beides kostenpflichtig, Lizenz prüfen. Von „Free-Download“-Spiegelseiten die Finger lassen.</li>
 <li>EMX-Werks-PCMs: <a style="color:var(--hot)" href="https://www.polynominal.com/sample-packs/Korg-EMX1">Polynominal EMX1 Archive</a> – zur Würze, nicht als Fundament.</li>
@@ -621,7 +634,7 @@ function renderKick(k){
     x*=Math.exp(-t/dec);
     seed=(seed*1664525+1013904223)>>>0;const nz=(seed/4294967296)*2-1;const hpv=nz-prev;prev=nz;hp=hpv;
     x+=k.click*hp*Math.exp(-t/0.003);
-    x=Math.tanh(k.drive*x)/Math.tanh(Math.max(k.drive,0.01));
+    {const d=Math.max(k.drive,0.01),m=k.mode|0;x=m===1?Math.max(-1,Math.min(1,x*d*1.3)):m===2?Math.sin(x*d*Math.PI/2*0.6):m===3?(Math.tanh(d*x+0.35)-Math.tanh(0.35))/Math.tanh(d):Math.tanh(d*x)/Math.tanh(d)}
     o[i]=x}
   // kein Leading Silence, 5-ms-Fade, Normalisierung -1 dBFS
   let pk=0;for(const v of o)pk=Math.max(pk,Math.abs(v));const g=Math.pow(10,-1/20)/(pk||1);
@@ -651,10 +664,11 @@ function buildKick(){
   t.innerHTML=`<div class="warn">Zielfenster aus 8 Szene-Tracks: Grundton 41–58 Hz (Median ≈ 51 Hz = G#1), Tail bis −20 dB 147–388 ms (~200 ms). Das Tool misst die <b>synthetisierte</b> Kick selbst (Autokorrelation 35–200 ms nach dem Transienten) – Charakter und Sättigung musst du am Ende hören.</div>
   <div class="card"><h3>Kick-Synthese</h3><div id="kk"></div>
   <div class="row"><button id="k-play">▶ Anhören</button><button id="k-use">Als Drum 1 in Vorschau</button><button id="k-wav">⬇ WAV (KCKMN1.WAV)</button>
-  <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
+  <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Verzerrung <select id="k-mode"><option value="0">Soft (Tanh)</option><option value="1">Hard-Clip</option><option value="2">Wavefold</option><option value="3">Röhre (asymmetrisch)</option></select></label><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
   <div id="k-meas" class="ok"></div><canvas id="k-cv" width="1100" height="160"></canvas></div>`;
   $("kk").innerHTML=Object.entries(KZ).map(([n,[a,b,u]])=>`<div class="row"><label style="width:130px">${n}</label><input type="range" data-k="${n}" min="${a}" max="${b}" step="${(b-a)/200}" value="${k[n]}"><span id="kv-${n}">${(+k[n]).toFixed(2)} ${u}</span></div>`).join("");
   t.querySelectorAll("[data-k]").forEach(e=>e.oninput=()=>{k[e.dataset.k]=+e.value;kickUpdate()});
+  $("k-mode").value=String(S.kick.mode|0);$("k-mode").onchange=e=>{S.kick.mode=+e.target.value;kmemo=null;kickUpdate()};
   $("k-cal").onclick=()=>{calibrate(S.kick,+$("k-th").value,+$("k-tt").value);buildKick();$("k-th").value=$("k-th").value};
   $("k-pre").onchange=e=>{const P={g:[{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:.25,sub:0},51.9,200],l:[{base:51.9,start:190,sweep:70,tail:320,drive:3.8,click:.2,sub:.1},51.9,320],s:[{base:55,start:230,sweep:40,tail:150,drive:3,click:.3,sub:0},55,150],d:[{base:41,start:180,sweep:80,tail:310,drive:3.5,click:.15,sub:.15},41.5,310]}[e.target.value];if(P){Object.assign(S.kick,calibrate(P[0],P[1],P[2]));buildKick()}};
   $("k-play").onclick=()=>{initAudio();ac.resume();const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const s=ac.createBufferSource();s.buffer=b;s.connect(master);s.start()};
@@ -705,9 +719,176 @@ function buildSet(){
 }
 
 
+
+/* ============ Sample-Lab ============ */
+const sampAssign={};let sampTune=true;
+const LAB={items:[],filter:"Alle",sort:"name",built:false};
+const CLSN={"Kick":"KCK","Sub":"SUB","Bass/Tom":"TOM","Low-Perc":"LPC","Snare/Clap/Perc":"SNR","Hat":"HAT","Open-Hat":"OHT","Sonstiges":"SMP"};
+const KITNAME={D1:"KCKMN1",D2:"KCKOFF1",D3:"KCKSHT1",D4:"HATCL3",D5:"PRCMT1",D6:"HATCL1",D7:"HATOP1",D8:"CLAP1",D9:"SNARE1",S1:"SYNBAS1",S2:"SYNLED1",S3:"SYNCHD1",S4:"SYNVOX1",S5:"SYNFX1"};
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
+  for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang),h=len>>1;
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let j=0;j<h;j++){const a=i+j,b=a+h,vr=re[b]*cr-im[b]*ci,vi=re[b]*ci+im[b]*cr;re[b]=re[a]-vr;im[b]=im[a]-vi;re[a]+=vr;im[a]+=vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+/* Tonhöhe: Fenster 35–235 ms nach dem Peak (Kick-Sweep ist dann vorbei), auf ~11 kHz dezimiert, erstes Autokorrelations-Maximum */
+function pitchOf(x,sr,pkI){let s0=pkI+Math.floor(.035*sr),seg=x.subarray(s0,s0+Math.floor(.2*sr));if(seg.length<Math.floor(.06*sr))seg=x.subarray(pkI,pkI+Math.floor(.2*sr));
+  const q=4,m=Math.floor(seg.length/q),y=new Float64Array(m);let mean=0;for(let i=0;i<m;i++){let s=0;for(let k=0;k<q;k++)s+=seg[i*q+k];y[i]=s/q;mean+=y[i]}mean/=(m||1);let mx=0;for(let i=0;i<m;i++){y[i]-=mean;mx=Math.max(mx,Math.abs(y[i]))}
+  if(m<64||mx<1e-4)return[0,0];const sr2=sr/q,lo=Math.floor(sr2/1500),hi=Math.min(Math.floor(sr2/30),Math.floor(m/2)),ac=new Float64Array(hi+1);
+  for(let k=0;k<=hi;k++){let s=0;for(let i=0;i<m-k;i++)s+=y[i]*y[i+k];ac[k]=s}const a0=ac[0]+1e-12;for(let k=0;k<=hi;k++)ac[k]/=a0;
+  let z=lo;while(z<hi&&ac[z]>0)z++;if(z>=hi-2)return[0,0];let gm=-1;for(let k=z;k<hi;k++)gm=Math.max(gm,ac[k]);
+  for(let k=z+1;k<hi-1;k++)if(ac[k]>=ac[k-1]&&ac[k]>=ac[k+1]&&ac[k]>=.9*gm)return[sr2/k,ac[k]];return[0,0]}
+function classify(a){
+  if(a.cent<150&&a.sub+a.bass>.8)return a.dur>1.2?"Sub":"Kick";
+  if(a.cent<700)return(a.pr>=.6&&a.hz>0&&a.hz<400)?"Bass/Tom":"Low-Perc";
+  if(a.cent>=5000&&a.hi+a.air>.5)return a.tail>300?"Open-Hat":"Hat";
+  if(a.cent<5000)return"Snare/Clap/Perc";
+  return"Sonstiges"}
+function analyzeBuf(ab){
+  const sr=ab.sampleRate,nc=ab.numberOfChannels,L=ab.length,l=ab.getChannelData(0),r=nc>1?ab.getChannelData(1):l,x=new Float32Array(L);
+  let pk=0,pkI=0,ss=0,sd=0;for(let i=0;i<L;i++){const v=(l[i]+r[i])/2;x[i]=v;const a=Math.abs(v);if(a>pk){pk=a;pkI=i}ss+=v*v;const d=l[i]-r[i];sd+=d*d}
+  const rms=Math.sqrt(ss/L),width=nc>1?Math.sqrt(sd/L)/(rms+1e-9):0,dur=L/sr;
+  const win=Math.max(1,Math.floor(.005*sr));let pe=0;const env=[];for(let i=0;i+win<=L;i+=win){let s=0;for(let j=0;j<win;j++)s+=x[i+j]*x[i+j];const e=Math.sqrt(s/win);env.push(e);pe=Math.max(pe,e)}
+  let tail=0;for(let i=env.length-1;i>=0;i--)if(env[i]>pe*.1){tail=(i+1)*5;break}
+  let N=1024;while(N<L&&N<65536)N<<=1;const re=new Float64Array(N),im=new Float64Array(N),n=Math.min(L,N);for(let i=0;i<n;i++)re[i]=x[i]*(0.5-0.5*Math.cos(2*Math.PI*i/(n-1||1)));
+  fft(re,im);const P=new Float64Array(N/2);let E=1e-12,cs=0;for(let k=1;k<N/2;k++){P[k]=re[k]*re[k]+im[k]*im[k];E+=P[k];cs+=P[k]*k*sr/N}
+  const band=(a,b)=>{let s=0;for(let k=1;k<N/2;k++){const f=k*sr/N;if(f>=a&&f<b)s+=P[k]}return s/E};
+  const cent=cs/E,[hz,pr]=cent<1500?pitchOf(x,sr,pkI):[0,0];
+  const a={dur,pk,rms,width,tail,cent,sub:band(20,60),bass:band(60,120),lm:band(120,400),mid:band(400,2000),hi:band(2000,6000),air:band(6000,20000),hz,pr,midi:hz?69+12*Math.log2(hz/440):0};
+  a.cls=classify(a);return a}
+/* ZIP lesen (stored + deflate), mit Größen-Limits */
+async function readZip(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<0)throw new Error("Kein ZIP");
+  const cnt=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true),total=0;const out=[];
+  for(let i=0;i<cnt&&out.length<1500;i++){if(dv.getUint32(p,true)!==0x02014b50)break;
+    const meth=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),usz=dv.getUint32(p+24,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lho=dv.getUint32(p+42,true);
+    const name=new TextDecoder().decode(u8.subarray(p+46,p+46+nl));p+=46+nl+xl+cl;
+    if(name.endsWith("/")||!/\.(wav|flac|mp3|ogg|aif|aiff)$/i.test(name)||usz>64e6)continue;total+=usz;if(total>400e6)break;
+    const ln=dv.getUint16(lho+26,true),lx=dv.getUint16(lho+28,true),ds=lho+30+ln+lx;let data=u8.subarray(ds,ds+csz);
+    if(meth===8)data=new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());else if(meth!==0)continue;
+    out.push({name:name.split("/").pop(),data})}
+  return out}
+async function loadFiles(list){
+  initAudio();const st=$("lab-stat");const files=[];
+  for(const f of list){if(/\.zip$/i.test(f.name)){try{files.push(...await readZip(await f.arrayBuffer()))}catch(e){st.textContent="ZIP nicht lesbar: "+f.name}}
+    else if(/\.(wav|flac|mp3|ogg|aif|aiff)$/i.test(f.name))files.push({name:f.name,data:new Uint8Array(await f.arrayBuffer())})}
+  let ok=0,bad=0;
+  for(let i=0;i<files.length;i++){st.textContent=`Analysiere ${i+1}/${files.length} …`;
+    try{const ab=await ac.decodeAudioData(files[i].data.slice().buffer);const a=analyzeBuf(ab);LAB.items.push({id:LAB.items.length,name:files[i].name.replace(/\.[^.]+$/,""),buf:ab,...a});ok++}catch(e){bad++}
+    if(i%8===7)await new Promise(r=>setTimeout(r,0))}
+  st.textContent=`${ok} Samples geladen${bad?`, ${bad} nicht lesbar`:""}.`;renderLab()}
+function partOptions(sel){return'<option value="">–</option>'+PARTS.filter(p=>p.kind!=="acc").map(p=>`<option value="${p.id}" ${sel===p.id?"selected":""}>${p.id}</option>`).join("")}
+function itemPart(it){return Object.keys(sampAssign).find(k=>sampAssign[k]===it)||""}
+function centsToKick(it){return it.hz?Math.round(1200*Math.log2(it.hz/kickTarget().hz)):null}
+function audition(it){initAudio();ac.resume();const s=ac.createBufferSource();s.buffer=it.buf;let rate=1;
+  if(sampTune&&(it.cls==="Kick")&&it.hz&&it.pr>=.5){rate=kickTarget().hz/it.hz;if(rate<.5||rate>2)rate=1}
+  s.playbackRate.value=rate;s.connect(master);s.start()}
+function autoKit(){
+  const tg=kickTarget().hz,by=c=>LAB.items.filter(i=>i.cls===c),used=new Set(),take=(arr,part,score)=>{const c=arr.filter(i=>!used.has(i)).sort((a,b)=>score(a)-score(b))[0];if(c){sampAssign[part]=c;used.add(c)}};
+  const kicks=by("Kick").filter(i=>i.sub+i.bass>.85),cents=i=>i.hz&&i.pr>=.5?Math.abs(1200*Math.log2(i.hz/tg)):900;
+  take(kicks.filter(i=>i.tail>=150&&i.tail<=390),"D1",i=>cents(i)+Math.abs(i.tail-220)*.3);
+  take(kicks.filter(i=>i.tail<=240),"D2",i=>cents(i)+Math.abs(i.tail-170)*.3);
+  take(kicks,"D3",i=>i.tail+cents(i)*.1);
+  const hats=by("Hat");take(hats,"D4",i=>i.tail);take(hats,"D6",i=>i.tail+(Math.abs(i.cent-9000)*.01));
+  {const oh=by("Open-Hat"),ok=oh.filter(i=>i.tail<=700);take(ok.length?ok:oh.concat(hats),"D7",i=>Math.abs(i.tail-400))}
+  const sn=by("Snare/Clap/Perc");take(sn.filter(i=>i.dur>=.1&&i.dur<=.4),"D8",i=>Math.abs(i.cent-2200));
+  take(sn.filter(i=>i.dur>=.12),"D9",i=>Math.abs(i.cent-3000));take(sn.filter(i=>i.cent>3500&&i.dur<.25),"D5",i=>i.dur);
+  renderLab();if(typeof runCheck==="function")runCheck()}
+/* Export: mono, 44,1 kHz, ohne Leerlauf am Anfang, 5-ms-Fade, Peak -1 dBFS (+ optionale Stimmung auf Grundton) */
+function prepMono(it,rate){const ab=it.buf,L=ab.length,nc=ab.numberOfChannels,sr=ab.sampleRate,m=new Float32Array(L);
+  for(let c=0;c<nc;c++){const d=ab.getChannelData(c);for(let i=0;i<L;i++)m[i]+=d[i]/nc}
+  const step=rate*sr/SR,n=Math.max(1,Math.floor((L-1)/step)),o=new Float32Array(n);for(let i=0;i<n;i++){const p=i*step,j=Math.floor(p),f=p-j;o[i]=m[j]*(1-f)+(m[j+1]||0)*f}
+  let s=0;const th=Math.pow(10,-60/20);while(s<n-1&&Math.abs(o[s])<th)s++;const t=o.subarray(s);let pk=0;for(const v of t)pk=Math.max(pk,Math.abs(v));
+  const g=Math.pow(10,-1/20)/(pk||1),fl=Math.floor(SR*.005),r=new Float32Array(t.length);for(let i=0;i<t.length;i++){let a=g;if(i>t.length-fl)a*=(t.length-i)/fl;r[i]=t[i]*a}return r}
+function tuneRate(part,it){if(part==="D1"&&sampTune&&it.hz&&it.pr>=.5){const r=kickTarget().hz/it.hz;if(r>=.5&&r<=2)return r}return 1}
+function exportList(entries,zipName,info){
+  const files=[],used=new Set();let txt="RFT Designer – Sample-Kit (mono, 44,1 kHz, 16 Bit, Peak -1 dBFS)\n\n";
+  entries.forEach(([nm,it,rate])=>{let n=nm.slice(0,8),k=1;while(used.has(n)){n=nm.slice(0,8-String(k).length)+k;k++}used.add(n);
+    files.push({name:n+".WAV",data:new Uint8Array(wavBytes(prepMono(it,rate)))});
+    txt+=`${n}.WAV  <- ${it.name}  [${it.cls}]  ${it.hz?it.hz.toFixed(1)+" Hz":"–"}${rate!==1?"  (gestimmt x"+rate.toFixed(3)+")":""}\n`});
+  files.push({name:"KIT.txt",data:new TextEncoder().encode(txt+(info||""))});dl(zipName,zipFiles(files),"application/zip")}
+function exportKit(){const e=Object.entries(sampAssign).map(([part,it])=>[KITNAME[part]||part,it,tuneRate(part,it)]);if(!e.length){$("lab-stat").textContent="Kit ist leer.";return}
+  exportList(e,"EMX_KIT.zip","\nHinweis: Namen folgen der Part-Belegung des Designers (D1 = Hauptkick …).\n")}
+function visibleItems(){let a=LAB.items.filter(i=>LAB.filter==="Alle"||i.cls===LAB.filter);
+  const k=LAB.sort;a=a.slice().sort((x,y)=>k==="kick"?Math.abs(centsToKick(x)??9e3)-Math.abs(centsToKick(y)??9e3):k==="dur"?y.dur-x.dur:k==="bright"?y.cent-x.cent:x.id-y.id);return a}
+function exportVisible(){const v=visibleItems().slice(0,256);if(!v.length)return;const cnt={};
+  exportList(v.map(it=>{const c=CLSN[it.cls]||"SMP";cnt[c]=(cnt[c]||0)+1;return[c+String(cnt[c]).padStart(3,"0"),it,1]}),"EMX_SAMPLES.zip")}
+function buildLab(){
+  const t=$("t-lab");
+  if(!LAB.built){LAB.built=true;
+    t.innerHTML=`<div class="warn">Die Samples werden nur im Browser analysiert und nicht hochgeladen. Pack-Rechte liegen beim jeweiligen Autor – lade nur Material, das du nutzen darfst.</div>
+    <div class="card"><h3>Samples laden</h3><div class="row"><input id="lab-file" type="file" multiple accept=".zip,.wav,.flac,.mp3,.ogg"><span id="lab-stat" style="color:var(--dim)">Noch nichts geladen.</span></div>
+    <div id="lab-drop" style="border:1px dashed var(--line);padding:14px;text-align:center;color:var(--dim)">ZIP oder WAV-Dateien hierher ziehen</div>
+    <div style="color:var(--dim);margin-top:6px">Gemessen werden Länge, Tail, Spektrum, Stereobreite und Tonhöhe. Daraus entsteht die Klasse (Kick, Hat, Snare/Clap/Perc …).</div></div>
+    <div class="card"><h3>Kit</h3><div id="lab-kit"></div>
+    <div class="row"><button id="lab-auto">Auto-Kit</button><button id="lab-clr">Kit leeren</button><label><input type="checkbox" id="lab-tune" checked> Kick auf Grundton stimmen</label><button id="lab-exp">⬇ Kit (ZIP)</button><button id="lab-exp2">⬇ Sichtbare (ZIP)</button></div>
+    <div style="color:var(--dim)">Zugewiesene Samples ersetzen in der Pattern-Vorschau (Play) die Synth-Klänge. Synth-Parts werden auf die Pattern-Noten umgestimmt, wenn die Tonhöhe sicher erkannt wurde.</div></div>
+    <div class="card"><h3>Bibliothek</h3><div class="row" id="lab-filter"></div><div id="lab-table" style="overflow-x:auto"></div></div>`;
+    $("lab-file").onchange=e=>loadFiles(e.target.files);
+    const dz=$("lab-drop");dz.ondragover=e=>{e.preventDefault()};dz.ondrop=e=>{e.preventDefault();loadFiles(e.dataTransfer.files)};
+    $("lab-auto").onclick=autoKit;$("lab-clr").onclick=()=>{Object.keys(sampAssign).forEach(k=>delete sampAssign[k]);renderLab()};
+    $("lab-tune").onchange=e=>{sampTune=e.target.checked;renderLab();if(typeof runCheck==="function")runCheck()};
+    $("lab-exp").onclick=exportKit;$("lab-exp2").onclick=exportVisible;
+    $("lab-table").addEventListener("click",e=>{const b=e.target.closest("[data-pl]");if(b)audition(LAB.items[+b.dataset.pl])});
+    $("lab-table").addEventListener("change",e=>{const s=e.target.closest("[data-as]");if(!s)return;const it=LAB.items[+s.dataset.as];Object.keys(sampAssign).forEach(k=>{if(sampAssign[k]===it)delete sampAssign[k]});if(s.value)sampAssign[s.value]=it;renderLab();if(typeof runCheck==="function")runCheck()});
+    $("lab-filter").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(b){LAB.filter=b.dataset.f;renderLab()}});
+    $("lab-filter").addEventListener("change",e=>{if(e.target.id==="lab-sort"){LAB.sort=e.target.value;renderLab()}})}
+  renderLab()}
+function renderLab(){
+  if(!LAB.built)return;
+  $("lab-kit").innerHTML=Object.keys(sampAssign).length?"<table>"+PARTS.filter(p=>sampAssign[p.id]).map(p=>{const it=sampAssign[p.id],r=tuneRate(p.id,it);return`<tr><td>${p.name}</td><td>${it.name} <span class="tag">${it.cls}</span></td><td>${it.hz?it.hz.toFixed(1)+" Hz ("+nn(Math.round(it.midi))+")":"–"}${r!==1?` <span class="tag v">gestimmt → ${kickTarget().hz.toFixed(1)} Hz</span>`:""}</td></tr>`}).join("")+"</table>":'<span style="color:var(--dim)">Leer. „Auto-Kit“ wählt passende Samples nach Tonart, Tail und Klasse.</span>';
+  const cls=["Alle",...Object.keys(CLSN)],cnt=c=>c==="Alle"?LAB.items.length:LAB.items.filter(i=>i.cls===c).length;
+  $("lab-filter").innerHTML=cls.map(c=>`<button data-f="${c}" class="${LAB.filter===c?"on":""}">${c} ${cnt(c)}</button>`).join("")+`<label>Sortierung <select id="lab-sort">${[["name","Reihenfolge"],["kick","Kick-Passung"],["dur","Länge"],["bright","Helligkeit"]].map(([v,n])=>`<option value="${v}" ${LAB.sort===v?"selected":""}>${n}</option>`).join("")}</select></label>`;
+  const v=visibleItems(),tg=kickTarget().hz;
+  $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
+    const c=(it.cls==="Kick"||it.cls==="Sub")?centsToKick(it):null,okc=c!==null&&Math.abs(c)<=35,conf=it.pr>=.6?"":' <span class="tag u">unsicher</span>';
+    return`<tr><td><button data-pl="${it.id}">▶</button></td><td>${it.name}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
+function playSample(p,sa,i,t,out){
+  const s=ac.createBufferSource();s.buffer=sa.buf;let rate=1;
+  if(p.id==="D1")rate=tuneRate("D1",sa);else if(p.kind==="syn"&&sa.hz&&sa.pr>=.5){rate=Math.pow(2,(S.notes[p.id][i]-sa.midi)/12);if(rate<.25||rate>4)rate=1}
+  s.playbackRate.value=rate;const g=ac.createGain();s.connect(g);g.connect(out);sendFx(p,g,t);
+  if(p.kind==="syn"){const d=60/(+$("bpm").value)/4*1.6;g.gain.setValueAtTime(1,t);g.gain.setTargetAtTime(0,t+d,0.04)}
+  s.start(t)}
+
+/* ============ Spektrum-Check (Rollen-Ansicht nach Carbon-Q-Vorbild) ============ */
+let specOn=false,anMix=null;const anG={},GRP={},specPeak={};
+const BAND_HINT=[["Kick/Bass lauter (D1, S1)","Kick/Bass leiser"],["Bass lauter (S1)","Bass leiser"],["–","Toms/Chord (D3, S3) leiser"],["–","Lead/Snare/Chord leiser (S2, S3, D9)"],["–","Hats/Perc leiser (D4–D8)"],["–","Hats/Open Hat leiser (D4, D6, D7)"]];
+const BANDS=[["Sub",20,60,58.8],["Bass",60,120,19.0],["Low-Mid",120,400,8.0],["Mitten",400,2000,3.9],["Höhen",2000,6000,2.0],["Luft",6000,16000,1.1]];
+function mkAn(node){const a=ac.createAnalyser();a.fftSize=8192;a.smoothingTimeConstant=.82;a.minDecibels=-100;a.maxDecibels=0;node.connect(a);return a}
+function grpNode(p){const k=p.kind==="drum"?"drums":p.id==="S1"?"bass":"music";if(!GRP[k]){const g=ac.createGain();g.connect(master);GRP[k]=g;anG[k]=mkAn(g)}return GRP[k]}
+function bandShares(an){const N=an.frequencyBinCount,d=new Float32Array(N);an.getFloatFrequencyData(d);const sr=ac.sampleRate;let tot=0;const b=BANDS.map(()=>0);
+  for(let k=1;k<N;k++){const f=k*sr/2/N,pw=Math.pow(10,d[k]/10);if(f<20||f>20000)continue;tot+=pw;BANDS.forEach((x,i)=>{if(f>=x[1]&&f<x[2])b[i]+=pw})}
+  return{shares:b.map(v=>v/(tot||1)),tot}}
+function drawSpec(an,cv,key){
+  const c=cv.getContext("2d"),W=cv.width,H=cv.height;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
+  const fx=f=>Math.log(f/20)/Math.log(1000)*W;c.strokeStyle="#1d1d21";c.fillStyle="#8a8a90";c.font="11px monospace";
+  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(f=>{const x=fx(f);c.beginPath();c.moveTo(x,0);c.lineTo(x,H-14);c.stroke();c.fillText(f>=1000?f/1000+"k":f,Math.min(x+2,W-24),H-3)});
+  [-20,-40,-60,-80].forEach(db=>{const y=(H-14)*(1-(db+90)/84);c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke()});
+  if(!an)return;const N=an.frequencyBinCount,d=new Float32Array(N);an.getFloatFrequencyData(d);const sr=ac.sampleRate,pk=specPeak[key]||(specPeak[key]=new Float32Array(W).fill(-120)),Hh=H-14;
+  const yOf=db=>Hh*(1-Math.max(0,Math.min(1,(db+90)/84)));
+  c.beginPath();c.moveTo(0,Hh);for(let x=0;x<W;x++){const f0=20*Math.pow(1000,x/W),f1=20*Math.pow(1000,(x+1)/W);let b0=Math.floor(f0/(sr/2)*N),b1=Math.max(b0+1,Math.ceil(f1/(sr/2)*N)),m=-120;for(let k=b0;k<b1&&k<N;k++)m=Math.max(m,d[k]);
+    pk[x]=Math.max(m,pk[x]-.35);c.lineTo(x,yOf(m))}c.lineTo(W,Hh);c.closePath();c.fillStyle="rgba(211,18,42,.28)";c.fill();c.strokeStyle="#ff3b4e";c.stroke();
+  c.beginPath();for(let x=0;x<W;x++){const y=yOf(pk[x]);x?c.lineTo(x,y):c.moveTo(x,y)}c.strokeStyle="rgba(255,255,255,.35)";c.stroke()}
+function buildSpec(){
+  const t=$("t-spec");
+  if(!$("sp-mix")){t.innerHTML=`<div class="warn">Live-Analyse der Pattern-Vorschau (Play drücken). MIX misst die Summe hinter Röhrenstufe und Kompressor. Drums, Bass und Musik sind getrennte Rollen, wie in einem Mastering-EQ. Die Zielwerte stammen aus acht Szene-Tracks mit vollem Mix: sie passen auf den ganzen Track, nicht auf eine einzelne Rolle.</div>
+  <div class="card"><h3>MIX</h3><canvas id="sp-mix" width="1100" height="200" style="height:200px"></canvas><div id="sp-bands"></div></div>
+  <div class="row" style="align-items:stretch"><div class="card" style="flex:1;min-width:280px"><h3>Drums</h3><canvas id="sp-drums" width="540" height="150" style="height:150px"></canvas></div>
+  <div class="card" style="flex:1;min-width:280px"><h3>Bass</h3><canvas id="sp-bass" width="540" height="150" style="height:150px"></canvas></div>
+  <div class="card" style="flex:1;min-width:280px"><h3>Musik (Lead, Chord, Voice, FX)</h3><canvas id="sp-music" width="540" height="150" style="height:150px"></canvas></div></div>`}
+  specLoop()}
+let specBusy=false;
+function specLoop(){
+  if(!specOn||specBusy)return;specBusy=true;
+  const step=()=>{if(!specOn){specBusy=false;return}
+    drawSpec(anMix,$("sp-mix"),"mix");drawSpec(anG.drums,$("sp-drums"),"d");drawSpec(anG.bass,$("sp-bass"),"b");drawSpec(anG.music,$("sp-music"),"m");
+    if(anMix&&playing){const {shares,tot}=bandShares(anMix),tt=BANDS.reduce((a,b)=>a+b[3],0);
+      $("sp-bands").innerHTML="<table><tr><th>Band</th><th>Live</th><th>Ziel (Szene-Median)</th><th>Abweichung</th><th></th></tr>"+BANDS.map((b,i)=>{const tg=b[3]/tt,lv=shares[i],db=10*Math.log10((lv+1e-9)/tg),bad=Math.abs(db)>3;
+        return`<tr><td>${b[0]} ${b[1]}–${b[2]>=1000?b[2]/1000+"k":b[2]} Hz</td><td>${(lv*100).toFixed(1)} %</td><td>${(tg*100).toFixed(1)} %</td><td><span class="tag ${bad?"u":"v"}">${db>0?"+":""}${db.toFixed(1)} dB</span></td><td>${bad?BAND_HINT[i][db>0?1:0]:"passt"}</td></tr>`}).join("")+"</table>"}
+    else if(!playing)$("sp-bands").innerHTML='<div style="color:var(--dim)">Play drücken, um zu messen.</div>';
+    requestAnimationFrame(step)};
+  requestAnimationFrame(step)}
+
 /* ============ Musik-Check ============ */
 let kmemo=null;
-function kickPitchInfo(){const key=JSON.stringify(S.kick)+S.root;if(kmemo&&kmemo.key===key)return kmemo.v;const m=measureKick(renderKick(S.kick));
+function kickPitchInfo(){const sa=sampAssign.D1;if(sa&&sa.hz&&sa.pr>=.5){const rootHz=kickTarget().hz,hz=sampTune?rootHz:sa.hz;return{hz,note:nn(Math.round(69+12*Math.log2(hz/440))),cents:Math.round(1200*Math.log2(hz/rootHz)),rootHz}}
+  const key=JSON.stringify(S.kick)+S.root;if(kmemo&&kmemo.key===key)return kmemo.v;const m=measureKick(renderKick(S.kick));
   const rootHz=kickTarget().hz,cents=Math.round(1200*Math.log2(m.hz/rootHz));kmemo={key,v:{hz:m.hz,note:m.note,cents,rootHz}};return kmemo.v}
 function retuneKick(){const t=kickTarget(),cur=measureKick(renderKick(S.kick));calibrate(S.kick,t.hz,cur.tail||200);kmemo=null;
   if(kickBuf&&ac){const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);kickBuf=b}}
