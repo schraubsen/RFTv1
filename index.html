@@ -132,10 +132,10 @@ const PARTS=[
  {id:"D3",name:"Drum 3 · Kurzkick/Roll",kind:"drum",ch:9,note:40,fx:[0,0,0],lvl:100},
  {id:"D4",name:"Drum 4 · Hat 16tel",kind:"drum",ch:9,note:41,fx:[1,0,0],lvl:85},
  {id:"D5",name:"Drum 5 · Schranz-Perc",kind:"drum",ch:9,note:43,fx:[1,0,0],lvl:90},
- {id:"D6",name:"Drum 6 · Closed Hat",kind:"drum",ch:9,note:42,fx:[1,0,0],lvl:85},
- {id:"D7",name:"Drum 7 · Open Hat",kind:"drum",ch:9,note:45,fx:[1,0,0],lvl:85},
- {id:"D8",name:"Drum 8 · Clap",kind:"drum",ch:9,note:48,fx:[1,0,0],lvl:95},
- {id:"D9",name:"Drum 9 · Snare/Fill",kind:"drum",ch:9,note:50,fx:[1,0,0],lvl:90},
+ {id:"D6",name:"Drum 6A · Closed Hat",kind:"drum",ch:9,note:42,fx:[1,0,0],lvl:85},
+ {id:"D7",name:"Drum 6B · Open Hat",kind:"drum",ch:9,note:45,fx:[1,0,0],lvl:85},
+ {id:"D8",name:"Drum 7A · Clap",kind:"drum",ch:9,note:48,fx:[1,0,0],lvl:95},
+ {id:"D9",name:"Drum 7B · Snare/Fill",kind:"drum",ch:9,note:50,fx:[1,0,0],lvl:90},
  {id:"S1",name:"Synth 1 · Bass",kind:"syn",ch:0,fx:[0,0,0],lvl:105},
  {id:"S2",name:"Synth 2 · Screech-Lead",kind:"syn",ch:1,fx:[0,1,0],lvl:95},
  {id:"S3",name:"Synth 3 · Chord/Pad",kind:"syn",ch:2,fx:[0,1,1],lvl:90},
@@ -189,15 +189,23 @@ const SOUND={
  S5:{what:"Noise/Riser/Sirene (Noise-Osz, Cutoff-Sweep).",set:"Osz Noise · HPF/BPF · Cutoff-Motion über 8 Takte · FX3",src:"u"},
  AC:{what:"Accent verstärkt gewählte Parts (ACCENT SW) – es ducked NICHT. Pumpen via FX-Kompressor oder Level-Motion.",set:"Steps 1/5/9/13 · Accent-Switch an Kick + Bass",src:"v"}
 };
-const FXTYPES={ // laut Skill-Referenz / Gerät – Parameternamen nicht verifiziert
+const FXTYPES={ // Typen laut Bedienfeld; Vorschau rechnet nur Delays und Reverb nach
  "Short Delay":"metallischer Teppich auf Hats/Perc, Feedback hoch",
- "BPM Delay 3/16":"Vocals, Lead, Chord – punktierter 16tel-Hall",
+ "BPM Delay 3/16":"Paneel: BPM Sync Delay. Vocals, Lead, Chord, punktiertes 16tel",
  "Reverb":"Riser/Break, sparsam",
+ "Mod Delay":"modulierte Wiederholungen, Chorus-artig",
  "Grain Shifter":"Live-Zerstörung im Break",
- "EQ":"Low/High-Gain, z. B. für Kick-Punch (Forum-Rezept: Low Gain 11, High Gain 30)",
- "Talking Modulator":"vokalartige Filterbewegung auf Lead/Voice (laut sequencer.de an Bord)",
+ "Cho/Flg":"Chorus/Flanger auf Lead und Hats",
+ "Phaser":"Bewegung auf Chord und Noise",
+ "Ring Mod":"metallische Seitenbänder, Terror-Effekt",
+ "Talking Mod":"vokalartige Filterbewegung auf Lead/Voice",
+ "Pitch Shifter":"Tonhöhenversatz, Octaver-Effekte",
  "Compressor":"Pumpen (Sidechain-Ersatz; Accent ducked nicht)",
- "Distortion":"Schranz-Kante auf Perc/Lead"
+ "Distortion":"Schranz-Kante auf Perc/Lead",
+ "Decimator":"Bit- und Samplerate-Reduktion, Lo-Fi-Dreck",
+ "EQ":"Low/High-Gain, z. B. für Kick-Punch (Forum-Rezept: Low Gain 11, High Gain 30)",
+ "LPF":"Tiefpass als Effekt, Filterfahrten im Break",
+ "HPF":"Hochpass als Effekt, Build-ups"
 };
 const TPL={
  "Intro":{kick:1,off:0,hat:0.5,perc:0.2,clap:0,bass:0,chord:1},
@@ -297,6 +305,7 @@ function gen(kind){
     if(kind==="Build"&&b>=S.bars-2&&s%4===0)put("S5",i,leadBase());      // Riser
     if((kind==="Drop"||kind==="Drop B (hart)")&&s===0&&b%4===0)put("S5",i,leadBase()); // Impact
   }
+  for(let i=0;i<n;i++)if(S.steps.D8[i]&&S.steps.D9[i])S.steps.D9[i]=0; // 7A/7B sind ein Choke-Paar
   if(kind==="Build"||kind==="Drop B (hart)"){S.motion=[mkLane("D5","cutoff","rise"),mkLane("S2","cutoff","saw")];}
   if(kind==="Break"){S.motion=[mkLane("S4","formant","tri"),mkLane("S2","cutoff","rise")];}
   if(kind==="Drop"){S.motion=[mkLane("S1","cutoff","tri")];}
@@ -589,7 +598,7 @@ $("t-research").innerHTML=`
 <tr><td>1. ESX-1 als Sampler</td><td>Vocal-Chops (One-Shots, Wörter, Schreie) auf der ESX als Slice/Keyboard-Part, Ausgang in EMX Audio In oder getrennt in den Mixer.</td><td>Beste Lösung. ESX: 44,1 kHz/16 Bit, 285 s. Vocals vorher in der DAW trimmen, mono, −1 dBFS (Skill: <code>prep_esx.py</code>).</td></tr>
 <tr><td>2. DAW-Chops → Audio In</td><td>Gesprochene Phrasen aus DAW (Pitch/Formant vorher einstellen) auf EMX Audio In, dort BPM-Delay + Filter (HPF/BPF).</td><td>Flexibel, aber kein Sample-Retrigger am EMX → Timing kommt aus der DAW/MIDI-Sync.</td></tr>
 <tr><td>3. Formant-Oszillator</td><td>Synth 4 mit Formant-Osz, Parameter per Motion durch Vokale fahren (a-e-i-o-u), danach BPF+ und FX2.</td><td>Klingt robotisch-vokalisch, kein echter Text. Genau das passt zu Rave-/Hardtekk-„Stab“-Stimmen. In der Vorschau grob modelliert (Näherungswerte).</td></tr>
-<tr><td>5. Talking Modulator (FX)</td><td>Einer der drei FX-Slots als Talking Modulator auf Synth 2 oder 4, Motion auf den FX-Parameter.</td><td>Laut sequencer.de an Bord. Erzeugt sprechende Vokal-Bewegung ohne Samples, gut für Rave-Stabs.</td></tr>
+<tr><td>5. Talking Mod (FX)</td><td>Einer der drei FX-Slots als Talking Modulator auf Synth 2 oder 4, Motion auf den FX-Parameter.</td><td>Laut sequencer.de an Bord. Erzeugt sprechende Vokal-Bewegung ohne Samples, gut für Rave-Stabs.</td></tr>
 <tr><td>4. Mikrofon live</td><td>Audio In (Mic/Line) – Echo/Reverb/Grain Shifter als Schmutzfilter.</td><td>Nur für Rufe/Shouts im Set.</td></tr></table>
 <div class="warn">Voice-Tricks sind Erfahrungswerte, am EMX gegenhören. Ein Vocoder-/Formant-Shift wie beim microKORG ist für den EMX <b>nicht belegt</b>.</div></div>
 <div class="card"><h3>Warum es musikalisch passt (Generator-Logik)</h3><ul>
@@ -603,11 +612,30 @@ $("t-research").innerHTML=`
 <tr><td>Oszillator</td><td>16 Typen, mit Wellenform-Varianten 258: Wave Form, Dual Osc, Osc Sync, Ring Mod, Cross Mod, VPM, Waveshaper, Unison (6-fach verstimmt), Chord, Additive, Formant, Audio In+Comb, PCM Osc+Comb, PCM Osc+WS u. a.</td><td><span class="tag v">Handbuch</span></td></tr>
 <tr><td>Osc Edit 1 / 2</td><td>Edit 1 verändert die Wellenform (je nach Modell), Edit 2 meist den Pitch-Versatz zwischen den Oszillatoren. Wave Form: ±63 = ±2 Oktaven, 47 = ±1 Oktave. Chord: Edit 1 wählt die Akkordform.</td><td><span class="tag v">Handbuch</span></td></tr>
 <tr><td>Drum-PCM</td><td>207 Wellen. Nr. 1 BD-Dark, Nr. 4 BD-Syn1, Nr. 11 BD-Syn8 (Kick). SD-Clap1/2 in den 70ern, Clp-Einträge in den 80ern/90ern, HH-Einträge ab ca. 95 bis 104 (Nummern aus OCR, am Gerät gegenprüfen).</td><td><span class="tag v">Handbuch</span></td></tr>
-<tr><td>Pack „50tube“</td><td>207 Dateien, gemessene Reihenfolge: Kicks 1–40, Snare/Clap/Perc 42–90, Hats ab 91–95. Passt zu den Ankerpunkten der PCM-Liste: Datei = PCM-Nummer.</td><td><span class="tag u">abgeleitet</span></td></tr>
+<tr><td>Pack „50tube“</td><td>207 Dateien, gemessene Reihenfolge: Kicks 1–40, Snare/Clap/Perc 42–90, Hats ab 91–95, tonale Toms 131–137, kurze tonale Bongos 138–141, Congas 142–149, Clave 155 (90 ms, 2,3 kHz). Passt zu den Ankern aus Handbuch und Slopes ReFill: Datei = PCM-Nummer.</td><td><span class="tag v">mehrfach gestützt</span></td></tr>
+<tr><td>Percussion-Anker</td><td>[138]–[141] Bongo, [142]–[149] Conga, [150]–[154] Timbale, [155] Clave. Ordner der ReFill: Kicks, Snares, Rims, Claps, Hi Hats, Ride, Crash, Toms, Percussion (gleiche Reihenfolge wie die PCM-Liste).</td><td><span class="tag u">Slope-ReFill (Dateinamen)</span></td></tr>
 <tr><td>Synth-PCM</td><td>76 Wellen, die Liste beginnt mit FMBass und 88Bass.</td><td><span class="tag v">Handbuch</span></td></tr>
 <tr><td>MIDI</td><td>CC-Nummer pro Knopf frei zuweisbar (MIDI Utility, #CC ASSIGN, 0–127). Drum-Notennummer pro Part zuweisbar. Control Change wird gesendet und empfangen.</td><td><span class="tag v">Handbuch</span></td></tr>
 <tr><td>FX</td><td>3 FX seriell oder parallel, u. a. Talking Modulator, Grain, EQ (Low/High Gain).</td><td><span class="tag u">Forum / sequencer.de</span></td></tr>
 <tr><td>Dateiformat .emx/.esx</td><td>Nicht dokumentiert. Offsets nur per Diff im Datei-Inspektor bestimmen.</td><td><span class="tag u">offen</span></td></tr></table></div>
+<div class="card"><h3>Bedienfeld der EMX-1 (abgelesen vom Geräte-Foto)</h3><table><tr><th>Bereich</th><th>Bedienelemente</th></tr>
+<tr><td>Anschlüsse</td><td>Kopfhörer, Output L/Mono und R, Indiv. Out 1 und 2, Audio In mit Mic/Line, MIDI In/Out/Thru, Standby, AC 9 V, SmartMedia-Slot</td></tr>
+<tr><td>Oben links</td><td>Master Volume, Tube Gain, Audio In Level · Audio In Thru, Tempo Lock, Auto BPM Scan, Write/Rename, Dial</td></tr>
+<tr><td>Pattern</td><td>Tempo, Swing, Roll Type, Length, Beat, Arpeggio Scale · Compare</td></tr>
+<tr><td>Part Edit</td><td>Wave, Synth Tune, Output Bus, Swing SW, Accent SW</td></tr>
+<tr><td>Step Edit</td><td>Motion Dest, Motion Value, Gate Time, Note No., Step Rec</td></tr>
+<tr><td>Song</td><td>Tempo, Position, Pattern, Note Offset, Mute Hold, Next Song</td></tr>
+<tr><td>Global / MIDI</td><td>Metronome, Arp Control, Master Tune, Protect · Clock, MIDI Ch, Bend Range</td></tr>
+<tr><td>Effect (16 Typen)</td><td>Talking Mod, Pitch Shifter, Compressor, Distortion, Decimator, EQ, LPF, HPF, Reverb, BPM Sync Delay, Short Delay, Mod Delay, Grain Shifter, Cho/Flg, Phaser, Ring Mod · FX Edit 1/2, FX1–3, Edit Select, FX Chain, Motion Seq</td></tr>
+<tr><td>Part Common</td><td>Pitch/Glide, Pan, EG Time, Level · Amp EG, FX Select, Roll, FX Send</td></tr>
+<tr><td>Modulation</td><td>Speed, Depth, 5 Wellenformen (Type), BPM Sync · Ziele: Pitch, Osc Edit 1, Osc Edit 2, Cutoff, Amp, Pan · Motion Seq: Smooth / Trig Hold</td></tr>
+<tr><td>Synth Oscillator (16)</td><td>Waveform, Dual Osc, Chord, Unison, Ring Mod, Osc Sync, Cross Mod, VPM, WS, Additive, Comb, Formant, Noise, PCM+Comb, PCM+WS, Audio In+Comb · Osc Edit 1/2</td></tr>
+<tr><td>Synth Filter</td><td>Cutoff, Resonance, EG Int, Drive · Type: LPF, HPF, BPF, BPF+</td></tr>
+<tr><td>Parts</td><td>Drum 1, 2, 3, 4, 5, 6A, 6B, 7A, 7B + Accent · Synth 1–5 + Accent. 6A/6B und 7A/7B sind Paare wie beim ESX (Choke), das Tool hält beide Paare frei von Doppelschlägen.</td></tr>
+<tr><td>Transport</td><td>Erase, Rec, Stop, Play/Pause, Tap, Rest/Tie (Part Mute), Transpose (Solo), Shift, Pattern Set, Keyboard, ◀ ▶, 8 Takt-LEDs</td></tr>
+<tr><td>Shift + Step 1–13</td><td>1 Last Step · 2 Move Data · 3 Shift Note · 4 Copy Part · 5 Copy Sound · 6 Clear Motion · 7 Clear Part · 8 Clear Pattern · 9 Insert Pattern · 10 Delete Pattern · 11 Clear Song · 12 MIDI Utility · 13 Card</td></tr>
+<tr><td>Arpeggiator</td><td>Ribbon und Slider</td></tr></table>
+<div style="color:var(--dim)">Röhren im Foto: zwei Electro-Harmonix 12AX7EH (Russland), ab Werk.</div></div>
 <div class="card"><h3>EMX-1 laut sequencer.de (Moogulator)</h3><ul>
 <li>5 monophone Synth-Spuren, 9 Drum-Spuren, 128 Steps (8 Takte), bis zu 24 Motion Sequences (aufgezeichnete Knopfbewegungen).</li>
 <li>207 Drum- und Lead-Sounds als PCM, keine eigenen Samples. Oszillatoren: VPM, Unison, Chord, PCM, Waveshape (ein Osz formt den anderen), Comb, Additiv, 76 Synth-Wellen, je 2 Echtzeit-Parameter.</li>
@@ -621,7 +649,7 @@ $("t-research").innerHTML=`
 <tr><td>Electro-Harmonix 12AX7EH (ab Werk)</td><td>Zwei Stück verbaut, ECC83-kompatibel</td><td>Referenz</td></tr>
 <tr><td>JJ ECC83S Gold Pin</td><td>µ = 100, Steilheit 1,6 mA/V, Heizung 6,3/12,6 V: elektrisch wie die Standard-ECC83S, nur vergoldete Pins</td><td>Händler nennt engere Toleranzen und klareren Klang, das ist eine Herstellerangabe. „Gold Pin“ heißt nicht selektiert.</td></tr>
 <tr><td>JJ ECC803S Gold Pin</td><td>Langanoden-Variante der 12AX7, gleiche Sockelbelegung</td><td>Im Forum in den ESX getauscht: „deutlich besser“, andere Nutzer hören kaum Unterschied</td></tr>
-<tr><td>RFT ECC83</td><td>Deutsche Röhre (DDR)</td><td>Moogulator: „klingt schöner“, Höreinschätzung</td></tr>
+<tr><td>RFT ECC83 (CV4004)</td><td>Deutsche Röhre (DDR), gebraucht ab ca. 20 €, geprüft im Fachhandel ca. 49–69 € (Google-Shopping, Oktober 2026). RFT hatte ein eigenes Qualitätssystem mit Gütezeichen (Analog-Forum).</td><td>Moogulator: „klingt schöner“. Tube Amp Doctor: klar, aber weich, runder, sahniger Overdrive, weniger glasklar als Telefunken oder Philips. Beides Höreinschätzungen.</td></tr>
 <tr><td>Tung-Sol 12AX7</td><td>–</td><td>Forum: EMX klingt damit sehr sauber</td></tr></table>
 <ul><li><b>Matched Pairs sind unnötig:</b> Vorstufe mit niedriger Anodenspannung, kein Endstufen-Amp. Den L/R-Abgleich macht die Kalibrierung.</li>
 <li><b>Tausch:</b> Gerät aus und vom Netz, Röhren abkühlen lassen, gerade ziehen und einsetzen, Pins nicht verbiegen.</li>
@@ -1096,7 +1124,7 @@ const RSTYLES={
 const stylePart=(st,id)=>RSTYLES[st].p[id]||RBASE[id];
 const RND={style:"rft",dens:{},lock:{D1:false},chaos:15,fills:true,tempo:false,vary:15,built:false};
 function rDefaults(){PARTS.filter(p=>p.kind!=="acc").forEach(p=>RND.dens[p.id]=Math.round(stylePart(RND.style,p.id)[0]*100))}
-function rConstraints(){for(let i=0;i<MAXSTEPS;i++){if(S.steps.D6[i]&&S.steps.D7[i])S.steps.D6[i]=0;if(S.steps.S1[i]&&S.steps.D1[i])S.steps.S1[i]=0;S.steps.AC[i]=S.steps.D1[i]&&i%4===0?1:0}}
+function rConstraints(){for(let i=0;i<MAXSTEPS;i++){if(S.steps.D6[i]&&S.steps.D7[i])S.steps.D6[i]=0;if(S.steps.D8[i]&&S.steps.D9[i])S.steps.D9[i]=0;if(S.steps.S1[i]&&S.steps.D1[i])S.steps.S1[i]=0;S.steps.AC[i]=S.steps.D1[i]&&i%4===0?1:0}}
 function rBuild(only){
   snap();const n=nSteps(),seed=S.seed*7919+(only?only.charCodeAt(1)*31+only.charCodeAt(0):0)+RND.style.length*101,rng=mulberry(seed),rnd=a=>rng()<a,pick=a=>a[Math.floor(rng()*a.length)],c=RND.chaos/100;
   const parts=PARTS.filter(p=>p.kind!=="acc"&&!RND.lock[p.id]&&(!only||p.id===only));parts.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});
@@ -1227,7 +1255,9 @@ function edDraw(fast){
   c.fillStyle="#e8e6e1";c.fillRect(xs-1,0,2,H);c.fillRect(xe-1,0,2,H);c.font="11px monospace";c.fillText("START",xs+4,12);c.fillText("ENDE",Math.max(0,xe-36),12)}
 /* EMX-PCM-Zuordnung: Pack mit genau 207 nummerierten Dateien = vermutlich die 207 PCM-Sounds der EMX in Gerätereihenfolge */
 /* Laut EMX-Handbuch (Drum PCM List): Nr. 1 BD-Dark, Nr. 4 BD-Syn1, Nr. 11 BD-Syn8 */
-const PCM_NAMES={1:"BD-Dark",4:"BD-Syn1",11:"BD-Syn8"};
+const PCM_NAMES={1:"BD-Dark",4:"BD-Syn1",11:"BD-Syn8",155:"Clave"};
+/* Kategorien laut Dateinamen in Slopes EMX-1-ReFill: [138]–[141] Bongo, [142]–[149] Conga, [150]–[154] Timbale, [155] Clave */
+[138,139,140,141].forEach(n=>PCM_NAMES[n]="Bongo");for(let n=142;n<=149;n++)PCM_NAMES[n]="Conga";for(let n=150;n<=154;n++)PCM_NAMES[n]="Timbale";
 function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length,n=+it.name;return k===207?(PCM_NAMES[n]?n+" "+PCM_NAMES[n]:String(n)):null}
 
 
@@ -1236,7 +1266,7 @@ const EVO={gen:0,vars:[],rating:{},fixed:{D1:true},scope:{rhy:true,notes:true,ac
 const cloneG=g=>({steps:JSON.parse(JSON.stringify(g.steps)),notes:JSON.parse(JSON.stringify(g.notes))});
 const genome=()=>cloneG(S);
 function loadGenome(g){S.steps=JSON.parse(JSON.stringify(g.steps));S.notes=JSON.parse(JSON.stringify(g.notes));buildGrid()}
-function fixG(g,rng){for(let i=0;i<MAXSTEPS;i++){if(g.steps.D6[i]&&g.steps.D7[i])g.steps.D6[i]=0;if(g.steps.S1[i]&&g.steps.D1[i])g.steps.S1[i]=0;
+function fixG(g,rng){for(let i=0;i<MAXSTEPS;i++){if(g.steps.D6[i]&&g.steps.D7[i])g.steps.D6[i]=0;if(g.steps.D8[i]&&g.steps.D9[i])g.steps.D9[i]=0;if(g.steps.S1[i]&&g.steps.D1[i])g.steps.S1[i]=0;
     for(const id of ["S1","S2","S3","S4"])if(g.steps[id][i]&&!inKey(g.notes[id][i]))g.notes[id][i]=snapKey(g.notes[id][i]);
     if(g.steps.S2[i]&&g.notes.S2[i]<57)g.notes.S2[i]+=12;
     if(EVO.scope.acc)g.steps.AC[i]=(g.steps.D1[i]&&i%4===0)||(g.steps.D2[i]&&rng&&rng()<EVO.mut/400)?1:0}
@@ -1481,7 +1511,7 @@ function lowEndLive(){
     const ok=a===20?pd>=65:a===60?pd>=30&&pd<=80:true;return`<tr><td>${n}</td><td>${pd.toFixed(0)} %</td><td>${(100-pd).toFixed(0)} %</td><td><div style="display:flex;height:10px"><div style="width:${pd}%;background:var(--red)"></div><div style="width:${100-pd}%;background:#c050e0"></div></div> ${ok?"":'<span class="tag u">'+(a===20?"Sub sollte der Kick gehören":"Bass und Kick unausgewogen")+"</span>"}</td></tr>`}).join("")+"</table>"}
 
 /* ============ EMX-Synth-Emulation (Chaos / Psycho) ============ */
-const OSC_T=["Saw","Square","Triangle","Sine","Wave Form","Dual Osc","Osc Sync","Ring Mod","Cross Mod","VPM","Waveshaper","Unison","Chord","Additive","Formant","Noise"];
+const OSC_T=["Saw","Square","Triangle","Sine","Wave Form","Dual Osc","Osc Sync","Ring Mod","Cross Mod","VPM","Waveshaper","Unison","Chord","Additive","Formant","Comb","Noise"];
 const CHORDS=[[0,4,7],[0,3,7],[0,5,7],[0,4,7,11],[0,3,7,10],[0,7,12],[0,3,6],[0,4,8]];
 const XS={osc:"VPM",e1:70,e2:40,note:56,flt:"BPF+",cut:80,res:95,egi:60,drv:70,att:2,dec:60,lfoW:"tri",lfoSp:40,lfoD:20,lfoT:"cutoff",len:2,chaos:40,psycho:false,seq:true,built:false};
 const XPRE={"Psycho-Screech":{osc:"VPM",e1:90,e2:55,flt:"BPF+",cut:85,res:110,egi:70,drv:90,att:1,dec:45,lfoW:"sh",lfoSp:70,lfoD:35,lfoT:"cutoff",chaos:55,psycho:false,seq:true},
@@ -1494,6 +1524,7 @@ const XPRE={"Psycho-Screech":{osc:"VPM",e1:90,e2:55,flt:"BPF+",cut:85,res:110,eg
 function xsRender(P){
   const N=Math.floor(P.len*SR),y=new Float32Array(N),bpm=+$("bpm").value||168,stepN=Math.floor(60/bpm/4*SR);let seed=(S.seed*2654435761)>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
   const baseHz=midiHz(P.note),cut0=30*Math.pow(2,P.cut/127*9.3),q=0.5+P.res/127*(P.flt==="BPF+"?14:11),drive=1+P.drv/127*8,e1=P.e1/127,e2=(P.e2-64)/63;
+  const cbuf=new Float32Array(Math.ceil(SR/15));let cpos=0,clp=0;
   let ph=[0,0,0,0,0,0,0,0],ph2=0,lp1=0,bp1=0,lp2=0,bp2=0,fl=0,fb=0,lfoPh=0,sh=0,pitchOff=0,e1Off=0,cutOff=0,stepT=0,lastStep=-1,nz=0,amp=0;
   const scaleM=[];for(let m=P.note-12;m<=P.note+12;m++)if(inKey(m))scaleM.push(m);
   for(let i=0;i<N;i++){const t=i/SR,step=Math.floor(i/stepN);
@@ -1520,6 +1551,9 @@ function xsRender(P){
       case "Chord":{const ch=CHORDS[Math.min(CHORDS.length-1,Math.floor(E1*CHORDS.length))];ch.forEach((iv,k)=>{ph[k]=(ph[k]+dt*Math.pow(2,iv/12))%1;s+=2*ph[k]-1});s/=ch.length*.7;break}
       case "Additive":{ph[0]=(ph[0]+dt)%1;for(let h=1;h<=8;h++){const w=Math.pow(E1*.9+.05,h-1)*(h%2===0?(1-Math.max(0,e2)):1+Math.min(0,e2)*0);s+=w*Math.sin(2*Math.PI*ph[0]*h)}s*=.6;break}
       case "Formant":{ph[0]=(ph[0]+dt)%1;s=2*ph[0]-1;const fr=[300+E1*600,900+E1*1500];const ff=2*Math.sin(Math.PI*Math.min(.45,fr[0]/SR));fl+=ff*fb;const hp=s-fl-fb/3;fb+=ff*hp;s=fb*1.5;break}
+      case "Comb":{ // Rausch-Impuls pro Step in eine gestimmte Kammfilter-Schleife (Karplus-artig), Edit 1 = Rückkopplung, Edit 2 = Dämpfung
+        const dl=Math.max(2,Math.min(cbuf.length-1,Math.round(SR/f))),ex=stepT<SR*.006?(rnd()*2-1):0,rd=(cpos-dl+cbuf.length)%cbuf.length,fbk=.6+E1*.39;
+        clp+=(0.25+(e2+1)*.35)*(cbuf[rd]-clp);const v=ex+clp*fbk;cbuf[cpos]=v;cpos=(cpos+1)%cbuf.length;s=v;break}
       case "Noise":{nz+=(1-E1*.95)*((rnd()*2-1)-nz);s=nz*2;break}}
     // Filter (SVF, BPF+ = zwei Bandpässe in Serie)
     const egEnv=Math.exp(-(stepT/SR)/Math.max(.005,P.dec/127*0.6)),cutHz=Math.min(18000,cut0*Math.pow(2,P.egi/127*5*egEnv+cutOff+(P.lfoT==="cutoff"?lfo*ld*3:0)));
@@ -1531,13 +1565,13 @@ function xsRender(P){
     const at=Math.max(.0005,P.att/127*0.8),dc=Math.max(.01,P.dec/127*(P.seq?0.5:3)),tt=P.seq?stepT/SR:t;amp=tt<at?tt/at:Math.exp(-(tt-at)/dc);
     y[i]=o*amp*(P.lfoT==="amp"?1-ld*(lfo*.5+.5):1)}
   return genFinish(y)}
-const OSC_LBL={Saw:"Wave Form → Saw",Square:"Wave Form → Square (Edit 1 = Pulsbreite)",Triangle:"Wave Form → Triangle",Sine:"Wave Form → Sine","Wave Form":"Wave Form","Dual Osc":"Dual Osc","Osc Sync":"Osc Sync","Ring Mod":"Ring Mod","Cross Mod":"Cross Mod",VPM:"VPM",Waveshaper:"Waveshaper",Unison:"Unison",Chord:"Chord",Additive:"Additive",Formant:"Formant",Noise:"Noise / PCM"};
+const OSC_LBL={Saw:"Wave Form → Saw",Square:"Wave Form → Square (Edit 1 = Pulsbreite)",Triangle:"Wave Form → Triangle",Sine:"Wave Form → Sine","Wave Form":"Wave Form","Dual Osc":"Dual Osc","Osc Sync":"Osc Sync","Ring Mod":"Ring Mod","Cross Mod":"Cross Mod",VPM:"VPM",Waveshaper:"WS (Waveshaper)",Comb:"Comb",Unison:"Unison",Chord:"Chord",Additive:"Additive",Formant:"Formant",Noise:"Noise / PCM"};
 function xsSheet(P){const R=[["Oszillator",OSC_LBL[P.osc]||P.osc],["Osc Edit 1",P.e1],["Osc Edit 2",P.e2],["Filter",P.flt],["Cutoff",P.cut],["Resonanz",P.res],["EG Int",P.egi],["Drive",P.drv],["Attack",P.att],["Decay",P.dec],["LFO",`${{tri:"Dreieck",saw:"Säge",sq:"Rechteck",sh:"Zufall (S&H)"}[P.lfoW]} → ${{pitch:"Pitch",cutoff:"Cutoff",amp:"Amp",edit1:"Osc Edit 1"}[P.lfoT]}`],["LFO-Speed",P.lfoSp],["LFO-Tiefe",P.lfoD]];
   return"<table><tr><th>Am EMX einstellen</th><th>Wert</th><th>Knopf</th></tr>"+R.map(([n,v])=>`<tr><td>${n}</td><td>${v}</td><td>${typeof v==="number"?clockOf(v):""}</td></tr>`).join("")+`</table><div style="color:var(--dim);font-size:12px">Chaos ${P.chaos}${P.psycho?" (frei, mikrotonal)":" (in Tonart)"}: am Gerät per Motion Sequence auf Pitch, Osc Edit 1 und Cutoff einspielen. Die Emulation nähert die EMX-Algorithmen an, sie ist kein Klon.</div>`}
 function buildXS(){
   const host=$("xs-card");if(!host||XS.built)return;XS.built=true;
   const sl=(k,l,a,b,st)=>`<div class="row" style="margin:3px 0"><label style="width:120px">${l}</label><input type="range" data-xk="${k}" min="${a}" max="${b}" step="${st||1}" value="${XS[k]}" style="flex:1;max-width:300px"><span id="xsv-${k}" style="width:110px">${k==="note"?XS[k]+" ("+nn(XS[k])+")":XS[k]}</span></div>`;
-  host.innerHTML=`<h3>EMX-Synth (Emulation) · Chaos &amp; Psycho</h3><div style="color:var(--dim)">Nachbau der EMX-Oszillatortypen laut Handbuch (Wave Form, Dual Osc, Osc Sync, Ring Mod, Cross Mod, VPM, Waveshaper, Unison, Chord, Additive, Formant, Noise) mit Filter LPF/HPF/BPF/BPF+, EG, LFO und Drive. „Chaos“ springt pro 16tel zufällig in Tonhöhe, Edit 1 und Cutoff, „Psycho“ löst die Tonart auf (mikrotonal). Rechts das Datenblatt zum Einstellen am echten Gerät.</div>
+  host.innerHTML=`<h3>EMX-Synth (Emulation) · Chaos &amp; Psycho</h3><div style="color:var(--dim)">Nachbau der EMX-Oszillatortypen laut Handbuch und Bedienfeld (Waveform, Dual Osc, Chord, Unison, Ring Mod, Osc Sync, Cross Mod, VPM, WS, Additive, Comb, Formant, Noise; PCM- und Audio-In-Typen fehlen, weil die PCM-Daten nicht vorliegen) mit Filter LPF/HPF/BPF/BPF+, EG, LFO und Drive. „Chaos“ springt pro 16tel zufällig in Tonhöhe, Edit 1 und Cutoff, „Psycho“ löst die Tonart auf (mikrotonal). Rechts das Datenblatt zum Einstellen am echten Gerät.</div>
   <div class="row"><label>Preset <select id="xs-pre"><option value="">–</option>${Object.keys(XPRE).map(k=>`<option>${k}</option>`).join("")}</select></label><button id="xs-dice">🎲 Würfeln</button>
   <label>Oszillator <select id="xs-osc">${OSC_T.map(o=>`<option ${o===XS.osc?"selected":""}>${o}</option>`).join("")}</select></label>
   <label>Filter <select id="xs-flt">${["LPF","HPF","BPF","BPF+"].map(o=>`<option ${o===XS.flt?"selected":""}>${o}</option>`).join("")}</select></label>
@@ -1593,7 +1627,7 @@ function musicCheck(){
   lo("S2",57)?w("Lead tiefer als A3 – kollidiert mit Bass/Akkord im Bereich ~200 Hz"):ok("Lead-Lage über dem Bassbereich");
   lo("S3",45)?w("Akkord tiefer als A2 – matscht mit Bass"):ok("Akkord-Lage frei vom Bass");
   // 7 Hat-Konflikt
-  let hc=0;for(let i=0;i<n;i++)if(S.steps.D6[i]&&S.steps.D7[i])hc++;hc?w(`Closed und Open Hat gleichzeitig (${hc}×)`):ok("Open Hat nie auf dem Closed-Hat-Step");
+  let hc=0,cc=0;for(let i=0;i<n;i++){if(S.steps.D6[i]&&S.steps.D7[i])hc++;if(S.steps.D8[i]&&S.steps.D9[i])cc++}hc?w(`6A und 6B (Choke-Paar) gleichzeitig (${hc}×): nur einer klingt`):ok("Choke-Paar 6A/6B (Hats) kollidiert nie");cc?w(`7A und 7B (Choke-Paar) gleichzeitig (${cc}×): nur einer klingt`):ok("Choke-Paar 7A/7B (Clap/Snare) kollidiert nie");
   // 8 Phrasen
   if(S.bars>=4){let f=0;for(let i=(S.bars-1)*16+12;i<n;i++)if(S.steps.D3[i]||S.steps.D9[i])f++;f?ok("Phrasenende (letzter Takt) mit Fill/Roll abgeschlossen"):w("Letzter Takt ohne Fill – Loop-Übergang wirkt flach (Intro/Break ok)")}
   // 9 Tempo
