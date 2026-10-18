@@ -21,6 +21,10 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - **Datei-Inspektor:** .esx/.emx laden, ASCII-Scan (Pattern-/Sample-Namen), Hex-Viewer, Diff zweier Speicherstände, Schema mit `!` = verifiziert. ESX-Dateien werden komplett decodiert (256 Patterns mit Tempo, Swing, Länge, Beat, FX-Kette, Part-Parametern und Step-Raster, Samples, Songs); Feldkarte in `schema/esx1.def`, abgeleitet aus dem Open Electribe Editor (siehe `docs/open-electribe-editor-analyse.md`). Ein ESX-Pattern lässt sich in den Designer übernehmen. Samples der .esx lassen sich anhören, einzeln oder gesammelt als WAV (ZIP) exportieren und ins Sample-Lab übernehmen; an echten Werksdaten Sample für Sample bestätigt. Für EMX- und unbekannte Dateien schätzt eine Struktur-Sonde Chunk-Größe und Startadresse.
 - **Motion, FX, Set/Song, Export:** MIDI (Drums Kanal 10), Step-Sheet, Projekt-JSON.
 
+## Messbefund Röhre
+
+Vergleich zweier Aufnahmen derselben 207 EMX-Sounds (ohne Angabe gegen Tube 50): +2,7 dB RMS bei +0,4 dB Peak, Crest −2,1 dB, Frequenzbalance unverändert. Details in `docs/open-electribe-editor-analyse.md`.
+
 ## Bekannte Grenzen
 
 - EMX-MIDI-Noten und CC-Nummern sind Platzhalter, bis sie aus Korgs MIDI-Implementation übernommen werden.

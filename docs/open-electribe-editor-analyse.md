@@ -43,3 +43,17 @@ Geprüft an fünf echten `.esx` (ESX-Werksdaten mit 256 Patterns, 200 Samples un
 
 - Bedeutung der Bytes 4–12 im 16-Byte-Vorspann der Samples und des Bereichs „BPS“ bei 0x1B0000.
 - EMX-1: kein Layout vorhanden. Der Inspektor bietet für EMX-Dateien eine Struktur-Sonde (wiederkehrende Namen → Chunk-Größe), die an der ESX-Datei die bekannten 4 280 und 528 Bytes korrekt wiederfindet.
+
+## Nebenbefund: Röhreneinfluss der EMX-1, gemessen an zwei Sample-Packs
+
+Zwei Aufnahmen derselben 207 EMX-PCM-Sounds (Pack von Rodrigo López Dato, einmal ohne Angabe zur Röhre, einmal „50tube“). Verglichen wurden 206 Paare bei 44,1 kHz (Medianwerte):
+
+| Messwert | ohne Angabe | Tube 50 | Differenz |
+|---|---|---|---|
+| Peak | −2,47 dBFS | −2,09 dBFS | +0,4 dB |
+| RMS | −17,6 dBFS | −15,0 dBFS | +2,7 dB |
+| Crest-Faktor | 15,5 dB | 12,9 dB | −2,1 dB |
+| Energie über 4 kHz | 6,4 % | 6,3 % | ±0 |
+| Energie unter 120 Hz | 0,7 % | 0,7 % | ±0 |
+
+Die Röhre wirkt bei Tube Gain 50 also vor allem als sanfter Kompressor/Limiter: gut 2,5 dB mehr Lautheit bei fast gleichem Peak, die Frequenzbalance bleibt gleich. Einschränkung: Für das erste Pack ist die Röhrenstellung nicht dokumentiert.
