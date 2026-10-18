@@ -606,6 +606,17 @@ $("t-research").innerHTML=`
 <li>OS 1.02 ist die letzte Version (Bugfixes). Version prüfen: Shift + Pattern-Taste beim Einschalten halten.</li>
 <li><b>Hi-Hat aus dem Synth:</b> Unison mit 6 Saw, Parameter 1 (Detune) auf Maximum, zweite Osz-Tonhöhe auf 0, Filter HPF, Drive und Resonanz auf 11 Uhr, Cutoff und EG Int auf 14 Uhr, EG auf fallende Kurve (nicht Gate), Decay nach Geschmack. Im Random-Tab als „Synth-Hat-Rezept“ hinterlegt.</li>
 <li><b>Röhren:</b> Moogulator meint, zwei ECC83 von RFT (deutsche Röhren) klingen schöner als die verbauten Electro-Harmonix. Das ist eine Höreinschätzung, keine Messung.</li></ul></div>
+<div class="card"><h3>Röhren: JJ Gold Pin und Alternativen</h3>
+<table><tr><th>Röhre</th><th>Fakten</th><th>Einschätzung</th></tr>
+<tr><td>Electro-Harmonix 12AX7EH (ab Werk)</td><td>Zwei Stück verbaut, ECC83-kompatibel</td><td>Referenz</td></tr>
+<tr><td>JJ ECC83S Gold Pin</td><td>µ = 100, Steilheit 1,6 mA/V, Heizung 6,3/12,6 V: elektrisch wie die Standard-ECC83S, nur vergoldete Pins</td><td>Händler nennt engere Toleranzen und klareren Klang, das ist eine Herstellerangabe. „Gold Pin“ heißt nicht selektiert.</td></tr>
+<tr><td>JJ ECC803S Gold Pin</td><td>Langanoden-Variante der 12AX7, gleiche Sockelbelegung</td><td>Im Forum in den ESX getauscht: „deutlich besser“, andere Nutzer hören kaum Unterschied</td></tr>
+<tr><td>RFT ECC83</td><td>Deutsche Röhre (DDR)</td><td>Moogulator: „klingt schöner“, Höreinschätzung</td></tr>
+<tr><td>Tung-Sol 12AX7</td><td>–</td><td>Forum: EMX klingt damit sehr sauber</td></tr></table>
+<ul><li><b>Matched Pairs sind unnötig:</b> Vorstufe mit niedriger Anodenspannung, kein Endstufen-Amp. Den L/R-Abgleich macht die Kalibrierung.</li>
+<li><b>Tausch:</b> Gerät aus und vom Netz, Röhren abkühlen lassen, gerade ziehen und einsetzen, Pins nicht verbiegen.</li>
+<li><b>Danach kalibrieren (Service Manual):</b> Kabel mit 2× 2,2 MΩ Metallfilm-Widerstand von PHONES nach AUDIO IN. MASTER VOLUME max, TUBE GAIN min, AUDIO IN LEVEL max, Schalter auf MIC. ERASE + STEP EDIT halten und einschalten. Anzeige „Valv Wup“ (bis 160 s Aufwärmen), dann „Ajst (L)“ und „Ajst (R)“: Werte unter 0010 sind okay, darüber Trimmpotis auf der KLM-2444/45 im geöffneten Gerät nachstellen. Danach gleicht das Gerät automatisch ab („ValvGMax GainMx“).</li>
+<li><b>Ehrlich:</b> Die Röhrenstufe läuft „starved“ mit niedriger Spannung. Klangunterschiede zwischen Marken sind nur in Forenberichten belegt, nicht gemessen. Die Vorschau im Tool emuliert keine bestimmte Röhre, der Tube-Regler ist eine allgemeine Sättigung.</li></ul></div>
 <div class="card"><h3>Punch-Kick am EMX (Forum-Rezept)</h3><ul><li>BD-Syn8, Modulation fallende Wellenform auf Pitch (ca. 45), Mod-Speed ca. 60, EG Time ca. 70, Panning mittig, FX1 als EQ mit Low Gain ca. 11 und High Gain ca. 30. Belegt damit auch: die EMX hat einen EQ als FX-Typ.</li></ul></div>
 <div class="card"><h3>RFT-Record (Berlin)</h3><ul>
 <li>Laut Forum-Thread auf usb.unitedsb.de: „RFT-Record presents: Kontrollverlust“ am 03.10.2008 in der Zelle, Wiesenweg 5–9, 10365 Berlin. Hardtechno + Hardtekk, 22 Uhr bis Open End, 5 Euro, www.rft-record.com.</li>
