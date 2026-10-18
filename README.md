@@ -4,7 +4,10 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 
 ## Bereiche
 
-- **Pattern:** 14 EMX-Parts + Accent, 1–8 Takte, Templates (Intro bis Outro), Tonart/Skala, Akkordfolge, Lead-Motiv, Euclid, Mutation, Undo. Der Musik-Check prüft Tonart, Kick-Grundton, Bass/Kick-Kollision, Tail-Budget u. a.
+- **Panel (Startseite):** Frontplatte nach dem echten EMX-1-Layout, Handy zuerst. Orange LCD, Part-Tasten (Drum 1–5, 6A/6B, 7A/7B, Accent, Synth 1–5), 16 Step-Tasten mit Seiten pro Takt und Playhead-LEDs, Pattern-Übersicht, Drehregler (Ziehen, Mausrad, Pfeiltasten, Doppelklick = Standard) für Tempo, Swing, Master, Tube, Part-Level, Osc Type (16 Typen vom Bedienfeld), Edit 1/2, Filter-Typ, Cutoff, Resonanz, EG Int, Drive, Attack, EG Time sowie Effect-Typ (16) mit FX Edit 1/2. Tap-Tempo, Mute, Solo, Clear Part, Undo, Template und Tonart. Synth-Klang im Browser ist eine Näherung.
+- **Zoom:** auf dem Handy Standard 80 %, per − / + im Kopf einstellbar (60–125 %), wird gemerkt. Tab-Leiste scrollt in einer Zeile, weitere Regler hinter „⋯“.
+
+- **Raster (früher Pattern):** 14 EMX-Parts + Accent, 1–8 Takte, Templates (Intro bis Outro), Tonart/Skala, Akkordfolge, Lead-Motiv, Euclid, Mutation, Undo. Der Musik-Check prüft Tonart, Kick-Grundton, Bass/Kick-Kollision, Tail-Budget u. a.
 - **Random:** Pattern-Würfel mit Stilen (Hardtekk rollend, Osttekk, Hardtechno/Schranz, Minimal, Chaos), Dichte und Sperre pro Part, Chaos, Fills, Variation. Regeln bleiben: Kick 4/4, Bass nie auf der Hauptkick, Hats nie gleichzeitig, alles in Tonart. Dazu ein Patch-Würfel für Synth 1–5 mit Knopf-Uhrzeiten und das Hi-Hat-Rezept von sequencer.de.
 - **Custom Build:** Pattern mit Schiebereglern formen: Master-Fader für Tempo, Swing, Chaos, Fills, dazu pro Part ein Kanalzug mit Muster, Dichte, Pegel, Swing an/aus, Mute und Sperre. Jede Änderung baut das Pattern sofort neu, die Regeln bleiben.
 - **Swing:** Off-16tel werden um (Swing/50 − 1) × Step verschoben, in der Vorschau und im MIDI-Export (50 % gerade, 66 % triolisch).
