@@ -12,6 +12,7 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - **Sample-Lab:** ZIP/WAV laden, analysieren, klassifizieren, RFT-Score für Kicks, Kit bauen, ESX-fertig exportieren (mono, 44,1 kHz, −1 dBFS, 8.3-Namen). Sample-Editor mit Schnitt (Nulldurchgang), Fades, Attack/Punch/Klick, Pitch, Reverse. Ein Pack mit 207 Dateien wird als EMX-PCM-Satz erkannt (Nummer = vermutlich PCM-Nummer am Gerät).
 - **Spektrum:** Live-Analyse (Mix, Drums, Bass, Musik) gegen Szene-Median oder Referenz-Profil.
 - **RFT-Analyse:** Referenztracks messen (Tempo über Kick-Raster, Kick-Grundton, Tail, Bänder, Bassmauer, Bass-Mono-Kompatibilität, Groove-Profil) und auf den Designer anwenden.
+- **Datei-Inspektor:** .esx/.emx laden, ASCII-Scan (Pattern-/Sample-Namen), Hex-Viewer, Diff zweier Speicherstände, Schema mit `!` = verifiziert. Keine geratenen Offsets.
 - **Motion, FX, Set/Song, Export:** MIDI (Drums Kanal 10), Step-Sheet, Projekt-JSON.
 
 ## Bekannte Grenzen

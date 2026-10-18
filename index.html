@@ -110,6 +110,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
 <section id="t-lab"></section>
 <section id="t-spec"></section>
 <section id="t-rft"></section>
+<section id="t-insp"></section>
 <section id="t-set"></section>
 <section id="t-export"></section>
 <section id="t-research"></section>
@@ -210,9 +211,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["rnd","Random"],["evo","Evolution"],["klang","Klang-Labor"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["rnd","Random"],["evo","Evolution"],["klang","Klang-Labor"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["insp","Datei-Inspektor"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rnd")buildRandom();if(k==="evo")buildEvo();if(k==="klang")buildKlang();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rnd")buildRandom();if(k==="evo")buildEvo();if(k==="klang")buildKlang();if(k==="rft")buildRft();if(k==="insp")buildInsp();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
 Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
@@ -1319,6 +1320,56 @@ function renderKlang(){
 function klDraw(){const f=genRender(GL.type,GL.p),c=$("kl-cv").getContext("2d"),W=1100,H=130;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.strokeStyle="#ff3b4e";c.beginPath();
   for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.max(i0+1,Math.floor((x+1)/W*f.length));let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2.2);c.lineTo(x,H/2-mn*H/2.2)}c.stroke();
   $("kl-info").textContent=`${(f.length/SR).toFixed(2)} s · mono · 44,1 kHz · −1 dBFS`}
+
+
+/* ============ Datei-Inspektor .esx/.emx (Offset-Discovery, Schema statt Hardcoding) ============ */
+const INS={A:null,B:null,an:"",bn:"",hexOff:0,built:false,diffs:[],schema:""};
+try{INS.schema=localStorage.getItem("rft-schema")||""}catch(e){}
+if(!INS.schema)INS.schema="# Schema für EMX-1/ESX-1-Dateien\n# Format: [!]0xOFFSET LÄNGE NAME  # Kommentar\n# ! = am Gerät verifiziert (mit Datum), ohne ! = Vermutung\n";
+const hex2=v=>v.toString(16).toUpperCase().padStart(2,"0"),hexOffs=v=>"0x"+v.toString(16).toUpperCase().padStart(6,"0");
+function asciiRuns(u,min){const out=[];let s=-1;for(let i=0;i<=u.length;i++){const c=i<u.length?u[i]:0,pr=c>=32&&c<127;if(pr&&s<0)s=i;if(!pr&&s>=0){if(i-s>=min)out.push([s,String.fromCharCode(...u.subarray(s,i))]);s=-1}}return out}
+function diffBytes(a,b){const n=Math.min(a.length,b.length),out=[];let s=-1;for(let i=0;i<=n;i++){const d=i<n&&a[i]!==b[i];if(d&&s<0)s=i;if(!d&&s>=0){out.push([s,i-s]);s=-1}if(out.length>=2000)break}return out}
+function parseSchema(txt){return txt.split("\n").map(l=>l.trim()).filter(l=>l&&!l.startsWith("#")).map(l=>{const m=l.match(/^(!?)(0x[0-9a-fA-F]+|\d+)\s+(\d+)\s+(\S+)\s*(#.*)?$/);return m?{ver:!!m[1],off:parseInt(m[2]),len:+m[3],name:m[4],note:(m[5]||"").replace(/^#\s*/,"")}:{bad:l}})}
+function saveSchema(){try{localStorage.setItem("rft-schema",INS.schema)}catch(e){}}
+function buildInsp(){
+  const t=$("t-insp");if(!INS.built){INS.built=true;
+    t.innerHTML=`<div class="warn">Die Byte-Layouts von .esx/.emx sind von Korg nicht dokumentiert. Dieses Werkzeug rät keine Offsets. Es zeigt, was in der Datei steht, und findet Offsets per Vergleich: Speicherstand sichern, <b>genau einen</b> Parameter am Gerät ändern, erneut speichern, beide Dateien vergleichen. Gefundene Offsets kommen ins Schema, mit „!“ erst, wenn sie am Gerät bestätigt sind. Die Dateien bleiben im Browser.</div>
+    <div class="card"><h3>Dateien</h3><div class="row"><label>A (vorher) <input id="in-a" type="file"></label><label>B (nachher, optional) <input id="in-b" type="file"></label></div><div id="in-info" style="color:var(--dim)">Noch keine Datei geladen.</div></div>
+    <div class="card"><h3>Vergleich A ↔ B</h3><div id="in-diff" style="color:var(--dim)">Zwei Dateien laden, um Unterschiede zu sehen.</div></div>
+    <div class="card"><h3>Text in der Datei (ASCII-Scan)</h3><div class="row"><label>Mindestlänge <input id="in-min" type="number" min="3" max="16" value="4" style="width:60px"></label><label>Filter <input id="in-flt" placeholder="z. B. Kick" style="width:160px"></label></div><div id="in-asc"></div><div style="color:var(--dim)">Pattern- und Sample-Namen sind gute Ankerpunkte für die Struktur. Klick auf einen Eintrag springt im Hex-Viewer dorthin.</div></div>
+    <div class="card"><h3>Hex-Viewer (Datei A)</h3><div class="row"><label>Offset <input id="in-off" value="0x000000" style="width:110px"></label><button id="in-go">Springen</button><button id="in-prev">◀ 256</button><button id="in-next">256 ▶</button></div><pre id="in-hex" style="max-height:420px"></pre></div>
+    <div class="card"><h3>Schema</h3><textarea id="in-schema" rows="9" style="width:100%;background:#000;color:var(--fg);border:1px solid var(--line);font:12px monospace;padding:8px"></textarea>
+    <div class="row"><button id="in-sdl">⬇ Schema (.txt)</button><span style="color:var(--dim)">Wird in diesem Browser gemerkt. Werte unten aus Datei A.</span></div><div id="in-sval"></div></div>`;
+    const load=(which,f)=>{if(!f)return;f.arrayBuffer().then(b=>{INS[which]=new Uint8Array(b);INS[which==="A"?"an":"bn"]=f.name;INS.hexOff=0;renderInsp()})};
+    $("in-a").onchange=e=>load("A",e.target.files[0]);$("in-b").onchange=e=>load("B",e.target.files[0]);
+    $("in-min").onchange=renderAscii;$("in-flt").oninput=renderAscii;
+    $("in-go").onclick=()=>{INS.hexOff=Math.max(0,parseInt($("in-off").value)||0);renderHex()};
+    $("in-prev").onclick=()=>{INS.hexOff=Math.max(0,INS.hexOff-256);renderHex()};$("in-next").onclick=()=>{INS.hexOff+=256;renderHex()};
+    $("in-asc").addEventListener("click",e=>{const r=e.target.closest("[data-off]");if(r){INS.hexOff=Math.max(0,(+r.dataset.off&~15)-32);renderHex();$("in-hex").scrollIntoView({block:"nearest"})}});
+    $("in-diff").addEventListener("click",e=>{const j=e.target.closest("[data-dj]");if(j){INS.hexOff=Math.max(0,(+j.dataset.dj&~15)-32);renderHex()}
+      const a=e.target.closest("[data-dadd]");if(a){const[o,l]=a.dataset.dadd.split(":").map(Number);INS.schema+=`${hexOffs(o)} ${l} param_${hexOffs(o).slice(2)}  # aus Diff ${INS.an} → ${INS.bn}, Parameter benennen, am Gerät prüfen\n`;$("in-schema").value=INS.schema;saveSchema();renderSchemaVals()}});
+    $("in-schema").value=INS.schema;$("in-schema").oninput=e=>{INS.schema=e.target.value;saveSchema();renderSchemaVals()};
+    $("in-sdl").onclick=()=>dl("electribe-schema.txt",INS.schema,"text/plain")}
+  renderInsp()}
+function renderInsp(){
+  const A=INS.A,B=INS.B;
+  $("in-info").innerHTML=A?`A: <b>${INS.an}</b> · ${A.length.toLocaleString("de")} Bytes · Kopf ${[...A.subarray(0,16)].map(hex2).join(" ")}`+(B?`<br>B: <b>${INS.bn}</b> · ${B.length.toLocaleString("de")} Bytes`:""):"Noch keine Datei geladen.";
+  if(A&&B){INS.diffs=diffBytes(A,B);const tot=INS.diffs.reduce((s,d)=>s+d[1],0);
+    $("in-diff").innerHTML=(A.length!==B.length?`<div class="warn">Größen unterschiedlich (${A.length} vs. ${B.length} Bytes): Vergleich nur bis zur kürzeren Länge, Struktur kann verschoben sein.</div>`:"")+
+      `<div class="${INS.diffs.length<=4?"ok":"warn"}">${INS.diffs.length} geänderte Bereiche, ${tot} Bytes.${INS.diffs.length>4?" Viele Änderungen: vermutlich wurde mehr als ein Parameter geändert oder eine Prüfsumme/Zeitangabe ändert sich mit. Für eine eindeutige Zuordnung genau einen Parameter ändern.":""}</div>`+
+      (INS.diffs.length?"<table><tr><th>Offset</th><th>Länge</th><th>A</th><th>B</th><th></th></tr>"+INS.diffs.slice(0,200).map(([o,l])=>`<tr><td>${hexOffs(o)}</td><td>${l}</td><td>${[...A.subarray(o,o+Math.min(l,12))].map(hex2).join(" ")}${l>12?" …":""}</td><td>${[...B.subarray(o,o+Math.min(l,12))].map(hex2).join(" ")}${l>12?" …":""}</td><td><button data-dj="${o}">zeigen</button> <button data-dadd="${o}:${l}">ins Schema</button></td></tr>`).join("")+"</table>":"")}
+  else $("in-diff").innerHTML='<span style="color:var(--dim)">Zwei Dateien laden, um Unterschiede zu sehen.</span>';
+  renderAscii();renderHex();renderSchemaVals()}
+function renderAscii(){const A=INS.A;if(!A){$("in-asc").innerHTML="";return}const f=($("in-flt").value||"").toLowerCase(),runs=asciiRuns(A,+$("in-min").value||4).filter(r=>!f||r[1].toLowerCase().includes(f));
+  $("in-asc").innerHTML=`<div style="color:var(--dim)">${runs.length} Textstellen</div><div style="max-height:260px;overflow:auto"><table>${runs.slice(0,600).map(([o,s])=>`<tr data-off="${o}" style="cursor:pointer"><td>${hexOffs(o)}</td><td>${s.replace(/&/g,"&amp;").replace(/</g,"&lt;").slice(0,80)}</td></tr>`).join("")}</table></div>`}
+function renderHex(){const A=INS.A;if(!A){$("in-hex").textContent="";return}INS.hexOff=Math.min(INS.hexOff,Math.max(0,A.length-1)&~15);$("in-off").value=hexOffs(INS.hexOff);
+  const dset=new Set();INS.diffs.forEach(([o,l])=>{for(let i=o;i<o+l;i++)dset.add(i)});let out="";
+  for(let r=INS.hexOff;r<Math.min(A.length,INS.hexOff+512);r+=16){let h="",a="";for(let i=r;i<r+16;i++){if(i<A.length){const v=A[i],x=hex2(v);h+=(dset.has(i)?`<b style="color:var(--hot)">${x}</b>`:x)+" ";a+=v>=32&&v<127?String.fromCharCode(v).replace(/&/g,"&amp;").replace(/</g,"&lt;"):"."}else h+="   "}out+=`${hexOffs(r)}  ${h} ${a}\n`}
+  $("in-hex").innerHTML=out}
+function renderSchemaVals(){const A=INS.A,rows=parseSchema(INS.schema);if(!rows.length){$("in-sval").innerHTML="";return}
+  $("in-sval").innerHTML="<table><tr><th>Name</th><th>Offset</th><th>Bytes (A)</th><th>Wert</th><th>Status</th></tr>"+rows.map(r=>{if(r.bad)return`<tr><td colspan="5" style="color:#e0a020">Zeile nicht lesbar: ${r.bad.replace(/</g,"&lt;")}</td></tr>`;
+    const b=A?[...A.subarray(r.off,r.off+r.len)]:[],val=b.length===1?b[0]:b.length===2?`${(b[0]<<8)|b[1]} (BE) / ${(b[1]<<8)|b[0]} (LE)`:b.length?"–":"";
+    return`<tr><td>${r.name}</td><td>${hexOffs(r.off)}</td><td>${b.map(hex2).join(" ")}</td><td>${val}</td><td>${r.ver?'<span class="tag v">verifiziert</span>':'<span class="tag u">unbestätigt</span>'} ${r.note.replace(/</g,"&lt;")}</td></tr>`}).join("")+"</table>"}
 
 /* ============ Musik-Check ============ */
 let kmemo=null;
