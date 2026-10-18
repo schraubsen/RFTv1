@@ -38,7 +38,7 @@ section{display:none}section.act{display:block}
 .hd .cell{background:none;border:0;color:var(--dim);cursor:default;height:16px;line-height:16px}
 .card{background:var(--panel);border:1px solid var(--line);padding:10px 14px;margin:10px 0}
 .card h3{margin:0 0 6px;font-size:13px;color:var(--hot);text-transform:uppercase;letter-spacing:.1em}
-table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}td,th{border-bottom:1px solid var(--line);padding:5px 9px;text-align:left;vertical-align:top}th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;position:sticky;top:0;background:var(--panel);z-index:1}tr:nth-child(even) td{background:#121215}tr:hover td{background:#1b1b20}
 th{color:var(--dim);font-weight:normal}
 canvas{background:#0e0e10;border:1px solid var(--line);width:100%;max-width:1100px;height:160px;cursor:crosshair;touch-action:none}
 pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-height:340px;font-size:12px}
@@ -363,7 +363,7 @@ $("m-apply").onclick=()=>{snap();const l=ensureLane();l.vals=shapeVals($("m-shap
 $("m-clear").onclick=()=>{snap();S.motion=S.motion.filter(l=>l!==curLane());drawMotion();renderMotionList()};
 const mc=$("mc"),mx=mc.getContext("2d");
 function drawMotion(){
-  const W=mc.width,H=mc.height,n=nSteps(),w=W/n;mx.clearRect(0,0,W,H);
+  const{W,H}=fit(mc),n=nSteps(),w=W/n;mx.clearRect(0,0,W,H);
   for(let i=0;i<n;i++){if(i%16===0){mx.fillStyle="#3a0a10";mx.fillRect(i*w,0,1.5,H)}else if(i%4===0){mx.fillStyle="#1d1d21";mx.fillRect(i*w,0,1,H)}}
   const l=curLane();if(!l)return;
   mx.fillStyle="#d3122a";
@@ -378,10 +378,10 @@ function renderMotionList(){$("m-list").innerHTML=S.motion.length?"<div class='c
 let ac=null,audioReady=false,master,tubeNode,fxIn=[],fxNodes=[],partGain={},cutoffNow={},partOut={},noiseBuf;
 function initAudio(){
   if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();
-  master=ac.createGain();master.gain.value=$("mvol").value/100;
+  master=ac.createGain();master.gain.value=$("mvol").value/100;master.channelCount=2;master.channelCountMode="explicit";master.channelInterpretation="speakers";
   const comp=ac.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=8;comp.attack.value=0.003;
   tubeNode=ac.createWaveShaper();tubeNode.curve=satCurve(0.5+S.tube/127*4.5);tubeNode.oversample="4x";
-  master.connect(tubeNode);tubeNode.connect(comp);comp.connect(ac.destination);anMix=mkAn(comp);
+  master.connect(tubeNode);tubeNode.connect(comp);const lim=ac.createDynamicsCompressor();lim.threshold.value=-1.5;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.001;lim.release.value=0.06;const outG=ac.createGain();outG.gain.value=0.89;comp.connect(lim);lim.connect(outG);outG.connect(ac.destination);anMix=mkAn(outG);{const spl=ac.createChannelSplitter(2);outG.connect(spl);anL=ac.createAnalyser();anR=ac.createAnalyser();anL.fftSize=anR.fftSize=4096;spl.connect(anL,0);spl.connect(anR,1);anPre=ac.createAnalyser();anPre.fftSize=4096;master.connect(anPre)}
   noiseBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   // FX-Busse
   for(let i=0;i<3;i++){const inp=ac.createGain();fxIn.push(inp);const out=ac.createGain();out.connect(master);fxNodes.push({inp,out});}
@@ -545,7 +545,7 @@ async function dl(name,data,type){
 function note(m){const e=$("e-note")||$("k-meas");if(e)e.insertAdjacentHTML("afterend",'<div class="warn">'+m+'</div>')}
 function buildExport(){
   const t=$("t-export");
-  t.innerHTML=`<div class="warn"><b>Noten-/CC-Zuordnung ist ein Entwurf.</b> Die Drum-Noten stammen aus der ESX-Werkmap des Skills; die EMX-Drum-Noten und CC-Nummern sind nicht aus Korgs MIDI-Implementation geprüft – unten editierbar. Im Zweifel erst mit einem Part testen (MIDI-Monitor).</div>
+  t.innerHTML=`<div class="warn"><b>MIDI an der EMX ist frei zuweisbar</b> (laut Handbuch): Die Drum-Notennummer jedes Parts und die CC-Nummer jedes Knopfs stellst du im MIDI Utility ein („#CC ASSIGN“). Feste Werte gibt es nicht. Trag unten dieselben Nummern ein wie am Gerät, dann passen MIDI-Export und Motion-CCs.</div>
   <div class="card"><h3>MIDI-Mapping</h3><div class="row">${PARTS.filter(p=>p.kind==="drum").map(p=>`<label>${p.id}<input type="number" min="0" max="127" value="${S.midiNotes[p.id]}" data-mn="${p.id}"></label>`).join("")}</div>
   <div class="row"><label>CC Cutoff<input type="number" min="0" max="127" value="${S.ccMap.cutoff}" data-cc="cutoff"></label><label>CC Level<input type="number" min="0" max="127" value="${S.ccMap.level}" data-cc="level"></label><label>CC Reso<input type="number" min="0" max="127" value="${S.ccMap.reso}" data-cc="reso"></label>
   <span style="color:var(--dim)">0 = nicht exportieren. Drums Kanal 10, Synth 1–5 = Kanal 1–5 (anpassbar am Gerät: Global).</span></div></div>
@@ -599,6 +599,15 @@ $("t-research").innerHTML=`
 <li><b>Lead:</b> ein Motiv (Rhythmus + Kontur), pro Takt auf den Akkordgrundton transponiert; Anfang und Ende auf Akkordtönen; Takt 4 = Antwort (rückwärts) mit Auflösung auf die Tonika. Per Seed reproduzierbar.</li>
 <li><b>Chord-Part:</b> Dreiklang entsteht aus der Skala (Moll/Dur/vermindert je Stufe). Am EMX ist der Chord-Typ ein Oszillator-Parameter – bei Wechsel Moll↔Dur den Typ per Motion/Hand umstellen (Step-Sheet nennt ihn pro Takt).</li>
 <li><b>Rhythmus:</b> Hauptkick auf jedem Viertel, Open Hat nur auf Offbeats, Clap auf 2 und 4, Fill/Roll am Phrasenende (Takt 4/8), Riser vor dem Drop, Impact auf der Eins.</li></ul></div>
+<div class="card"><h3>EMX-1-Referenz (Korg-Handbuch)</h3><table><tr><th>Bereich</th><th>Stand</th><th>Quelle</th></tr>
+<tr><td>Oszillator</td><td>16 Typen, mit Wellenform-Varianten 258: Wave Form, Dual Osc, Osc Sync, Ring Mod, Cross Mod, VPM, Waveshaper, Unison (6-fach verstimmt), Chord, Additive, Formant, Audio In+Comb, PCM Osc+Comb, PCM Osc+WS u. a.</td><td><span class="tag v">Handbuch</span></td></tr>
+<tr><td>Osc Edit 1 / 2</td><td>Edit 1 verändert die Wellenform (je nach Modell), Edit 2 meist den Pitch-Versatz zwischen den Oszillatoren. Wave Form: ±63 = ±2 Oktaven, 47 = ±1 Oktave. Chord: Edit 1 wählt die Akkordform.</td><td><span class="tag v">Handbuch</span></td></tr>
+<tr><td>Drum-PCM</td><td>207 Wellen. Nr. 1 BD-Dark, Nr. 4 BD-Syn1, Nr. 11 BD-Syn8 (Kick). SD-Clap1/2 in den 70ern, Clp-Einträge in den 80ern/90ern, HH-Einträge ab ca. 95 bis 104 (Nummern aus OCR, am Gerät gegenprüfen).</td><td><span class="tag v">Handbuch</span></td></tr>
+<tr><td>Pack „50tube“</td><td>207 Dateien, gemessene Reihenfolge: Kicks 1–40, Snare/Clap/Perc 42–90, Hats ab 91–95. Passt zu den Ankerpunkten der PCM-Liste: Datei = PCM-Nummer.</td><td><span class="tag u">abgeleitet</span></td></tr>
+<tr><td>Synth-PCM</td><td>76 Wellen, die Liste beginnt mit FMBass und 88Bass.</td><td><span class="tag v">Handbuch</span></td></tr>
+<tr><td>MIDI</td><td>CC-Nummer pro Knopf frei zuweisbar (MIDI Utility, #CC ASSIGN, 0–127). Drum-Notennummer pro Part zuweisbar. Control Change wird gesendet und empfangen.</td><td><span class="tag v">Handbuch</span></td></tr>
+<tr><td>FX</td><td>3 FX seriell oder parallel, u. a. Talking Modulator, Grain, EQ (Low/High Gain).</td><td><span class="tag u">Forum / sequencer.de</span></td></tr>
+<tr><td>Dateiformat .emx/.esx</td><td>Nicht dokumentiert. Offsets nur per Diff im Datei-Inspektor bestimmen.</td><td><span class="tag u">offen</span></td></tr></table></div>
 <div class="card"><h3>EMX-1 laut sequencer.de (Moogulator)</h3><ul>
 <li>5 monophone Synth-Spuren, 9 Drum-Spuren, 128 Steps (8 Takte), bis zu 24 Motion Sequences (aufgezeichnete Knopfbewegungen).</li>
 <li>207 Drum- und Lead-Sounds als PCM, keine eigenen Samples. Oszillatoren: VPM, Unison, Chord, PCM, Waveshape (ein Osz formt den anderen), Comb, Additiv, 76 Synth-Wellen, je 2 Echtzeit-Parameter.</li>
@@ -709,7 +718,7 @@ function buildKick(){
   <li>Drum-Part auf <b>BD-Syn8</b>.</li><li>Modulation: untere (fallende) Wellenform wählen, Ziel <b>Pitch</b>, Intensität ca. <b>45</b> (nach rechts).</li>
   <li>Modulations-Geschwindigkeit ca. <b>60</b>.</li><li>Fahne kürzen, damit sie nicht mit dem Bass kollidiert: <b>EG Time</b> bzw. Sample-Länge auf ca. <b>70</b>.</li>
   <li>Panning prüfen: muss mittig stehen.</li><li><b>FX1 als EQ</b>: Low Gain ca. <b>11</b>, High Gain ca. <b>30</b>, Kick auf FX1 schicken.</li>
-  <li>A/B-Vergleich mit der FX-Send-Taste.</li></ol><div style="color:var(--dim)">Werte wie im Forum angegeben, am Gerät nachhören. Grundton danach mit dem Messwert oben abgleichen.</div></div>
+  <li>A/B-Vergleich mit der FX-Send-Taste.</li><li>BD-Syn8 ist laut Handbuch Drum-PCM Nr. 11, im „50tube“-Pack also vermutlich Datei 011: im Sample-Lab vorhören.</li></ol><div style="color:var(--dim)">Werte wie im Forum angegeben, am Gerät nachhören. Grundton danach mit dem Messwert oben abgleichen.</div></div>
   <div class="card"><h3>Kick-Synthese</h3><div id="kk"></div>
   <div class="row"><button id="k-play">▶ Anhören</button><button id="k-use">Als Drum 1 in Vorschau</button><button id="k-wav">⬇ WAV (KCKMN1.WAV)</button>
   <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Verzerrung <select id="k-mode"><option value="0">Soft (Tanh)</option><option value="1">Hard-Clip</option><option value="2">Wavefold</option><option value="3">Röhre (asymmetrisch)</option></select></label><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
@@ -729,7 +738,7 @@ function kickUpdate(){
   const okH=m.hz>=41&&m.hz<=58,okT=m.rtail>=147&&m.rtail<=388;
   $("k-meas").className=(okH&&okT)?"ok":"warn";
   $("k-meas").innerHTML=`Grundton <b>${m.hz.toFixed(1)} Hz (${m.note})</b> ${okH?"✓":"✗ außerhalb 41–58 Hz"} · Tail <b>${m.tail} ms</b> solo · <b>${m.rtail} ms</b> mit Referenz-Filterkette ${okT?"✓":"✗ außerhalb 147–388 ms"} · ${m.low} % der Energie unter 120 Hz · Länge ${Math.round(f.length/SR*1000)} ms · Peak −1 dBFS`;
-  const c=$("k-cv").getContext("2d"),W=1100,H=160;c.clearRect(0,0,W,H);c.strokeStyle="#d3122a";c.beginPath();
+  const{c,W,H}=fit($("k-cv"));c.clearRect(0,0,W,H);c.strokeStyle="#d3122a";c.beginPath();
   for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.floor((x+1)/W*f.length);let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2);c.lineTo(x,H/2-mn*H/2)}c.stroke()}
 
 /* ============ Set / Song ============ */
@@ -803,7 +812,7 @@ function analyzeBuf(ab){
     const b0=Math.min(L-2,pkI+Math.floor(.01*sr)),b1=Math.min(L-1,pkI+Math.floor(.06*sr));for(let i=b0;i<b1;i++)be+=x[i]*x[i];n2=Math.max(1,b1-b0)}
   const click=Math.sqrt((ce/n1)/(be/n2+1e-12));
   const a={dur,pk,rms,width,tail,cent,sub:band(20,60),bass:band(60,120),lm:band(120,400),mid:band(400,2000),hi:band(2000,6000),air:band(6000,20000),hz,pr,click,midi:hz?69+12*Math.log2(hz/440):0};
-  a.cls=classify(a);return a}
+  a.cls=classify(a);const tr=detectTransients(x,sr,1);a.att=tr[0]?tr[0].att:0;a.tb=tr[0]?tr[0].tb:0;a.clip=clipRuns(ab).runs;return a}
 /* ZIP lesen (stored + deflate), mit Größen-Limits */
 async function readZip(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<0)throw new Error("Kein ZIP");
   const cnt=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true),total=0;const out=[];
@@ -895,9 +904,9 @@ function renderLab(){
   const cls=["Alle",...Object.keys(CLSN)],cnt=c=>c==="Alle"?LAB.items.length:LAB.items.filter(i=>i.cls===c).length;
   $("lab-filter").innerHTML=cls.map(c=>`<button data-f="${c}" class="${LAB.filter===c?"on":""}">${c} ${cnt(c)}</button>`).join("")+`<label>Sortierung <select id="lab-sort">${[["name","Reihenfolge"],["kick","Kick-Passung"],["dur","Länge"],["bright","Helligkeit"],["rft","RFT-Score (Kicks)"]].map(([v,n])=>`<option value="${v}" ${LAB.sort===v?"selected":""}>${n}</option>`).join("")}</select></label>`;
   const v=visibleItems(),tg=kickTarget().hz;
-  $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Klick</th><th>RFT</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
+  $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Attack</th><th>Klick</th><th>RFT</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
     const c=(it.cls==="Kick"||it.cls==="Sub")?centsToKick(it):null,okc=c!==null&&Math.abs(c)<=35,conf=it.pr>=.6?"":' <span class="tag u">unsicher</span>';
-    return`<tr><td><button data-pl="${it.id}">▶</button> <button data-ed="${it.id}" title="Im Sample-Editor öffnen">✎</button></td><td>${it.name}${pcmNo(it)?` <span class="tag">PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
+    return`<tr><td><button data-pl="${it.id}">▶</button> <button data-ed="${it.id}" title="Im Sample-Editor öffnen">✎</button></td><td>${it.name}${pcmNo(it)?` <span class="tag">PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${it.att?it.att.toFixed(1)+" ms":"–"}${it.clip?` <span class="tag u">Clip ${it.clip}</span>`:""}</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
 function playSample(p,sa,i,t,out){
   const s=ac.createBufferSource();s.buffer=sa.buf;let rate=1;
   if(p.id==="D1")rate=tuneRate("D1",sa);else if(p.kind==="syn"&&sa.hz&&sa.pr>=.5){rate=Math.pow(2,(S.notes[p.id][i]-sa.midi)/12);if(rate<.25||rate>4)rate=1}
@@ -909,41 +918,47 @@ function playSample(p,sa,i,t,out){
 let specOn=false,anMix=null;const anG={},GRP={},specPeak={};
 const BAND_HINT=[["Kick/Bass lauter (D1, S1)","Kick/Bass leiser"],["Bass lauter (S1)","Bass leiser"],["–","Toms/Chord (D3, S3) leiser"],["–","Lead/Snare/Chord leiser (S2, S3, D9)"],["–","Hats/Perc leiser (D4–D8)"],["–","Hats/Open Hat leiser (D4, D6, D7)"]];
 const BANDS=[["Sub",20,60,58.8],["Bass",60,120,19.0],["Low-Mid",120,400,8.0],["Mitten",400,2000,3.9],["Höhen",2000,6000,2.0],["Luft",6000,16000,1.1]];
-function mkAn(node){const a=ac.createAnalyser();a.fftSize=8192;a.smoothingTimeConstant=.82;a.minDecibels=-100;a.maxDecibels=0;node.connect(a);return a}
+function mkAn(node){const a=ac.createAnalyser();a.fftSize=SP.fft;a.smoothingTimeConstant=SP.smooth;a.minDecibels=-100;a.maxDecibels=0;node.connect(a);return a}
 function grpNode(p){const k=p.kind==="drum"?"drums":p.id==="S1"?"bass":"music";if(!GRP[k]){const g=ac.createGain();g.connect(master);GRP[k]=g;anG[k]=mkAn(g)}return GRP[k]}
 function bandShares(an){const N=an.frequencyBinCount,d=new Float32Array(N);an.getFloatFrequencyData(d);const sr=ac.sampleRate;let tot=0;const b=BANDS.map(()=>0);
   for(let k=1;k<N;k++){const f=k*sr/2/N,pw=Math.pow(10,d[k]/10);if(f<20||f>20000)continue;tot+=pw;BANDS.forEach((x,i)=>{if(f>=x[1]&&f<x[2])b[i]+=pw})}
   return{shares:b.map(v=>v/(tot||1)),tot}}
-function drawSpec(an,cv,key){
-  const c=cv.getContext("2d"),W=cv.width,H=cv.height;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
-  const fx=f=>Math.log(f/20)/Math.log(1000)*W;c.strokeStyle="#1d1d21";c.fillStyle="#8a8a90";c.font="11px monospace";
-  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(f=>{const x=fx(f);c.beginPath();c.moveTo(x,0);c.lineTo(x,H-14);c.stroke();c.fillText(f>=1000?f/1000+"k":f,Math.min(x+2,W-24),H-3)});
-  [-20,-40,-60,-80].forEach(db=>{const y=(H-14)*(1-(db+90)/84);c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke()});
-  if(!an)return;const N=an.frequencyBinCount,d=new Float32Array(N);an.getFloatFrequencyData(d);const sr=ac.sampleRate,pk=specPeak[key]||(specPeak[key]=new Float32Array(W).fill(-120)),Hh=H-14;
-  const yOf=db=>Hh*(1-Math.max(0,Math.min(1,(db+90)/84)));
-  c.beginPath();c.moveTo(0,Hh);for(let x=0;x<W;x++){const f0=20*Math.pow(1000,x/W),f1=20*Math.pow(1000,(x+1)/W);let b0=Math.floor(f0/(sr/2)*N),b1=Math.max(b0+1,Math.ceil(f1/(sr/2)*N)),m=-120;for(let k=b0;k<b1&&k<N;k++)m=Math.max(m,d[k]);
-    pk[x]=Math.max(m,pk[x]-.35);c.lineTo(x,yOf(m))}c.lineTo(W,Hh);c.closePath();c.fillStyle="rgba(211,18,42,.28)";c.fill();c.strokeStyle="#ff3b4e";c.stroke();
-  c.beginPath();for(let x=0;x<W;x++){const y=yOf(pk[x]);x?c.lineTo(x,y):c.moveTo(x,y)}c.strokeStyle="rgba(255,255,255,.35)";c.stroke()}
-function buildSpec(){
-  const t=$("t-spec");
-  if(!$("sp-mix")){t.innerHTML=`<div class="warn">Live-Analyse der Pattern-Vorschau (Play drücken). MIX misst die Summe hinter Röhrenstufe und Kompressor. Drums, Bass und Musik sind getrennte Rollen, wie in einem Mastering-EQ. Die Zielwerte stammen aus acht Szene-Tracks mit vollem Mix: sie passen auf den ganzen Track, nicht auf eine einzelne Rolle.</div>
-  <div class="card"><h3>MIX</h3><canvas id="sp-mix" width="1100" height="200" style="height:200px"></canvas><div id="sp-bands"></div></div>
-  <div class="row" style="align-items:stretch"><div class="card" style="flex:1;min-width:280px"><h3>Drums</h3><canvas id="sp-drums" width="540" height="150" style="height:150px"></canvas></div>
-  <div class="card" style="flex:1;min-width:280px"><h3>Bass</h3><canvas id="sp-bass" width="540" height="150" style="height:150px"></canvas></div>
-  <div class="card" style="flex:1;min-width:280px"><h3>Musik (Lead, Chord, Voice, FX)</h3><canvas id="sp-music" width="540" height="150" style="height:150px"></canvas></div></div>`}
-  specLoop()}
-let specBusy=false;
-function specLoop(){
-  if(!specOn||specBusy)return;specBusy=true;
-  const step=()=>{if(!specOn){specBusy=false;return}
-    drawSpec(anMix,$("sp-mix"),"mix");drawSpec(anG.drums,$("sp-drums"),"d");drawSpec(anG.bass,$("sp-bass"),"b");drawSpec(anG.music,$("sp-music"),"m");
+function renderBands(){
     if(anMix&&playing){const {shares,tot}=bandShares(anMix),tt=BANDS.reduce((a,b)=>a+b[3],0);
       $("sp-bands").innerHTML="<table><tr><th>Band</th><th>Live</th><th>Ziel ("+(S.refBands?S.refName:"Szene-Median")+")</th><th>Abweichung</th><th></th></tr>"+BANDS.map((b,i)=>{const tg=S.refBands?S.refBands[i]:b[3]/tt,lv=shares[i],db=10*Math.log10((lv+1e-9)/tg),bad=Math.abs(db)>3;
         return`<tr><td>${b[0]} ${b[1]}–${b[2]>=1000?b[2]/1000+"k":b[2]} Hz</td><td>${(lv*100).toFixed(1)} %</td><td>${(tg*100).toFixed(1)} %</td><td><span class="tag ${bad?"u":"v"}">${db>0?"+":""}${db.toFixed(1)} dB</span></td><td>${bad?BAND_HINT[i][db>0?1:0]:"passt"}</td></tr>`}).join("")+"</table>"}
     else if(!playing)$("sp-bands").innerHTML='<div style="color:var(--dim)">Play drücken, um zu messen.</div>';
+}
+function buildSpec(){
+  const t=$("t-spec");
+  if(!$("sp-mix")){t.innerHTML=`<div class="warn">Live-Analyse der Pattern-Vorschau (Play drücken). MIX misst die Summe hinter Röhrenstufe und Kompressor. Drums, Bass und Musik sind getrennte Rollen. Die Band-Zielwerte stammen aus acht Szene-Tracks mit vollem Mix.</div>
+  <div class="card"><h3>Analyzer</h3><div class="row"><label>FFT <select id="sp-fft">${[4096,8192,16384,32768].map(v=>`<option ${v===SP.fft?"selected":""}>${v}</option>`).join("")}</select></label>
+  <label>Glättung <input id="sp-sm" type="range" min="0" max="0.95" step="0.05" value="${SP.smooth}"></label>
+  <label>Neigung <select id="sp-sl"><option value="0">0 dB/Okt</option><option value="3">3 dB/Okt</option><option value="4.5" selected>4,5 dB/Okt</option></select></label>
+  <label>Bereich <select id="sp-rg"><option value="-96">96 dB</option><option value="-90" selected>90 dB</option><option value="-72">72 dB</option><option value="-48">48 dB</option></select></label>
+  <label><input type="checkbox" id="sp-hold" checked> Peak-Hold</label><button id="sp-frz">Einfrieren</button><button id="sp-rst">Hold und Clips zurücksetzen</button></div>
+  <canvas id="sp-mix" style="height:320px;max-width:none"></canvas><div style="color:var(--dim);font-size:12px">Rot = Echtzeit, weiß = Peak-Hold, grünes Band = Kick-Grundton-Fenster 41–58 Hz. Maus über die Kurve zeigt Frequenz, Note und Pegel. Neigung 4,5 dB/Okt kippt die Darstellung wie bei SPAN, damit ein ausgewogener Mix flach aussieht.</div></div>
+  <div class="row" style="align-items:stretch"><div class="card" style="flex:1;min-width:300px"><h3>Pegel, Clipping, Korrelation</h3><div id="sp-meters"></div></div>
+  <div class="card" style="flex:1;min-width:300px"><h3>Bänder gegen Ziel</h3><div id="sp-bands"></div></div></div>
+  <div class="card"><h3>Low-End-Balance &amp; Sweetspot</h3><div id="sp-low"></div><div id="sp-lowlive" style="margin-top:8px"></div></div>
+  <div class="row" style="align-items:stretch"><div class="card" style="flex:1;min-width:280px"><h3>Drums</h3><canvas id="sp-drums" style="height:180px;max-width:none"></canvas></div>
+  <div class="card" style="flex:1;min-width:280px"><h3>Bass</h3><canvas id="sp-bass" style="height:180px;max-width:none"></canvas></div>
+  <div class="card" style="flex:1;min-width:280px"><h3>Musik (Lead, Chord, Voice, FX)</h3><canvas id="sp-music" style="height:180px;max-width:none"></canvas></div></div>`;
+    $("sp-fft").onchange=e=>{SP.fft=+e.target.value;spApplyFft()};$("sp-sm").oninput=e=>{SP.smooth=+e.target.value;spApplyFft()};
+    $("sp-sl").onchange=e=>SP.slope=+e.target.value;$("sp-rg").onchange=e=>SP.min=+e.target.value;$("sp-hold").onchange=e=>SP.hold=e.target.checked;
+    $("sp-frz").onclick=e=>{SP.freeze=!SP.freeze;e.target.textContent=SP.freeze?"Weiterlaufen":"Einfrieren";e.target.classList.toggle("on",SP.freeze)};
+    $("sp-rst").onclick=()=>{SP.clips=0;SP.peakHold=[-120,-120];SP.preHold=-120;Object.keys(SP).filter(k=>k.endsWith("pk")).forEach(k=>SP[k].fill(-200))};
+    [["sp-mix","mix"],["sp-drums","d"],["sp-bass","b"],["sp-music","m"]].forEach(([id,key])=>{const cv=$(id);cv.onmousemove=e=>{const r=cv.getBoundingClientRect();SP.hover={key,x:e.clientX-r.left}};cv.onmouseleave=()=>SP.hover=null})}
+  $("sp-low").innerHTML=lowEndStatic();specLoop()}
+let specBusy=false,specFrame=0;
+function specLoop(){
+  if(!specOn||specBusy)return;specBusy=true;
+  const step=()=>{if(!specOn){specBusy=false;return}specFrame++;
+    drawSpec(anMix,$("sp-mix"),"mix");drawSpec(anG.drums,$("sp-drums"),"d");drawSpec(anG.bass,$("sp-bass"),"b");drawSpec(anG.music,$("sp-music"),"m");
+    if(specFrame%6===0){renderMeters(playing?spMeters():null);renderBands();$("sp-lowlive").innerHTML=lowEndLive()}
+    if(specFrame%90===0)$("sp-low").innerHTML=lowEndStatic();
     requestAnimationFrame(step)};
   requestAnimationFrame(step)}
-
 
 /* ============ RFT-Analyse (Referenztracks messen, Portierung der Skill-Methode) ============ */
 const SCENE=[["Hunnel – 155er aufn sonntag",155.3,51.8,388,-9.9,7.4],["Webster – Other One",160.3,48.4,185,-18.4,10.0],["ViruzZ & Leigh Johnson",164.9,53.8,199,-13.8,10.4],["ViruzZ – Tränen aus Kajal",166.9,49.8,186,-8.5,8.4],["Der Hoffi vs Devil's Cartel",170.0,51.1,147,-7.2,7.2],["Torett – Du & Icke @ mirage",174.9,41.0,314,-19.8,13.9],["Kannadiss – Kannadreckig Korg",190.4,43.7,159,-6.4,6.4],["Hunnel38 – Was neues vom Set",190.5,58.5,315,-8.6,7.2]];
@@ -1005,7 +1020,10 @@ async function analyzeTrack(ab,setStat){
     let pb=0,pv=-1;for(let b=0;b<NB;b++){const v=ph[b]+0.5*(ph[(b+1)%NB]+ph[(b+NB-1)%NB]);if(v>pv){pv=v;pb=b}}const t0=(pb+0.5)/NB*T;
     for(let f=0;f<oe.lo.length;f++){const s=Math.round((tf(f)-t0)/step),b=((s%4)+4)%4;if(oe.lo[f]>ml)gl[b]+=oe.lo[f]-ml;if(oe.hi[f]>mh)gh[b]+=oe.hi[f]-mh}}
   const nz=a=>{const m=Math.max(...a,1e-9);return Array.from(a,v=>v/m)};
-  return{bpm,bpmK,bpmO,bconf,kicks:on.length,f0,tail,rmsDb,crest,bands:bands.map(v=>v/bt),bandsRaw:bands,wall:wallT?wallN/wallT*100:0,bassSideDb,key:key.slice(0,3),grooveLow:nz(gl),grooveHi:nz(gh),seg:seg/sr,probe:bs/sr}}
+  const trs=detectTransients(M,sr,4000),clip=clipRuns(ab),curve=[];
+  for(let j=0;j<240;j++){const fa=20*Math.pow(1000,j/240),fb=20*Math.pow(1000,(j+1)/240);let s=0,c=0;for(let k=Math.floor(fa*FN/sr);k<=Math.ceil(fb*FN/sr)&&k<FN/2;k++){s+=P[k];c++}curve.push(10*Math.log10(s/(c||1)+1e-20))}
+  const cmax=Math.max(...curve.map((v,j)=>v+4.5*Math.log2(20*Math.pow(1000,j/240)/1000)));
+  return{trDens:trs.length/(seg/sr),trAtt:med(trs.map(x=>x.att)),clip,curve:curve.map((v,j)=>v+4.5*Math.log2(20*Math.pow(1000,j/240)/1000)-cmax),bpm,bpmK,bpmO,bconf,kicks:on.length,f0,tail,rmsDb,crest,bands:bands.map(v=>v/bt),bandsRaw:bands,wall:wallT?wallN/wallT*100:0,bassSideDb,key:key.slice(0,3),grooveLow:nz(gl),grooveHi:nz(gh),seg:seg/sr,probe:bs/sr}}
 function noteName(hz){if(!hz)return"–";const n=69+12*Math.log2(hz/440),k=Math.round(n),c=Math.round((n-k)*100);return nn(k)+" "+(c>=0?"+":"")+c+" ct"}
 async function addRefs(list){
   initAudio();const st=$("rft-stat");
@@ -1030,8 +1048,8 @@ function refCard(r,i){
   const ow=(r.grooveLow[2]/(r.grooveLow[0]+1e-9));
   return`<div class="card"><h3>${r.name}</h3>
   <div class="row" style="gap:6px">${flag(okB,"Tempo "+r.bpm.toFixed(1)+" BPM")}${flag(Math.abs(r.bpmK-r.bpmO)<3||!r.bpmK,"Kick-Raster "+(r.bpmK?r.bpmK.toFixed(1):"–")+" · Onset "+r.bpmO.toFixed(1)+(Math.abs(r.bpmK-r.bpmO)>=3&&r.bpmK?" (Kick-Raster zählt: Offbeat-Bass verwirrt die Onset-Methode)":""))}${flag(okK,"Kick "+r.f0.toFixed(1)+" Hz ("+noteName(r.f0)+")")}${flag(okT,"Tail "+Math.round(r.tail)+" ms")}${flag(budget,"Tail-Budget "+Math.round(q)+" ms")}${flag(okC,"Crest "+r.crest.toFixed(1)+" dB")}<span class="tag">RMS ${r.rmsDb.toFixed(1)} dB</span></div>
-  <div class="row" style="gap:6px"><span class="tag">${r.kicks} Kicks erkannt</span>${flag(r.wall>=90,"Bassmauer "+r.wall.toFixed(0)+" %")}${flag(r.bassSideDb<-12,"Bass-Side "+r.bassSideDb.toFixed(1)+" dB (mono-sicher &lt; −12)")}${flag(ow>=0.5,"Offbeat/Schlag (Tiefband) "+ow.toFixed(2))}${flag(true,"Grundton laut Kick: "+NOTE_N[((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12])}${flag(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12,"Chroma-Tonart "+NOTE_N[k0.root]+"-"+k0.mode+" (r="+k0.r.toFixed(2)+")"+(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12?"":" weicht ab, bei Kick-dominierten Tracks unsicher"))}</div>
-  <div class="row" style="align-items:flex-start;gap:18px"><div style="flex:1;min-width:260px">${grooveSvg(r)}<div style="color:var(--dim);font-size:12px">Onset-Profil, gefaltet auf einen Schlag: Schlag · e · Offbeat · e (aus 30 s ab ${Math.round(r.probe)} s)</div></div>
+  <div class="row" style="gap:6px">${flag(r.clip.runs===0,"Clipping "+r.clip.runs+" Stellen ("+r.clip.pct.toFixed(3)+" % der Samples)")}<span class="tag">Transienten ${r.trDens.toFixed(1)}/s · Attack-Median ${r.trAtt.toFixed(1)} ms</span><span class="tag">${r.kicks} Kicks erkannt</span>${flag(r.wall>=90,"Bassmauer "+r.wall.toFixed(0)+" %")}${flag(r.bassSideDb<-12,"Bass-Side "+r.bassSideDb.toFixed(1)+" dB (mono-sicher &lt; −12)")}${flag(ow>=0.5,"Offbeat/Schlag (Tiefband) "+ow.toFixed(2))}${flag(true,"Grundton laut Kick: "+NOTE_N[((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12])}${flag(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12,"Chroma-Tonart "+NOTE_N[k0.root]+"-"+k0.mode+" (r="+k0.r.toFixed(2)+")"+(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12?"":" weicht ab, bei Kick-dominierten Tracks unsicher"))}</div>
+  <canvas data-rc="${i}" style="height:190px;max-width:none;margin:6px 0"></canvas><div class="row" style="align-items:flex-start;gap:18px"><div style="flex:1;min-width:260px">${grooveSvg(r)}<div style="color:var(--dim);font-size:12px">Onset-Profil, gefaltet auf einen Schlag: Schlag · e · Offbeat · e (aus 30 s ab ${Math.round(r.probe)} s)</div></div>
   <div style="flex:1;min-width:260px"><table><tr><th>Band</th><th></th><th>Track</th><th>Median</th></tr>${tp}</table></div></div>
   <div class="row"><button data-ra="${i}">Auf Designer anwenden</button><span style="color:var(--dim)">Tempo, Grundton, Kick, Band-Ziel</span><button data-rd="${i}">Entfernen</button></div></div>`}
 function buildRft(){
@@ -1043,11 +1061,20 @@ function buildRft(){
     $("rft-cards").addEventListener("click",e=>{const a=e.target.closest("[data-ra]"),d=e.target.closest("[data-rd]");if(a)applyRef(RFT.refs[+a.dataset.ra]);if(d){RFT.refs.splice(+d.dataset.rd,1);renderRft()}});
     $("rft-sum").addEventListener("click",e=>{if(e.target.closest("#rft-ap")){const m=medianRef();if(m)applyRef(m)}})}
   renderRft()}
+const RCOL=["#ff3b4e","#4cc38a","#e0a020","#c050e0","#5aa0ff","#e8e6e1"];
+function drawRefCurve(cv,refs){if(!cv)return;const{c,W,H}=fit(cv),L=36,Hh=H-16,Wp=W-L,yOf=v=>Hh*(1-Math.max(0,Math.min(1,(v+60)/60)));c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.font="10px ui-monospace,monospace";
+  for(let db=0;db>=-60;db-=12){const y=Math.round(yOf(db))+.5;c.strokeStyle="#1d1d21";c.beginPath();c.moveTo(L,y);c.lineTo(W,y);c.stroke();c.fillStyle="#8a8a90";c.fillText(db,6,y+3)}
+  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(f=>{const x=Math.round(L+Math.log(f/20)/Math.log(1000)*Wp)+.5;c.strokeStyle="#1d1d21";c.beginPath();c.moveTo(x,0);c.lineTo(x,Hh);c.stroke();c.fillStyle="#8a8a90";c.fillText(f>=1000?f/1000+"k":f,Math.min(x+2,W-22),H-4)});
+  c.fillStyle="rgba(76,195,138,.08)";c.fillRect(L+Math.log(41/20)/Math.log(1000)*Wp,0,(Math.log(58/41)/Math.log(1000))*Wp,Hh);
+  refs.forEach((r,k)=>{if(!r.curve)return;c.strokeStyle=RCOL[k%RCOL.length];c.lineWidth=1.4;c.beginPath();r.curve.forEach((v,j)=>{const x=L+j/239*Wp,y=yOf(v);j?c.lineTo(x,y):c.moveTo(x,y)});c.stroke()});
+  if(refs.length>1){refs.slice(0,6).forEach((r,k)=>{c.fillStyle=RCOL[k%RCOL.length];c.fillText("■ "+r.name.slice(0,28),L+8,14+k*13)})}
+  c.fillStyle="#8a8a90";c.fillText("Langzeitspektrum, 4,5 dB/Okt geneigt, auf Maximum normiert",W-330>L?W-330:L,Hh-6)}
+function rftDraw(){RFT.refs.forEach((r,i)=>drawRefCurve(document.querySelector(`[data-rc="${i}"]`),[r]));drawRefCurve($("rft-ov"),RFT.refs)}
 function renderRft(){
-  if(!RFT.built)return;
+  if(!RFT.built)return;setTimeout(rftDraw,0);
   $("rft-cards").innerHTML=RFT.refs.map(refCard).join("");
   const m=medianRef();
-  $("rft-sum").innerHTML=m?`<div class="card"><h3>Profil aus ${RFT.refs.length} Referenz(en)</h3>Tempo <b>${m.bpm.toFixed(1)} BPM</b> · Kick <b>${m.f0.toFixed(1)} Hz (${noteName(m.f0)})</b> · Tail <b>${Math.round(m.tail)} ms</b><div class="row"><button id="rft-ap">Median auf Designer anwenden</button><span style="color:var(--dim)">setzt Tempo, Grundton, Kick-Synthese und das Band-Ziel im Spektrum-Tab. Der Mix-Tail wird mit Faktor 0,65 auf einen Solo-Tail umgerechnet (Näherung aus einem Test-Loop).</span></div></div>`:"";
+  $("rft-sum").innerHTML=m?`<div class="card"><h3>Profil aus ${RFT.refs.length} Referenz(en)</h3>Tempo <b>${m.bpm.toFixed(1)} BPM</b> · Kick <b>${m.f0.toFixed(1)} Hz (${noteName(m.f0)})</b> · Tail <b>${Math.round(m.tail)} ms</b><canvas id="rft-ov" style="height:230px;max-width:none;margin:6px 0"></canvas><div class="row"><button id="rft-ap">Median auf Designer anwenden</button><span style="color:var(--dim)">setzt Tempo, Grundton, Kick-Synthese und das Band-Ziel im Spektrum-Tab. Der Mix-Tail wird mit Faktor 0,65 auf einen Solo-Tail umgerechnet (Näherung aus einem Test-Loop).</span></div></div>`:"";
   const rows=SCENE.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],false]).concat(RFT.refs.map(r=>[r.name,r.bpm,r.f0,r.tail,r.rmsDb,r.crest,true]));
   const mm=i=>rows.map(r=>r[i]);const st=(i)=>`${Math.min(...mm(i)).toFixed(1)} – ${Math.max(...mm(i)).toFixed(1)}`;
   $("rft-scene").innerHTML=`<div class="card"><h3>Szene-Vergleich (8 gemessene Szene-Tracks aus dem Skill + deine Referenzen)</h3><div style="overflow-x:auto"><table><tr><th>Track</th><th>BPM</th><th>Kick Hz</th><th>Tail ms</th><th>RMS dB</th><th>Crest dB</th></tr>`+
@@ -1171,11 +1198,11 @@ function renderEd(){
   const c=$("ed-card");if(!ED.it){c.hidden=true;return}c.hidden=false;
   const inp=(k,l,a,b,st)=>`<label>${l} <input type="number" data-ek="${k}" min="${a}" max="${b}" step="${st}" value="${ED[k]}" style="width:78px"></label>`;
   c.innerHTML=`<h3>Sample-Editor · ${ED.it.name} <span class="tag">${ED.it.cls}</span>${pcmNo(ED.it)?` <span class="tag">EMX-PCM ${pcmNo(ED.it)}?</span>`:""}</h3>
-  <canvas id="ed-cv" width="1100" height="150" style="height:150px"></canvas><div style="color:var(--dim);font-size:12px">Ziehen: Start- oder End-Marker verschieben. Grau = Original, rot = bearbeitet.</div>
+  <canvas id="ed-cv" width="1100" height="150" style="height:150px"></canvas><div style="color:var(--dim);font-size:12px">Ziehen: Start- oder End-Marker verschieben. Grau = Original, rot = bearbeitet, gelb = erkannte Transienten.</div><div id="ed-tr"></div>
   <div class="row"><b style="color:var(--hot)">Schnitt</b>${inp("start","Start ms",0,99999,1)}${inp("end","Ende ms",1,99999,1)}<label><input type="checkbox" data-ec="zc" ${ED.zc?"checked":""}> Nulldurchgang</label><label><input type="checkbox" data-ec="rev" ${ED.rev?"checked":""}> Reverse</label></div>
   <div class="row"><b style="color:var(--hot)">Fades</b>${inp("fin","Fade-In ms",0,500,.1)}${inp("fout","Fade-Out ms",0,2000,1)}<label>Kurve <select data-es="curve"><option value="exp" ${ED.curve==="exp"?"selected":""}>exponentiell</option><option value="lin" ${ED.curve==="lin"?"selected":""}>linear</option></select></label></div>
   <div class="row"><b style="color:var(--hot)">Transienten</b>${inp("att","Attack +dB",-12,12,.5)}${inp("punch","Punch +dB",-12,12,.5)}${inp("click","Klick",0,2,.05)}${inp("semi","Pitch HT",-12,12,1)}<label><input type="checkbox" data-ec="norm" ${ED.norm?"checked":""}> Normalisieren −1 dBFS</label></div>
-  <div class="row"><button id="ed-po">▶ Original</button><button id="ed-pe">▶ Bearbeitet</button><button id="ed-save">Als neues Sample in die Bibliothek</button><button id="ed-wav">⬇ WAV</button><button id="ed-x">Schließen</button><span id="ed-info" style="color:var(--dim)"></span></div>`;
+  <div class="row"><button id="ed-po">▶ Original</button><button id="ed-pe">▶ Bearbeitet</button><button id="ed-save">Als neues Sample in die Bibliothek</button><button id="ed-wav">⬇ WAV</button><button id="ed-ts">Start auf 1. Transient</button><button id="ed-x">Schließen</button><span id="ed-info" style="color:var(--dim)"></span></div>`;
   c.querySelectorAll("[data-ek]").forEach(e=>e.onchange=()=>{ED[e.dataset.ek]=+e.value;edDraw()});
   c.querySelectorAll("[data-ec]").forEach(e=>e.onchange=()=>{ED[e.dataset.ec]=e.checked;edDraw()});
   c.querySelectorAll("[data-es]").forEach(e=>e.onchange=()=>{ED[e.dataset.es]=e.value;edDraw()});
@@ -1183,6 +1210,7 @@ function renderEd(){
   $("ed-pe").onclick=()=>{ac.resume();const s=ac.createBufferSource();s.buffer=edBuf(edProcess(ED.it,ED));s.connect(master);s.start()};
   $("ed-wav").onclick=()=>dl((ED.it.name+"_ED").slice(0,8).toUpperCase()+".WAV",wavBytes(edProcess(ED.it,ED)),"audio/wav");
   $("ed-x").onclick=()=>{ED.it=null;renderEd()};
+  $("ed-ts").onclick=()=>{const{m,sr}=edMono(ED.it),tr=detectTransients(m,sr,1);if(tr[0]){ED.start=Math.max(0,Math.floor(tr[0].t*1000-1));renderEd()}};
   $("ed-save").onclick=()=>{const f=edProcess(ED.it,ED),b=edBuf(f),a=analyzeBuf(b),k=LAB.items.filter(i=>i.name.startsWith(ED.it.name+"-ed")).length+1;LAB.items.push({id:LAB.items.length,name:ED.it.name+"-ed"+k,buf:b,...a});$("ed-info").textContent=`Gespeichert als ${ED.it.name}-ed${k} (${Math.round(f.length/SR*1000)} ms, ${a.cls}${a.hz?", "+a.hz.toFixed(1)+" Hz":""})`;renderLab()};
   const cv=$("ed-cv");cv.onpointerdown=ev=>{const r=cv.getBoundingClientRect(),ms=(ev.clientX-r.left)/r.width*ED.it.buf.duration*1000;ED.drag=Math.abs(ms-ED.start)<Math.abs(ms-ED.end)?"start":"end";cv.setPointerCapture(ev.pointerId);edMove(ev)};
   cv.onpointermove=ev=>{if(ED.drag)edMove(ev)};cv.onpointerup=()=>{ED.drag=null;edDraw()};
@@ -1190,13 +1218,17 @@ function renderEd(){
 function edMove(ev){const cv=$("ed-cv"),r=cv.getBoundingClientRect(),D=ED.it.buf.duration*1000;let ms=Math.round(Math.max(0,Math.min(D,(ev.clientX-r.left)/r.width*D)));
   if(ED.drag==="start")ED.start=Math.min(ms,ED.end-1);else ED.end=Math.max(ms,ED.start+1);document.querySelector('[data-ek="start"]').value=ED.start;document.querySelector('[data-ek="end"]').value=ED.end;edDraw(true)}
 function edDraw(fast){
-  const cv=$("ed-cv");if(!cv)return;const c=cv.getContext("2d"),W=cv.width,H=cv.height,{m}=edMono(ED.it),D=ED.it.buf.duration*1000;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
+  const cv=$("ed-cv");if(!cv)return;const{c,W,H}=fit(cv),{m}=edMono(ED.it),D=ED.it.buf.duration*1000;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
   const wave=(x,col,x0,x1)=>{c.strokeStyle=col;c.beginPath();for(let px=x0;px<x1;px++){const i0=Math.floor((px-x0)/(x1-x0)*x.length),i1=Math.max(i0+1,Math.floor((px-x0+1)/(x1-x0)*x.length));let mn=1,mx=-1;for(let i=i0;i<i1&&i<x.length;i++){mn=Math.min(mn,x[i]);mx=Math.max(mx,x[i])}c.moveTo(px,H/2-mx*H/2.2);c.lineTo(px,H/2-mn*H/2.2)}c.stroke()};
   wave(m,"#3a3a40",0,W);const xs=ED.start/D*W,xe=ED.end/D*W;c.fillStyle="rgba(0,0,0,.55)";c.fillRect(0,0,xs,H);c.fillRect(xe,0,W-xe,H);
-  if(!fast){const y=edProcess(ED.it,ED),len=y.length/SR*1000;wave(y,"#ff3b4e",xs,Math.min(W,xs+len/D*W));$("ed-info").textContent=`Ergebnis: ${Math.round(len)} ms, mono, 44,1 kHz`}
+  if(!fast){const y=edProcess(ED.it,ED),len=y.length/SR*1000;wave(y,"#ff3b4e",xs,Math.min(W,xs+len/D*W));$("ed-info").textContent=`Ergebnis: ${Math.round(len)} ms, mono, 44,1 kHz`;
+    const tr=detectTransients(y,SR,24);c.fillStyle="#e0a020";tr.forEach(o=>c.fillRect(xs+o.t*1000/D*W,0,1,H));
+    $("ed-tr").innerHTML=tr.length?"<table><tr><th>#</th><th>Zeit</th><th>Attack 10–90 %</th><th>Peak</th><th>Transient zu Körper</th></tr>"+tr.slice(0,12).map((o,i)=>`<tr><td>${i+1}</td><td>${(o.t*1000).toFixed(1)} ms</td><td>${o.att.toFixed(2)} ms</td><td>${o.pk.toFixed(1)} dBFS</td><td>${o.tb.toFixed(1)} dB</td></tr>`).join("")+"</table>":'<span style="color:var(--dim)">Keine Transienten erkannt.</span>'}
   c.fillStyle="#e8e6e1";c.fillRect(xs-1,0,2,H);c.fillRect(xe-1,0,2,H);c.font="11px monospace";c.fillText("START",xs+4,12);c.fillText("ENDE",Math.max(0,xe-36),12)}
 /* EMX-PCM-Zuordnung: Pack mit genau 207 nummerierten Dateien = vermutlich die 207 PCM-Sounds der EMX in Gerätereihenfolge */
-function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length;return k===207?+it.name:null}
+/* Laut EMX-Handbuch (Drum PCM List): Nr. 1 BD-Dark, Nr. 4 BD-Syn1, Nr. 11 BD-Syn8 */
+const PCM_NAMES={1:"BD-Dark",4:"BD-Syn1",11:"BD-Syn8"};
+function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length,n=+it.name;return k===207?(PCM_NAMES[n]?n+" "+PCM_NAMES[n]:String(n)):null}
 
 
 /* ============ Evolution (Patterns züchten) & Call/Response ============ */
@@ -1241,7 +1273,7 @@ function callResponse(){
     const place=(id,list,shift,resolve)=>list.forEach((m,j)=>{const i=b*16+m.s+shift;if(i>=n)return;S.steps[id][i]=1;if(isSyn(id)){let d=c+m.off;if(resolve&&j===list.length-1)d=0;let nt=degNote(base(id),d);if(id==="S1"&&nt-bassBase()>=8)nt-=12;S.notes[id][i]=nt}});
     if(mode==="half"){place(A,call,0,false);place(B,resp,8,b%4===3)}else{if(b%2===0)place(A,call,0,false);else place(B,resp,0,b%4===3)}}
   rConstraints();buildGrid();if(typeof runCheck==="function")runCheck()}
-function drawMini(cv,g){const c=cv.getContext("2d"),W=cv.width,H=cv.height,n=nSteps(),rows=PARTS.filter(p=>p.kind!=="acc"),cw=W/n,rh=H/rows.length;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
+function drawMini(cv,g){const{c,W,H}=fit(cv),n=nSteps(),rows=PARTS.filter(p=>p.kind!=="acc"),cw=W/n,rh=H/rows.length;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
   rows.forEach((p,r)=>{for(let i=0;i<n;i++)if(g.steps[p.id][i]){c.fillStyle=p.kind==="syn"?"#c050e0":"#ff3b4e";c.fillRect(i*cw,r*rh+.5,Math.max(1,cw-.5),rh-1)}});
   c.fillStyle="#3a0a10";for(let b=1;b<S.bars;b++)c.fillRect(b*16*cw,0,1,H)}
 function buildEvo(){
@@ -1302,13 +1334,14 @@ function buildKlang(){
     t.innerHTML=`<div class="warn">Die EMX lädt keine eigenen Samples. Diese Klänge sind für den ESX-1 (Keyboard- oder Drum-Part), die DAW oder als Sample-Part in der Pattern-Vorschau: „→ Sample-Lab“ legt sie in die Bibliothek, von dort auf einen Part.</div>
     <div class="card"><h3>Psychoakustik-Generatoren</h3><div class="row" id="kl-types">${Object.entries(GENS).map(([k,g])=>`<button data-kt="${k}">${g.n}</button>`).join("")}</div>
     <div id="kl-desc" style="color:var(--dim);margin:6px 0"></div><div id="kl-par"></div><canvas id="kl-cv" width="1100" height="130" style="height:130px"></canvas>
-    <div class="row"><button id="kl-play">▶ Anhören</button><button id="kl-wav">⬇ WAV</button><button id="kl-lab">→ Sample-Lab</button><span id="kl-info" style="color:var(--dim)"></span></div></div>`;
+    <div class="row"><button id="kl-play">▶ Anhören</button><button id="kl-wav">⬇ WAV</button><button id="kl-lab">→ Sample-Lab</button><span id="kl-info" style="color:var(--dim)"></span></div></div>
+    <div class="card" id="xs-card"></div>`;
     $("kl-types").addEventListener("click",e=>{const b=e.target.closest("[data-kt]");if(b){GL.type=b.dataset.kt;GL.p={};renderKlang()}});
     $("kl-play").onclick=()=>{initAudio();ac.resume();const f=genRender(GL.type,GL.p),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const s=ac.createBufferSource();s.buffer=b;s.connect(master);s.start()};
     $("kl-wav").onclick=()=>dl({hoover:"HOOVER1",shep:"SHEPRSR1",phantom:"PHNTBAS1",combi:"KOMBTON1",terror:"TERRKCK1"}[GL.type]+".WAV",wavBytes(genRender(GL.type,GL.p)),"audio/wav");
     $("kl-lab").onclick=()=>{initAudio();const f=genRender(GL.type,GL.p),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const a=analyzeBuf(b),k=LAB.items.filter(i=>i.name.startsWith(GENS[GL.type].n)).length+1;LAB.items.push({id:LAB.items.length,name:GENS[GL.type].n+" "+k,buf:b,...a});$("kl-info").textContent=`In der Bibliothek als „${GENS[GL.type].n} ${k}“ (${a.cls}${a.hz?", "+a.hz.toFixed(1)+" Hz":""})`;if(LAB.built)renderLab()};
     $("kl-par").addEventListener("input",e=>{const k=e.target.dataset.kp;if(k){GL.p[k]=+e.target.value;$("klv-"+k).textContent=fmtPar(k,GL.p[k]);klDraw()}})}
-  renderKlang()}
+  renderKlang();buildXS()}
 function fmtPar(k,v){return(k==="note")?`${v} (${nn(v)}, ${midiHz(v).toFixed(1)} Hz)`:String(v)}
 function renderKlang(){
   const g=GENS[GL.type],r=S.root;if(g.par.note&&GL.p.note===undefined)GL.p.note={hoover:48+r,phantom:36+r,combi:36+r,terror:24+r>=28?24+r:36+r}[GL.type]; // startet in der Tonart des Patterns
@@ -1317,7 +1350,7 @@ function renderKlang(){
   $("kl-desc").textContent=g.d;
   $("kl-par").innerHTML=Object.entries(g.par).map(([k,[a,b,d,st,l]])=>`<div class="row"><label style="width:170px">${l}</label><input type="range" data-kp="${k}" min="${a}" max="${b}" step="${st}" value="${GL.p[k]}" style="flex:1;max-width:420px"><span id="klv-${k}">${fmtPar(k,GL.p[k])}</span></div>`).join("");
   klDraw()}
-function klDraw(){const f=genRender(GL.type,GL.p),c=$("kl-cv").getContext("2d"),W=1100,H=130;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.strokeStyle="#ff3b4e";c.beginPath();
+function klDraw(){const f=genRender(GL.type,GL.p),{c,W,H}=fit($("kl-cv"));c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.strokeStyle="#ff3b4e";c.beginPath();
   for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.max(i0+1,Math.floor((x+1)/W*f.length));let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2.2);c.lineTo(x,H/2-mn*H/2.2)}c.stroke();
   $("kl-info").textContent=`${(f.length/SR).toFixed(2)} s · mono · 44,1 kHz · −1 dBFS`}
 
@@ -1370,6 +1403,164 @@ function renderSchemaVals(){const A=INS.A,rows=parseSchema(INS.schema);if(!rows.
   $("in-sval").innerHTML="<table><tr><th>Name</th><th>Offset</th><th>Bytes (A)</th><th>Wert</th><th>Status</th></tr>"+rows.map(r=>{if(r.bad)return`<tr><td colspan="5" style="color:#e0a020">Zeile nicht lesbar: ${r.bad.replace(/</g,"&lt;")}</td></tr>`;
     const b=A?[...A.subarray(r.off,r.off+r.len)]:[],val=b.length===1?b[0]:b.length===2?`${(b[0]<<8)|b[1]} (BE) / ${(b[1]<<8)|b[0]} (LE)`:b.length?"–":"";
     return`<tr><td>${r.name}</td><td>${hexOffs(r.off)}</td><td>${b.map(hex2).join(" ")}</td><td>${val}</td><td>${r.ver?'<span class="tag v">verifiziert</span>':'<span class="tag u">unbestätigt</span>'} ${r.note.replace(/</g,"&lt;")}</td></tr>`}).join("")+"</table>"}
+
+
+/* ============ HiDPI-Canvas ============ */
+function fit(cv){const c=cv.getContext("2d"),r=cv.getBoundingClientRect();if(!r.width){c.setTransform(1,0,0,1,0,0);return{c,W:cv.width,H:cv.height}}
+  const dpr=Math.min(3,window.devicePixelRatio||1),W=Math.round(r.width),H=Math.round(r.height),bw=Math.round(W*dpr),bh=Math.round(H*dpr);
+  if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh}c.setTransform(dpr,0,0,dpr,0,0);return{c,W,H}}
+
+/* ============ Transienten-Erkennung ============ */
+function detectTransients(x,sr,maxN){
+  const a=Math.exp(-1/(0.001*sr)),env=new Float32Array(x.length);let e=0,mx=0;for(let i=0;i<x.length;i++){const v=Math.abs(x[i]);e=v>e?v:a*e+(1-a)*v;env[i]=e;if(e>mx)mx=e}
+  const lag=Math.floor(.01*sr),gap=Math.floor(.03*sr),floor=mx*0.01,out=[];let last=-1e9;
+  for(let i=lag;i<x.length;i++){if(env[i]>floor&&env[i]>1.8*env[i-lag]+mx*0.02&&i-last>gap){
+      let p=i,pv=env[i];const lim=Math.min(x.length,i+Math.floor(.05*sr));for(let j=i;j<lim;j++)if(env[j]>pv){pv=env[j];p=j}
+      let s=i-lag;while(s<p&&env[s]<pv*0.1)s++;let s9=s;while(s9<p&&env[s9]<pv*0.9)s9++;
+      const b0=p+Math.floor(.02*sr),b1=Math.min(x.length,p+Math.floor(.08*sr));let be=1e-12,n=0;for(let j=b0;j<b1;j++){be+=x[j]*x[j];n++}
+      out.push({t:s/sr,att:(s9-s)/sr*1000,pk:20*Math.log10(pv+1e-12),tb:20*Math.log10(pv/(Math.sqrt(be/(n||1))+1e-9))});last=p;if(out.length>=(maxN||400))break}}
+  return out}
+function clipRuns(ab){let runs=0,samples=0;for(let ch=0;ch<ab.numberOfChannels;ch++){const d=ab.getChannelData(ch);let r=0;for(let i=0;i<d.length;i++){if(Math.abs(d[i])>=0.999){r++;samples++}else{if(r>=3)runs++;r=0}}if(r>=3)runs++}return{runs,samples,pct:samples/(ab.length*ab.numberOfChannels)*100}}
+
+/* ============ Analyzer im SPAN-Stil ============ */
+const SP={fft:8192,smooth:.8,slope:4.5,min:-90,hold:true,freeze:false,hover:null,clips:0,peakHold:[-120,-120],preHold:-120,lastClipT:0};
+let anL=null,anR=null,anPre=null;
+function spApplyFft(){[anMix,anG.drums,anG.bass,anG.music].forEach(a=>{if(a){a.fftSize=SP.fft;a.smoothingTimeConstant=SP.smooth}})}
+const NOTE_C=[32.7,65.41,130.81,261.63,523.25,1046.5,2093,4186,8372];
+function drawSpec(an,cv,key){
+  const{c,W,H}=fit(cv),Hh=H-18,L=40;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);const Wp=W-L;
+  const fx=f=>L+Math.log(f/20)/Math.log(1000)*Wp,dbR=-SP.min,yOf=db=>Hh*(1-Math.max(0,Math.min(1,(db-SP.min)/dbR)));
+  c.font="10px ui-monospace,monospace";c.lineWidth=1;
+  for(let db=0;db>=SP.min;db-=(dbR>60?12:6)){const y=Math.round(yOf(db))+.5;c.strokeStyle=db===0?"#3a1a20":"#1d1d21";c.beginPath();c.moveTo(L,y);c.lineTo(W,y);c.stroke();c.fillStyle="#8a8a90";c.fillText((db>0?"+":"")+db,4,y+3)}
+  [20,30,40,50,60,80,100,200,300,400,500,800,1000,2000,3000,5000,8000,10000,20000].forEach(f=>{const x=Math.round(fx(f))+.5,main=[20,50,100,200,500,1000,2000,5000,10000,20000].includes(f);c.strokeStyle=main?"#24242a":"#18181c";c.beginPath();c.moveTo(x,0);c.lineTo(x,Hh);c.stroke();if(main){c.fillStyle="#8a8a90";c.fillText(f>=1000?f/1000+"k":f,Math.min(x+2,W-24),H-5)}});
+  c.fillStyle="rgba(76,195,138,.08)";c.fillRect(fx(41),0,fx(58)-fx(41),Hh); // Kick-Grundton-Fenster
+  if(!an){c.fillStyle="#8a8a90";c.fillText("Play drücken",L+8,16);return}
+  const N=an.frequencyBinCount;if(!SP[key+"d"]||SP[key+"d"].length!==N)SP[key+"d"]=new Float32Array(N);const d=SP[key+"d"];if(!SP.freeze)an.getFloatFrequencyData(d);
+  const sr=ac.sampleRate,pk=(SP[key+"pk"]&&SP[key+"pk"].length===Math.ceil(Wp))?SP[key+"pk"]:(SP[key+"pk"]=new Float32Array(Math.ceil(Wp)).fill(-200));
+  const sl=f=>SP.slope*Math.log2(f/1000);const pts=[];
+  for(let px=0;px<Wp;px++){const f0=20*Math.pow(1000,px/Wp),f1=20*Math.pow(1000,(px+1)/Wp);let b0=Math.floor(f0/(sr/2)*N),b1=Math.max(b0+1,Math.ceil(f1/(sr/2)*N)),m=-200;for(let k=b0;k<b1&&k<N;k++)m=Math.max(m,d[k]);const v=m+sl(f0);pts.push(v);if(!SP.freeze)pk[px]=SP.hold?Math.max(v,pk[px]-.25):v}
+  c.beginPath();c.moveTo(L,Hh);pts.forEach((v,px)=>c.lineTo(L+px,yOf(v)));c.lineTo(W,Hh);c.closePath();const g=c.createLinearGradient(0,0,0,Hh);g.addColorStop(0,"rgba(255,59,78,.45)");g.addColorStop(1,"rgba(211,18,42,.06)");c.fillStyle=g;c.fill();
+  c.strokeStyle="#ff3b4e";c.lineWidth=1.3;c.beginPath();pts.forEach((v,px)=>px?c.lineTo(L+px,yOf(v)):c.moveTo(L,yOf(v)));c.stroke();
+  if(SP.hold){c.strokeStyle="rgba(232,230,225,.55)";c.lineWidth=1;c.beginPath();for(let px=0;px<Wp;px++){const y=yOf(pk[px]);px?c.lineTo(L+px,y):c.moveTo(L,y)}c.stroke()}
+  if(SP.hover&&SP.hover.key===key){const x=SP.hover.x;if(x>L){const f=20*Math.pow(1000,(x-L)/Wp),v=pts[Math.min(pts.length-1,Math.floor(x-L))],m=69+12*Math.log2(f/440),k=Math.round(m),ct=Math.round((m-k)*100);
+    c.strokeStyle="rgba(255,255,255,.4)";c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,Hh);c.stroke();const txt=`${f<1000?f.toFixed(1)+" Hz":(f/1000).toFixed(2)+" kHz"} · ${nn(k)} ${ct>=0?"+":""}${ct} ct · ${v.toFixed(1)} dB`;
+    c.fillStyle="rgba(0,0,0,.8)";const tw=c.measureText(txt).width+10,tx=Math.min(x+6,W-tw-2);c.fillRect(tx,4,tw,16);c.fillStyle="#e8e6e1";c.fillText(txt,tx+5,15)}}}
+function spMeters(){
+  if(!anL)return null;const n=anL.fftSize,l=new Float32Array(n),r=new Float32Array(n);anL.getFloatTimeDomainData(l);anR.getFloatTimeDomainData(r);
+  let pl=0,pr=0,sl=0,sr2=0,slr=0,cl=0;for(let i=0;i<n;i++){const a=l[i],b=r[i];pl=Math.max(pl,Math.abs(a));pr=Math.max(pr,Math.abs(b));sl+=a*a;sr2+=b*b;slr+=a*b;if(Math.abs(a)>=.999||Math.abs(b)>=.999)cl++}
+  if(cl){SP.clips+=cl;SP.lastClipT=performance.now()}const db=v=>20*Math.log10(v+1e-12);
+  SP.peakHold[0]=Math.max(db(pl),SP.peakHold[0]-.15);SP.peakHold[1]=Math.max(db(pr),SP.peakHold[1]-.15);
+  let pre=0;if(anPre){const p=new Float32Array(anPre.fftSize);anPre.getFloatTimeDomainData(p);for(const v of p)pre=Math.max(pre,Math.abs(v))}SP.preHold=Math.max(db(pre),SP.preHold-.15);
+  const rms=(db(Math.sqrt(sl/n))+db(Math.sqrt(sr2/n)))/2,peak=Math.max(db(pl),db(pr));
+  return{pl:db(pl),pr:db(pr),rms,crest:peak-rms,corr:slr/Math.sqrt(sl*sr2+1e-20),pre:db(pre)}}
+function meterBar(v,lo,hi,col){const p=Math.max(0,Math.min(100,(v-lo)/(hi-lo)*100));return`<div style="background:#1d1d21;height:8px;width:100%;position:relative"><div style="background:${col};height:8px;width:${p}%"></div></div>`}
+function renderMeters(m){const el=$("sp-meters");if(!el)return;if(!m){el.innerHTML='<span style="color:var(--dim)">Play drücken, um zu messen.</span>';return}
+  const clipOn=performance.now()-SP.lastClipT<1500,f=v=>(v<-99?"−∞":v.toFixed(1));
+  el.innerHTML=`<table><tr><th>Messung</th><th>Wert</th><th style="width:40%"></th></tr>
+  <tr><td>Peak L / R</td><td>${f(m.pl)} / ${f(m.pr)} dBFS <span style="color:var(--dim)">(Hold ${f(SP.peakHold[0])} / ${f(SP.peakHold[1])})</span></td><td>${meterBar(Math.max(m.pl,m.pr),-48,0,Math.max(m.pl,m.pr)>-1?"#e0a020":"var(--ok)")}</td></tr>
+  <tr><td>RMS (Mittel L/R)</td><td>${f(m.rms)} dBFS</td><td>${meterBar(m.rms,-48,0,"var(--ok)")}</td></tr>
+  <tr><td>Crest-Faktor</td><td>${m.crest.toFixed(1)} dB <span class="tag ${m.crest>=6.4&&m.crest<=13.9?"v":"u"}">Szene 6,4–13,9</span></td><td>${meterBar(m.crest,0,20,"#c050e0")}</td></tr>
+  <tr><td>Korrelation L/R</td><td>${m.corr.toFixed(2)} ${m.corr<0?'<span class="tag u">Phasenproblem</span>':""}</td><td>${meterBar(m.corr,-1,1,m.corr<0?"#e0a020":"var(--ok)")}</td></tr>
+  <tr><td>Bus vor der Röhre</td><td>${f(m.pre)} dBFS (Hold ${f(SP.preHold)}) ${SP.preHold>0?'<span class="tag u">Bus übersteuert: Part-Level senken</span>':""}</td><td>${meterBar(m.pre,-48,6,SP.preHold>0?"#e0a020":"var(--ok)")}</td></tr>
+  <tr><td>Clipping am Ausgang</td><td><span class="tag ${clipOn?"u":"v"}">${clipOn?"CLIP":"ok"}</span> ${SP.clips} Samples ≥ 0 dBFS gesamt</td><td></td></tr></table>`}
+/* ============ Low-End-Balance & Sweetspot ============ */
+const IV_RATE={0:["Prim/Oktave","sweet","v"],7:["Quinte","gut","v"],5:["Quarte","ok","v"],3:["kl. Terz","neutral","v"],4:["gr. Terz","neutral","v"],8:["kl. Sexte","neutral","v"],9:["gr. Sexte","neutral","v"],1:["kl. Sekunde","reibt","u"],2:["gr. Sekunde","reibt","u"],6:["Tritonus","reibt","u"],10:["kl. Septime","reibt","u"],11:["gr. Septime","reibt","u"]};
+function lowEndStatic(){
+  const kp=kickPitchInfo(),f0=kp.hz,n=nSteps(),cnt={};for(let i=0;i<n;i++)if(S.steps.S1[i])cnt[S.notes.S1[i]]=(cnt[S.notes.S1[i]]||0)+1;
+  const kickMidi=69+12*Math.log2(f0/440),rows=Object.keys(cnt).map(Number).sort((a,b)=>a-b).map(m=>{const hz=midiHz(m),semi=((Math.round(m-kickMidi)%12)+12)%12,r=IV_RATE[semi],ratio=hz/f0;return{m,hz,ratio,r,cnt:cnt[m],mask:ratio<1.5}});
+  const tgt=kickTarget(),bassOct=midiHz(36+S.root);
+  return`<table><tr><th>Element</th><th>Ton</th><th>Frequenz</th><th>Verhältnis zur Kick</th><th>Intervall</th><th>Bewertung</th></tr>
+  <tr><td>Kick (Drum 1)</td><td>${kp.note}</td><td>${f0.toFixed(1)} Hz</td><td>1,00</td><td>–</td><td><span class="tag ${Math.abs(kp.cents)<=35?"v":"u"}">${Math.abs(kp.cents)<=35?"auf Grundton":"verstimmt "+kp.cents+" ct"}</span> <span class="tag ${f0>=41&&f0<=58?"v":"u"}">Fenster 41–58 Hz</span></td></tr>`+
+  (rows.length?rows.map(x=>`<tr><td>Bass (Synth 1) ×${x.cnt}</td><td>${nn(x.m)}</td><td>${x.hz.toFixed(1)} Hz</td><td>${x.ratio.toFixed(2)}</td><td>${x.r[0]}</td><td><span class="tag ${x.r[2]}">${x.r[1]}</span>${x.mask?' <span class="tag u">Maskierung im Sub: Bass unter 1,5 × Kick</span>':""}</td></tr>`).join(""):'<tr><td colspan="6" style="color:var(--dim)">Kein Bass im Pattern.</td></tr>')+
+  `</table><div style="color:var(--dim);margin-top:6px">Sweetspot: Kick auf dem Grundton im Fenster 41–58 Hz (hier ${tgt.hz.toFixed(1)} Hz), Bass eine Oktave darüber um ${bassOct.toFixed(0)} Hz, Akkordgrundtöne als Prim, Quinte oder Quarte zur Kick. Reibende Intervalle im Bass kurz halten oder auf Offbeats ohne Kick-Tail legen.</div>`}
+function lowEndLive(){
+  if(!anG.drums||!anG.bass||!playing)return'<span style="color:var(--dim)">Live-Anteile erscheinen beim Abspielen.</span>';
+  const get=(an,a,b)=>{const N=an.frequencyBinCount,d=new Float32Array(N);an.getFloatFrequencyData(d);const sr=ac.sampleRate;let s=0;for(let k=1;k<N;k++){const f=k*sr/2/N;if(f>=a&&f<b)s+=Math.pow(10,d[k]/10)}return s};
+  const bands=[["Sub 20–60 Hz",20,60],["Bass 60–120 Hz",60,120],["Low-Mid 120–250 Hz",120,250]];
+  return"<table><tr><th>Band</th><th>Drums (Kick)</th><th>Bass</th><th style='width:40%'>Verteilung</th></tr>"+bands.map(([n,a,b])=>{const d=get(anG.drums,a,b),bs=get(anG.bass,a,b),t=d+bs||1,pd=d/t*100;
+    const ok=a===20?pd>=65:a===60?pd>=30&&pd<=80:true;return`<tr><td>${n}</td><td>${pd.toFixed(0)} %</td><td>${(100-pd).toFixed(0)} %</td><td><div style="display:flex;height:10px"><div style="width:${pd}%;background:var(--red)"></div><div style="width:${100-pd}%;background:#c050e0"></div></div> ${ok?"":'<span class="tag u">'+(a===20?"Sub sollte der Kick gehören":"Bass und Kick unausgewogen")+"</span>"}</td></tr>`}).join("")+"</table>"}
+
+/* ============ EMX-Synth-Emulation (Chaos / Psycho) ============ */
+const OSC_T=["Saw","Square","Triangle","Sine","Wave Form","Dual Osc","Osc Sync","Ring Mod","Cross Mod","VPM","Waveshaper","Unison","Chord","Additive","Formant","Noise"];
+const CHORDS=[[0,4,7],[0,3,7],[0,5,7],[0,4,7,11],[0,3,7,10],[0,7,12],[0,3,6],[0,4,8]];
+const XS={osc:"VPM",e1:70,e2:40,note:56,flt:"BPF+",cut:80,res:95,egi:60,drv:70,att:2,dec:60,lfoW:"tri",lfoSp:40,lfoD:20,lfoT:"cutoff",len:2,chaos:40,psycho:false,seq:true,built:false};
+const XPRE={"Psycho-Screech":{osc:"VPM",e1:90,e2:55,flt:"BPF+",cut:85,res:110,egi:70,drv:90,att:1,dec:45,lfoW:"sh",lfoSp:70,lfoD:35,lfoT:"cutoff",chaos:55,psycho:false,seq:true},
+  "Chaos-Ringmod":{osc:"Ring Mod",e1:80,e2:90,flt:"BPF",cut:75,res:80,egi:50,drv:60,att:0,dec:35,lfoW:"sh",lfoSp:90,lfoD:50,lfoT:"pitch",chaos:85,psycho:true,seq:true},
+  "Terror-Sirene":{osc:"Osc Sync",e1:60,e2:64,flt:"LPF",cut:95,res:60,egi:20,drv:100,att:5,dec:127,lfoW:"tri",lfoSp:30,lfoD:70,lfoT:"pitch",chaos:0,psycho:false,seq:false},
+  "VPM-Glocke":{osc:"VPM",e1:50,e2:100,flt:"LPF",cut:110,res:20,egi:30,drv:10,att:0,dec:90,lfoW:"tri",lfoSp:20,lfoD:0,lfoT:"cutoff",chaos:10,psycho:false,seq:true},
+  "Unison-Hoover":{osc:"Unison",e1:90,e2:64,flt:"LPF",cut:85,res:40,egi:40,drv:60,att:10,dec:110,lfoW:"tri",lfoSp:25,lfoD:15,lfoT:"pitch",chaos:0,psycho:false,seq:false},
+  "Acid-Bass":{osc:"Saw",e1:0,e2:64,flt:"LPF",cut:40,res:115,egi:95,drv:80,att:0,dec:40,lfoW:"tri",lfoSp:20,lfoD:0,lfoT:"cutoff",chaos:30,psycho:false,seq:true},
+  "Noise-Riser":{osc:"Noise",e1:40,e2:64,flt:"BPF",cut:50,res:70,egi:0,drv:40,att:120,dec:127,lfoW:"saw",lfoSp:5,lfoD:80,lfoT:"cutoff",chaos:0,psycho:false,seq:false}};
+function xsRender(P){
+  const N=Math.floor(P.len*SR),y=new Float32Array(N),bpm=+$("bpm").value||168,stepN=Math.floor(60/bpm/4*SR);let seed=(S.seed*2654435761)>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+  const baseHz=midiHz(P.note),cut0=30*Math.pow(2,P.cut/127*9.3),q=0.5+P.res/127*(P.flt==="BPF+"?14:11),drive=1+P.drv/127*8,e1=P.e1/127,e2=(P.e2-64)/63;
+  let ph=[0,0,0,0,0,0,0,0],ph2=0,lp1=0,bp1=0,lp2=0,bp2=0,fl=0,fb=0,lfoPh=0,sh=0,pitchOff=0,e1Off=0,cutOff=0,stepT=0,lastStep=-1,nz=0,amp=0;
+  const scaleM=[];for(let m=P.note-12;m<=P.note+12;m++)if(inKey(m))scaleM.push(m);
+  for(let i=0;i<N;i++){const t=i/SR,step=Math.floor(i/stepN);
+    if(step!==lastStep){lastStep=step;stepT=0;if(P.chaos>0&&rnd()<P.chaos/100){const c=P.chaos/100;
+        pitchOff=P.psycho?(rnd()*2-1)*12*c:(scaleM.length?scaleM[Math.floor(rnd()*scaleM.length)]-P.note:0)*(rnd()<c?1:0);e1Off=(rnd()*2-1)*c*0.6;cutOff=(rnd()*2-1)*c*2.5}
+      sh=rnd()*2-1}
+    stepT++;
+    const lfoF=0.1*Math.pow(2,P.lfoSp/127*8);lfoPh=(lfoPh+lfoF/SR)%1;const lfo=P.lfoW==="tri"?1-4*Math.abs(lfoPh-.5):P.lfoW==="saw"?2*lfoPh-1:P.lfoW==="sq"?(lfoPh<.5?1:-1):sh,ld=P.lfoD/127;
+    const f=baseHz*Math.pow(2,(pitchOff+(P.lfoT==="pitch"?lfo*ld*12:0))/12),E1=Math.max(0,Math.min(1,e1+e1Off+(P.lfoT==="edit1"?lfo*ld*.5:0)));
+    const dt=f/SR;let s=0;
+    switch(P.osc){
+      case "Saw":ph[0]=(ph[0]+dt)%1;s=2*ph[0]-1;break;
+      case "Square":ph[0]=(ph[0]+dt)%1;s=ph[0]<(.5-E1*.45)?1:-1;break;
+      case "Triangle":ph[0]=(ph[0]+dt)%1;s=1-4*Math.abs(ph[0]-.5);break;
+      case "Sine":ph[0]=(ph[0]+dt)%1;s=Math.sin(2*Math.PI*ph[0]);break;
+      case "Wave Form":{ph[0]=(ph[0]+dt)%1;ph[1]=(ph[1]+dt*Math.pow(2,e2*2))%1;const a=2*ph[0]-1,b=ph[1]<.5?1:-1;s=a*(1-E1)+b*E1;break}
+      case "Dual Osc":{ph[0]=(ph[0]+dt)%1;ph[1]=(ph[1]+dt*Math.pow(2,e2*2))%1;s=(2*ph[0]-1)*(1-E1*.5)+(2*ph[1]-1)*E1*.5;break}
+      case "Osc Sync":{const old=ph[0];ph[0]=(ph[0]+dt)%1;if(ph[0]<old)ph[1]=0;ph[1]=(ph[1]+dt*(1+E1*7))%1;s=2*ph[1]-1;break}
+      case "Ring Mod":{ph[0]=(ph[0]+dt)%1;ph[1]=(ph[1]+dt*Math.pow(2,e2*2+E1*2))%1;s=(2*ph[0]-1)*Math.sin(2*Math.PI*ph[1]);break}
+      case "Cross Mod":{ph[1]=(ph[1]+dt*Math.pow(2,e2*2))%1;const m=Math.sin(2*Math.PI*ph[1]);ph[0]=(ph[0]+dt*(1+m*E1*4)+1)%1;s=2*ph[0]-1;break}
+      case "VPM":{ph[0]=(ph[0]+dt)%1;ph[1]=(ph[1]+dt*Math.max(.5,Math.round((1+(e2+1)*3.5)*2)/2))%1;s=Math.sin(2*Math.PI*(ph[0]+E1*1.5*Math.sin(2*Math.PI*ph[1])));break}
+      case "Waveshaper":{ph[0]=(ph[0]+dt)%1;ph[1]=(ph[1]+dt*Math.pow(2,e2*2))%1;const a=Math.sin(2*Math.PI*ph[0])+.5*Math.sin(2*Math.PI*ph[1]);s=Math.sin(a*(1+E1*6));break}
+      case "Unison":{for(let k=0;k<6;k++){ph[k]=(ph[k]+dt*Math.pow(2,((k-2.5)/2.5)*E1*40/1200))%1;s+=2*ph[k]-1}s/=3;break}
+      case "Chord":{const ch=CHORDS[Math.min(CHORDS.length-1,Math.floor(E1*CHORDS.length))];ch.forEach((iv,k)=>{ph[k]=(ph[k]+dt*Math.pow(2,iv/12))%1;s+=2*ph[k]-1});s/=ch.length*.7;break}
+      case "Additive":{ph[0]=(ph[0]+dt)%1;for(let h=1;h<=8;h++){const w=Math.pow(E1*.9+.05,h-1)*(h%2===0?(1-Math.max(0,e2)):1+Math.min(0,e2)*0);s+=w*Math.sin(2*Math.PI*ph[0]*h)}s*=.6;break}
+      case "Formant":{ph[0]=(ph[0]+dt)%1;s=2*ph[0]-1;const fr=[300+E1*600,900+E1*1500];const ff=2*Math.sin(Math.PI*Math.min(.45,fr[0]/SR));fl+=ff*fb;const hp=s-fl-fb/3;fb+=ff*hp;s=fb*1.5;break}
+      case "Noise":{nz+=(1-E1*.95)*((rnd()*2-1)-nz);s=nz*2;break}}
+    // Filter (SVF, BPF+ = zwei Bandpässe in Serie)
+    const egEnv=Math.exp(-(stepT/SR)/Math.max(.005,P.dec/127*0.6)),cutHz=Math.min(18000,cut0*Math.pow(2,P.egi/127*5*egEnv+cutOff+(P.lfoT==="cutoff"?lfo*ld*3:0)));
+    // TPT-SVF nach Zavalishin: stabil für alle Cutoffs unter Nyquist
+    const g=Math.tan(Math.PI*Math.min(.49,cutHz/SR)),k=1/q,a1=1/(1+g*(g+k)),a2=g*a1,a3=g*a2;
+    let v3=s-lp1,v1=a1*bp1+a2*v3,v2=lp1+a2*bp1+a3*v3;bp1=2*v1-bp1;lp1=2*v2-lp1;let o=P.flt==="LPF"?v2:P.flt==="HPF"?s-k*v1-v2:v1;
+    if(P.flt==="BPF+"){const w3=o-lp2,w1=a1*bp2+a2*w3,w2=lp2+a2*bp2+a3*w3;bp2=2*w1-bp2;lp2=2*w2-lp2;o=w1*1.5}
+    o=Math.tanh(o*drive)/Math.tanh(drive);
+    const at=Math.max(.0005,P.att/127*0.8),dc=Math.max(.01,P.dec/127*(P.seq?0.5:3)),tt=P.seq?stepT/SR:t;amp=tt<at?tt/at:Math.exp(-(tt-at)/dc);
+    y[i]=o*amp*(P.lfoT==="amp"?1-ld*(lfo*.5+.5):1)}
+  return genFinish(y)}
+const OSC_LBL={Saw:"Wave Form → Saw",Square:"Wave Form → Square (Edit 1 = Pulsbreite)",Triangle:"Wave Form → Triangle",Sine:"Wave Form → Sine","Wave Form":"Wave Form","Dual Osc":"Dual Osc","Osc Sync":"Osc Sync","Ring Mod":"Ring Mod","Cross Mod":"Cross Mod",VPM:"VPM",Waveshaper:"Waveshaper",Unison:"Unison",Chord:"Chord",Additive:"Additive",Formant:"Formant",Noise:"Noise / PCM"};
+function xsSheet(P){const R=[["Oszillator",OSC_LBL[P.osc]||P.osc],["Osc Edit 1",P.e1],["Osc Edit 2",P.e2],["Filter",P.flt],["Cutoff",P.cut],["Resonanz",P.res],["EG Int",P.egi],["Drive",P.drv],["Attack",P.att],["Decay",P.dec],["LFO",`${{tri:"Dreieck",saw:"Säge",sq:"Rechteck",sh:"Zufall (S&H)"}[P.lfoW]} → ${{pitch:"Pitch",cutoff:"Cutoff",amp:"Amp",edit1:"Osc Edit 1"}[P.lfoT]}`],["LFO-Speed",P.lfoSp],["LFO-Tiefe",P.lfoD]];
+  return"<table><tr><th>Am EMX einstellen</th><th>Wert</th><th>Knopf</th></tr>"+R.map(([n,v])=>`<tr><td>${n}</td><td>${v}</td><td>${typeof v==="number"?clockOf(v):""}</td></tr>`).join("")+`</table><div style="color:var(--dim);font-size:12px">Chaos ${P.chaos}${P.psycho?" (frei, mikrotonal)":" (in Tonart)"}: am Gerät per Motion Sequence auf Pitch, Osc Edit 1 und Cutoff einspielen. Die Emulation nähert die EMX-Algorithmen an, sie ist kein Klon.</div>`}
+function buildXS(){
+  const host=$("xs-card");if(!host||XS.built)return;XS.built=true;
+  const sl=(k,l,a,b,st)=>`<div class="row" style="margin:3px 0"><label style="width:120px">${l}</label><input type="range" data-xk="${k}" min="${a}" max="${b}" step="${st||1}" value="${XS[k]}" style="flex:1;max-width:300px"><span id="xsv-${k}" style="width:110px">${k==="note"?XS[k]+" ("+nn(XS[k])+")":XS[k]}</span></div>`;
+  host.innerHTML=`<h3>EMX-Synth (Emulation) · Chaos &amp; Psycho</h3><div style="color:var(--dim)">Nachbau der EMX-Oszillatortypen laut Handbuch (Wave Form, Dual Osc, Osc Sync, Ring Mod, Cross Mod, VPM, Waveshaper, Unison, Chord, Additive, Formant, Noise) mit Filter LPF/HPF/BPF/BPF+, EG, LFO und Drive. „Chaos“ springt pro 16tel zufällig in Tonhöhe, Edit 1 und Cutoff, „Psycho“ löst die Tonart auf (mikrotonal). Rechts das Datenblatt zum Einstellen am echten Gerät.</div>
+  <div class="row"><label>Preset <select id="xs-pre"><option value="">–</option>${Object.keys(XPRE).map(k=>`<option>${k}</option>`).join("")}</select></label><button id="xs-dice">🎲 Würfeln</button>
+  <label>Oszillator <select id="xs-osc">${OSC_T.map(o=>`<option ${o===XS.osc?"selected":""}>${o}</option>`).join("")}</select></label>
+  <label>Filter <select id="xs-flt">${["LPF","HPF","BPF","BPF+"].map(o=>`<option ${o===XS.flt?"selected":""}>${o}</option>`).join("")}</select></label>
+  <label>LFO <select id="xs-lfoW"><option value="tri">Dreieck</option><option value="saw">Säge</option><option value="sq">Rechteck</option><option value="sh">Zufall S&amp;H</option></select></label>
+  <label>→ <select id="xs-lfoT"><option value="cutoff">Cutoff</option><option value="pitch">Pitch</option><option value="amp">Amp</option><option value="edit1">Osc Edit 1</option></select></label>
+  <label><input type="checkbox" id="xs-psy"> Psycho</label><label><input type="checkbox" id="xs-seq" checked> 16tel-Sequenz</label></div>
+  <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:300px">${sl("note","Ton (MIDI)",24,84)}${sl("e1","Osc Edit 1",0,127)}${sl("e2","Osc Edit 2",0,127)}${sl("cut","Cutoff",0,127)}${sl("res","Resonanz",0,127)}${sl("egi","EG Int",0,127)}${sl("drv","Drive",0,127)}${sl("att","Attack",0,127)}${sl("dec","Decay",0,127)}${sl("lfoSp","LFO-Speed",0,127)}${sl("lfoD","LFO-Tiefe",0,127)}${sl("chaos","Chaos",0,100)}${sl("len","Länge s",.3,8,.1)}</div>
+  <div style="flex:1;min-width:280px" id="xs-sheet"></div></div>
+  <canvas id="xs-cv" style="height:130px"></canvas><div class="row"><button id="xs-play">▶ Anhören</button><button id="xs-wav">⬇ WAV</button><button id="xs-lab">→ Sample-Lab</button><span id="xs-info" style="color:var(--dim)"></span></div>`;
+  const sync=()=>{["osc","flt","lfoW","lfoT"].forEach(k=>$("xs-"+k).value=XS[k]);$("xs-psy").checked=XS.psycho;$("xs-seq").checked=XS.seq;host.querySelectorAll("[data-xk]").forEach(e=>{e.value=XS[e.dataset.xk];$("xsv-"+e.dataset.xk).textContent=e.dataset.xk==="note"?XS.note+" ("+nn(XS.note)+")":XS[e.dataset.xk]});xsDraw()};
+  host.querySelectorAll("[data-xk]").forEach(e=>e.oninput=()=>{XS[e.dataset.xk]=+e.value;$("xsv-"+e.dataset.xk).textContent=e.dataset.xk==="note"?XS.note+" ("+nn(XS.note)+")":e.value;xsDraw()});
+  ["osc","flt","lfoW","lfoT"].forEach(k=>$("xs-"+k).onchange=e=>{XS[k]=e.target.value;xsDraw()});
+  $("xs-psy").onchange=e=>{XS.psycho=e.target.checked;xsDraw()};$("xs-seq").onchange=e=>{XS.seq=e.target.checked;xsDraw()};
+  $("xs-pre").onchange=e=>{if(XPRE[e.target.value]){Object.assign(XS,XPRE[e.target.value]);XS.note=XS.osc==="Saw"&&e.target.value==="Acid-Bass"?36+S.root:48+S.root+12;sync()}};
+  $("xs-dice").onclick=()=>{const r=()=>Math.floor(Math.random()*128),pk=a=>a[Math.floor(Math.random()*a.length)];Object.assign(XS,{osc:pk(OSC_T),e1:r(),e2:r(),flt:pk(["LPF","HPF","BPF","BPF+"]),cut:40+Math.floor(Math.random()*80),res:r(),egi:r(),drv:r(),att:Math.floor(Math.random()*30),dec:30+Math.floor(Math.random()*97),lfoW:pk(["tri","saw","sq","sh"]),lfoT:pk(["cutoff","pitch","amp","edit1"]),lfoSp:r(),lfoD:Math.floor(Math.random()*80),chaos:Math.floor(Math.random()*100)});sync()};
+  const buf=()=>{initAudio();const f=xsRender(XS),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);return{f,b}};
+  $("xs-play").onclick=()=>{const{b}=buf();ac.resume();const s=ac.createBufferSource();s.buffer=b;s.connect(master);s.start()};
+  $("xs-wav").onclick=()=>dl("EMXSYN1.WAV",wavBytes(xsRender(XS)),"audio/wav");
+  $("xs-lab").onclick=()=>{const{b}=buf(),a=analyzeBuf(b),k=LAB.items.filter(i=>i.name.startsWith("EMX-Synth")).length+1;LAB.items.push({id:LAB.items.length,name:"EMX-Synth "+k+" ("+XS.osc+")",buf:b,...a});$("xs-info").textContent=`In der Bibliothek als „EMX-Synth ${k}“ (${a.cls})`;if(LAB.built)renderLab()};
+  sync()}
+function xsDraw(){const cv=$("xs-cv");if(!cv)return;const f=xsRender(XS),{c,W,H}=fit(cv);c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.strokeStyle="#ff3b4e";c.beginPath();
+  for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.max(i0+1,Math.floor((x+1)/W*f.length));let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x+.5,H/2-mx*H/2.2);c.lineTo(x+.5,H/2-mn*H/2.2)}c.stroke();
+  $("xs-sheet").innerHTML=xsSheet(XS);$("xs-info").textContent=`${(f.length/SR).toFixed(2)} s · mono · 44,1 kHz`}
 
 /* ============ Musik-Check ============ */
 let kmemo=null;
