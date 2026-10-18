@@ -15,6 +15,7 @@ button,select,input{background:var(--panel);color:var(--fg);border:1px solid var
 button{cursor:pointer}button:hover{border-color:var(--red)}
 button.on{background:var(--red);border-color:var(--hot)}
 label{color:var(--dim);display:inline-flex;gap:6px;align-items:center}
+select{max-width:100%;min-width:0}#scale{max-width:min(100%,46vw)}
 input[type=number]{width:70px}
 nav{display:flex;gap:4px;padding:8px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
 main{padding:14px 16px 60px}
@@ -509,14 +510,29 @@ function stepSheet(){
   o+="MOTION:\n"+S.motion.map(l=>`${l.part} ${l.param}: `+l.vals.slice(0,n).map(v=>v==null?".":v).join(",")).join("\n");
   return o;
 }
-function dl(name,data,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=~0;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(~c)>>>0}
+function zipStore(name,u8){const nm=new TextEncoder().encode(name),crc=crc32(u8),n=u8.length;
+  const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,n,true);lh.setUint32(22,n,true);lh.setUint16(26,nm.length,true);
+  const cd=new DataView(new ArrayBuffer(46));cd.setUint32(0,0x02014b50,true);cd.setUint16(4,20,true);cd.setUint16(6,20,true);cd.setUint16(14,0x21,true);cd.setUint32(16,crc,true);cd.setUint32(20,n,true);cd.setUint32(24,n,true);cd.setUint16(28,nm.length,true);
+  const eo=new DataView(new ArrayBuffer(22));eo.setUint32(0,0x06054b50,true);eo.setUint16(8,1,true);eo.setUint16(10,1,true);eo.setUint32(12,46+nm.length,true);eo.setUint32(16,30+nm.length+n,true);
+  return new Blob([lh,nm,u8,cd,nm,eo],{type:"application/zip"})}
+/* Im Artifact-Viewer läuft der Download über die downloads-Capability (nur bestimmte Dateitypen: .mid/.wav gehen als ZIP). Standalone: normaler Download. */
+async function dl(name,data,type){
+  let blob=data instanceof Blob?data:new Blob([data],{type});
+  let d=null;try{d=await window.claude?.use?.("downloads")}catch(e){}
+  if(d){if(/\.(mid|wav)$/i.test(name)){blob=zipStore(name,new Uint8Array(await blob.arrayBuffer()));name+=".zip"}
+    try{await d.save({filename:name,data:blob});return}catch(e){if(e&&e.code==="declined")return;note("Speichern hier nicht möglich: "+(e&&e.code||"unbekannt"));return}}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function note(m){const e=$("e-note")||$("k-meas");if(e)e.insertAdjacentHTML("afterend",'<div class="warn">'+m+'</div>')}
 function buildExport(){
   const t=$("t-export");
   t.innerHTML=`<div class="warn"><b>Noten-/CC-Zuordnung ist ein Entwurf.</b> Die Drum-Noten stammen aus der ESX-Werkmap des Skills; die EMX-Drum-Noten und CC-Nummern sind nicht aus Korgs MIDI-Implementation geprüft – unten editierbar. Im Zweifel erst mit einem Part testen (MIDI-Monitor).</div>
   <div class="card"><h3>MIDI-Mapping</h3><div class="row">${PARTS.filter(p=>p.kind==="drum").map(p=>`<label>${p.id}<input type="number" min="0" max="127" value="${S.midiNotes[p.id]}" data-mn="${p.id}"></label>`).join("")}</div>
   <div class="row"><label>CC Cutoff<input type="number" min="0" max="127" value="${S.ccMap.cutoff}" data-cc="cutoff"></label><label>CC Level<input type="number" min="0" max="127" value="${S.ccMap.level}" data-cc="level"></label><label>CC Reso<input type="number" min="0" max="127" value="${S.ccMap.reso}" data-cc="reso"></label>
   <span style="color:var(--dim)">0 = nicht exportieren. Drums Kanal 10, Synth 1–5 = Kanal 1–5 (anpassbar am Gerät: Global).</span></div></div>
-  <div class="row"><button id="e-mid">⬇ MIDI (.mid)</button><button id="e-txt">⬇ Step-Sheet (.txt)</button><button id="e-json">⬇ Projekt (.json)</button><label>Projekt laden <input type="file" id="e-load" accept=".json"></label></div>
+  <div class="row"><button id="e-mid">⬇ MIDI</button><button id="e-txt">⬇ Step-Sheet (.txt)</button><button id="e-json">⬇ Projekt (.json)</button><label>Projekt laden <input type="file" id="e-load" accept=".json"></label></div>
+  <div id="e-note" style="color:var(--dim)">Im Artifact-Viewer kommen MIDI und Kick-WAV als ZIP (der Viewer erlaubt nur bestimmte Dateitypen); Step-Sheet und Projekt als .txt/.json.</div>
   <pre id="e-pre">${stepSheet().replace(/</g,"&lt;")}</pre>
   <div class="card"><h3>Einspielen am Gerät</h3><ol>
   <li>Global → Clock = Ext, MIDI-Kanäle prüfen, Tempo Lock an.</li>
