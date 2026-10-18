@@ -87,6 +87,8 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
 </section>
 
 <section id="t-rnd"></section>
+<section id="t-evo"></section>
+<section id="t-klang"></section>
 <section id="t-sound"></section>
 <section id="t-fx"></section>
 
@@ -170,7 +172,7 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 
 /* Klangempfehlungen: EMX-Parameter als Startpunkt. Quelle in "src": v=aus Skill/Erfahrung vermessen, u=Erfahrungswert, nicht am Gerät verifiziert */
 const SOUND={
- D1:{what:"PCM-Kick, Pitch tief, Decay lang (Tail ~200 ms). Grundton G#1 ≈ 51,9 Hz anpeilen.",set:"Part-Level 110 · kein FX · Pitch so, dass Grundton 49–55 Hz · Tube Gain nach Geschmack",src:"v"},
+ D1:{what:"PCM-Kick, Pitch tief, Decay lang (Tail ~200 ms). Grundton G#1 ≈ 51,9 Hz anpeilen.",set:"Part-Level 110 · kein FX · Pitch so, dass Grundton 49–55 Hz · Tube Gain nach Geschmack · Punch-Rezept (BD-Syn8) im Kick-Designer-Tab",src:"v"},
  D2:{what:"Zweite Kick (Offbeat-Pappe) – kürzer, etwas höher als D1.",set:"Level 100 · kein FX · Offbeat zwischen den Viertelkicks",src:"v"},
  D3:{what:"Kurze Kick für Rolls/Fills.",set:"Decay kurz · Level 100 · kein FX",src:"v"},
  D4:{what:"16tel-Hat-Kette, metallisch.",set:"Level 85 · FX1 (Short Delay, Feedback hoch) · HPF anheben",src:"v"},
@@ -191,6 +193,7 @@ const FXTYPES={ // laut Skill-Referenz / Gerät – Parameternamen nicht verifiz
  "BPM Delay 3/16":"Vocals, Lead, Chord – punktierter 16tel-Hall",
  "Reverb":"Riser/Break, sparsam",
  "Grain Shifter":"Live-Zerstörung im Break",
+ "EQ":"Low/High-Gain, z. B. für Kick-Punch (Forum-Rezept: Low Gain 11, High Gain 30)",
  "Talking Modulator":"vokalartige Filterbewegung auf Lead/Voice (laut sequencer.de an Bord)",
  "Compressor":"Pumpen (Sidechain-Ersatz; Accent ducked nicht)",
  "Distortion":"Schranz-Kante auf Perc/Lead"
@@ -207,9 +210,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["rnd","Random"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["rnd","Random"],["evo","Evolution"],["klang","Klang-Labor"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rnd")buildRandom();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rnd")buildRandom();if(k==="evo")buildEvo();if(k==="klang")buildKlang();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
 Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
@@ -603,6 +606,7 @@ $("t-research").innerHTML=`
 <li>OS 1.02 ist die letzte Version (Bugfixes). Version prüfen: Shift + Pattern-Taste beim Einschalten halten.</li>
 <li><b>Hi-Hat aus dem Synth:</b> Unison mit 6 Saw, Parameter 1 (Detune) auf Maximum, zweite Osz-Tonhöhe auf 0, Filter HPF, Drive und Resonanz auf 11 Uhr, Cutoff und EG Int auf 14 Uhr, EG auf fallende Kurve (nicht Gate), Decay nach Geschmack. Im Random-Tab als „Synth-Hat-Rezept“ hinterlegt.</li>
 <li><b>Röhren:</b> Moogulator meint, zwei ECC83 von RFT (deutsche Röhren) klingen schöner als die verbauten Electro-Harmonix. Das ist eine Höreinschätzung, keine Messung.</li></ul></div>
+<div class="card"><h3>Punch-Kick am EMX (Forum-Rezept)</h3><ul><li>BD-Syn8, Modulation fallende Wellenform auf Pitch (ca. 45), Mod-Speed ca. 60, EG Time ca. 70, Panning mittig, FX1 als EQ mit Low Gain ca. 11 und High Gain ca. 30. Belegt damit auch: die EMX hat einen EQ als FX-Typ.</li></ul></div>
 <div class="card"><h3>RFT-Record (Berlin)</h3><ul>
 <li>Laut Forum-Thread auf usb.unitedsb.de: „RFT-Record presents: Kontrollverlust“ am 03.10.2008 in der Zelle, Wiesenweg 5–9, 10365 Berlin. Hardtechno + Hardtekk, 22 Uhr bis Open End, 5 Euro, www.rft-record.com.</li>
 <li>Timetable: Metzka Live, Insane, Pat Sanders Live, White Fear Live, Psycho (Tonica Records), Hc_tur, Syko Dad Live, Dj Boxbeat, Raspercasper Live.</li>
@@ -689,6 +693,11 @@ function calibrate(k,hz,tail){
 function buildKick(){
   const t=$("t-kick"),k=S.kick;
   t.innerHTML=`<div class="warn">Zielfenster aus 8 Szene-Tracks: Grundton 41–58 Hz (Median ≈ 51 Hz = G#1), Tail bis −20 dB 147–388 ms. Die Szene-Werte wurden im vollen Mix gemessen (Tiefband bis −20 dB, inklusive Offbeat-Bass) und fallen deshalb länger aus als der Tail einer einzelnen Kick. Im Test-Loop mit Offbeat-Bass wurde aus 205 ms Solo-Tail ein Mix-Tail von ca. 313 ms. Das Fenster hier ist darum eine konservative Grenze für die Solo-Kick. Das Tool misst die <b>synthetisierte</b> Kick selbst (Autokorrelation 35–200 ms nach dem Transienten) – Charakter und Sättigung musst du am Ende hören.</div>
+  <div class="card"><h3>Am Gerät: Punch-Kick-Rezept (Forum-Beitrag)</h3><ol>
+  <li>Drum-Part auf <b>BD-Syn8</b>.</li><li>Modulation: untere (fallende) Wellenform wählen, Ziel <b>Pitch</b>, Intensität ca. <b>45</b> (nach rechts).</li>
+  <li>Modulations-Geschwindigkeit ca. <b>60</b>.</li><li>Fahne kürzen, damit sie nicht mit dem Bass kollidiert: <b>EG Time</b> bzw. Sample-Länge auf ca. <b>70</b>.</li>
+  <li>Panning prüfen: muss mittig stehen.</li><li><b>FX1 als EQ</b>: Low Gain ca. <b>11</b>, High Gain ca. <b>30</b>, Kick auf FX1 schicken.</li>
+  <li>A/B-Vergleich mit der FX-Send-Taste.</li></ol><div style="color:var(--dim)">Werte wie im Forum angegeben, am Gerät nachhören. Grundton danach mit dem Messwert oben abgleichen.</div></div>
   <div class="card"><h3>Kick-Synthese</h3><div id="kk"></div>
   <div class="row"><button id="k-play">▶ Anhören</button><button id="k-use">Als Drum 1 in Vorschau</button><button id="k-wav">⬇ WAV (KCKMN1.WAV)</button>
   <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Verzerrung <select id="k-mode"><option value="0">Soft (Tanh)</option><option value="1">Hard-Clip</option><option value="2">Wavefold</option><option value="3">Röhre (asymmetrisch)</option></select></label><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
@@ -1176,6 +1185,129 @@ function edDraw(fast){
   c.fillStyle="#e8e6e1";c.fillRect(xs-1,0,2,H);c.fillRect(xe-1,0,2,H);c.font="11px monospace";c.fillText("START",xs+4,12);c.fillText("ENDE",Math.max(0,xe-36),12)}
 /* EMX-PCM-Zuordnung: Pack mit genau 207 nummerierten Dateien = vermutlich die 207 PCM-Sounds der EMX in Gerätereihenfolge */
 function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length;return k===207?+it.name:null}
+
+
+/* ============ Evolution (Patterns züchten) & Call/Response ============ */
+const EVO={gen:0,vars:[],rating:{},fixed:{D1:true},scope:{rhy:true,notes:true,acc:true},mut:25,base:null,built:false,likes:0,drops:0,cr:{a:"S2",b:"S4",mode:"half"}};
+const cloneG=g=>({steps:JSON.parse(JSON.stringify(g.steps)),notes:JSON.parse(JSON.stringify(g.notes))});
+const genome=()=>cloneG(S);
+function loadGenome(g){S.steps=JSON.parse(JSON.stringify(g.steps));S.notes=JSON.parse(JSON.stringify(g.notes));buildGrid()}
+function fixG(g,rng){for(let i=0;i<MAXSTEPS;i++){if(g.steps.D6[i]&&g.steps.D7[i])g.steps.D6[i]=0;if(g.steps.S1[i]&&g.steps.D1[i])g.steps.S1[i]=0;
+    for(const id of ["S1","S2","S3","S4"])if(g.steps[id][i]&&!inKey(g.notes[id][i]))g.notes[id][i]=snapKey(g.notes[id][i]);
+    if(g.steps.S2[i]&&g.notes.S2[i]<57)g.notes.S2[i]+=12;
+    if(EVO.scope.acc)g.steps.AC[i]=(g.steps.D1[i]&&i%4===0)||(g.steps.D2[i]&&rng&&rng()<EVO.mut/400)?1:0}
+  return g}
+function mutateG(g,rng){
+  const pr=EVO.mut/100,rnd=a=>rng()<a,bars=S.bars;
+  PARTS.forEach(p=>{if(p.kind==="acc"||EVO.fixed[p.id])return;
+    if(EVO.scope.rhy){
+      if(p.kind==="drum"&&p.id!=="D1"){const w=stylePart(RND.style,p.id)[1];
+        for(let s=0;s<16;s++)if(rnd(pr*.5)){const v=rnd((w?w[s]:.3)*.9+.05)?1:0;for(let b=0;b<bars;b++)if(b%4!==3)g.steps[p.id][b*16+s]=v}
+        for(let b=3;b<bars;b+=4)for(let s=0;s<16;s++)if(rnd(pr*.3))g.steps[p.id][b*16+s]^=1}
+      if(p.id==="S1")for(let s=1;s<16;s+=1)if((s%4===2||s%2===1)&&rnd(pr*.3)){const on=!g.steps.S1[s];for(let b=0;b<bars;b++){const i=b*16+s;g.steps.S1[i]=on?1:0;if(on){let bn=degNote(bassBase(),S.prog[b%4]);if(bn-bassBase()>=8)bn-=12;g.notes.S1[i]=bn}}}
+      if(p.id==="S2")for(let s=0;s<16;s++)if(rnd(pr*.25)){const on=!g.steps.S2[s];for(let b=0;b<bars;b++){const i=b*16+s;g.steps.S2[i]=on?1:0;if(on)g.notes.S2[i]=degNote(leadBase(),S.prog[b%4]+[0,2,4][Math.floor(rng()*3)])}}}
+    if(EVO.scope.notes&&p.kind==="syn"&&p.id!=="S1")for(let i=0;i<bars*16;i++)if(g.steps[p.id][i]&&rnd(pr*.4)){const cur=g.notes[p.id][i],c=[];for(let m=cur-5;m<=cur+5;m++)if(inKey(m)&&m!==cur)c.push(m);if(c.length)g.notes[p.id][i]=c[Math.floor(rng()*c.length)]}});
+  return g}
+function evoNext(first){
+  const rng=mulberry((Date.now()%1e9)^(S.seed*31));let parents;
+  if(first||!EVO.base){EVO.base=genome();EVO.gen=1;EVO.likes=0;EVO.drops=0;parents=[EVO.base]}
+  else{const liked=EVO.vars.filter((_,i)=>EVO.rating[i]>0),neutral=EVO.vars.filter((_,i)=>!EVO.rating[i]);parents=liked.length?liked:(neutral.length?neutral:[EVO.base]);EVO.gen++}
+  const kids=[];if(!first&&EVO.vars.some((_,i)=>EVO.rating[i]>0))kids.push(cloneG(parents[0]));
+  while(kids.length<8){const a=parents[Math.floor(rng()*parents.length)],b=parents[Math.floor(rng()*parents.length)],c={steps:{},notes:{}};
+    PARTS.forEach(p=>{const src=EVO.fixed[p.id]?EVO.base:(rng()<.5?a:b);c.steps[p.id]=src.steps[p.id].slice();c.notes[p.id]=src.notes[p.id].slice()});kids.push(fixG(mutateG(c,rng),rng))}
+  EVO.vars=kids;EVO.rating={};renderEvo()}
+function evoApply(i){loadGenome(EVO.base);snap();loadGenome(EVO.vars[i]);EVO.base=genome();if(typeof runCheck==="function")runCheck()}
+function callResponse(){
+  snap();const A=EVO.cr.a,B=EVO.cr.b,mode=EVO.cr.mode,rng=mulberry(S.seed*13+A.charCodeAt(1)*7+B.charCodeAt(1)),pick=a=>a[Math.floor(rng()*a.length)],n=nSteps();
+  [A,B].forEach(id=>{S.steps[id].fill(0);S.notes[id].fill(0)});
+  const len=mode==="half"?8:16,hits=[],k=3+Math.floor(rng()*3);while(hits.length<k){const s=Math.floor(rng()*len);if(!hits.includes(s))hits.push(s)}hits.sort((x,y)=>x-y);
+  const ct=o=>[0,2,4].reduce((a,x)=>Math.abs(x-o)<Math.abs(a-o)?x:a,0);
+  let off=pick([0,2,4]);const call=hits.map((s,j)=>{if(j)off=Math.max(-2,Math.min(6,off+pick([-2,-1,1,2])));return{s,off}});call[0].off=ct(call[0].off);
+  const resp=[];let ro=call[call.length-1].off;call.forEach((m,j)=>{if(j)ro=Math.max(-2,Math.min(7,ro-(m.off-call[j-1].off)));resp.push({s:m.s,off:ro})});resp[resp.length-1].off=ct(resp[resp.length-1].off);
+  const base=id=>id==="S1"?bassBase():id==="S3"?chordBase():leadBase(),isSyn=id=>PARTS.find(p=>p.id===id).kind==="syn";
+  for(let b=0;b<S.bars;b++){const c=S.prog[b%4];
+    const place=(id,list,shift,resolve)=>list.forEach((m,j)=>{const i=b*16+m.s+shift;if(i>=n)return;S.steps[id][i]=1;if(isSyn(id)){let d=c+m.off;if(resolve&&j===list.length-1)d=0;let nt=degNote(base(id),d);if(id==="S1"&&nt-bassBase()>=8)nt-=12;S.notes[id][i]=nt}});
+    if(mode==="half"){place(A,call,0,false);place(B,resp,8,b%4===3)}else{if(b%2===0)place(A,call,0,false);else place(B,resp,0,b%4===3)}}
+  rConstraints();buildGrid();if(typeof runCheck==="function")runCheck()}
+function drawMini(cv,g){const c=cv.getContext("2d"),W=cv.width,H=cv.height,n=nSteps(),rows=PARTS.filter(p=>p.kind!=="acc"),cw=W/n,rh=H/rows.length;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
+  rows.forEach((p,r)=>{for(let i=0;i<n;i++)if(g.steps[p.id][i]){c.fillStyle=p.kind==="syn"?"#c050e0":"#ff3b4e";c.fillRect(i*cw,r*rh+.5,Math.max(1,cw-.5),rh-1)}});
+  c.fillStyle="#3a0a10";for(let b=1;b<S.bars;b++)c.fillRect(b*16*cw,0,1,H)}
+function buildEvo(){
+  const t=$("t-evo");if(!EVO.built){EVO.built=true;
+    t.innerHTML=`<div class="warn">Patterns züchten statt würfeln: aus dem aktuellen Pattern entstehen 8 Varianten. Du bewertest mit ▲/▼, die nächste Generation baut auf deinen Favoriten auf (Kreuzung + Mutation). Fest markierte Parts bleiben unverändert. Regeln bleiben aktiv: Tonart, Offbeat-Bass, Hats, Lead-Lage.</div>
+    <div class="card"><h3>Pattern-Evolution</h3><div class="row"><label><input type="checkbox" data-sc="rhy" checked> Rhythmus</label><label><input type="checkbox" data-sc="notes" checked> Noten</label><label><input type="checkbox" data-sc="acc" checked> Accent</label>
+    <label>Mutation <input id="ev-mut" type="range" min="5" max="70" value="${EVO.mut}"> <span id="ev-mut-v">${EVO.mut}</span></label><button id="ev-start" class="on">Neu starten (aus aktuellem Pattern)</button><button id="ev-next">Nächste Generation →</button><button id="ev-orig">▶ Original</button><button id="ev-stop">■ Stop</button></div>
+    <div class="row" id="ev-fixed"></div><div id="ev-stat" style="color:var(--dim)"></div><div id="ev-grid" class="row" style="align-items:stretch"></div></div>
+    <div class="card"><h3>Call &amp; Response</h3><div style="color:var(--dim)">Ein Part fragt, ein anderer antwortet: gleicher Rhythmus, umgekehrte Melodiekontur, Auflösung auf die Tonika am Phrasenende.</div>
+    <div class="row"><label>Frage <select id="cr-a">${PARTS.filter(p=>p.kind!=="acc").map(p=>`<option value="${p.id}" ${p.id==="S2"?"selected":""}>${p.name}</option>`).join("")}</select></label>
+    <label>Antwort <select id="cr-b">${PARTS.filter(p=>p.kind!=="acc").map(p=>`<option value="${p.id}" ${p.id==="S4"?"selected":""}>${p.name}</option>`).join("")}</select></label>
+    <label>Form <select id="cr-mode"><option value="half">Halbtakt (Frage Schlag 1–2, Antwort 3–4)</option><option value="bar">Taktweise (Frage Takt 1, Antwort Takt 2)</option></select></label><button id="cr-go">Figur bauen</button></div></div>`;
+    t.querySelectorAll("[data-sc]").forEach(e=>e.onchange=()=>EVO.scope[e.dataset.sc]=e.checked);
+    $("ev-mut").oninput=e=>{EVO.mut=+e.target.value;$("ev-mut-v").textContent=e.target.value};
+    $("ev-start").onclick=()=>evoNext(true);$("ev-next").onclick=()=>evoNext(false);
+    $("ev-orig").onclick=()=>{if(EVO.base)loadGenome(EVO.base);if(!playing)$("play").click()};$("ev-stop").onclick=()=>{if(playing)$("play").click()};
+    $("ev-fixed").addEventListener("click",e=>{const b=e.target.closest("[data-fx]");if(b){EVO.fixed[b.dataset.fx]=!EVO.fixed[b.dataset.fx];renderEvo()}});
+    $("ev-grid").addEventListener("click",e=>{const b=e.target.closest("[data-ev]");if(!b)return;const i=+b.dataset.i,a=b.dataset.ev;
+      if(a==="play"){loadGenome(EVO.vars[i]);if(!playing)$("play").click()}
+      if(a==="up"){if(EVO.rating[i]!==1)EVO.likes++;EVO.rating[i]=1;renderEvo()}
+      if(a==="down"){if(EVO.rating[i]!==-1)EVO.drops++;EVO.rating[i]=-1;renderEvo()}
+      if(a==="take"){evoApply(i);renderEvo()}});
+    $("cr-a").onchange=e=>EVO.cr.a=e.target.value;$("cr-b").onchange=e=>EVO.cr.b=e.target.value;$("cr-mode").onchange=e=>EVO.cr.mode=e.target.value;$("cr-go").onclick=callResponse}
+  renderEvo()}
+function renderEvo(){
+  if(!EVO.built)return;
+  $("ev-fixed").innerHTML='<span style="color:var(--dim)">Fest (wird nicht verändert):</span>'+PARTS.filter(p=>p.kind!=="acc").map(p=>`<button data-fx="${p.id}" class="${EVO.fixed[p.id]?"on":""}">${p.id}</button>`).join("");
+  $("ev-stat").textContent=EVO.vars.length?`Generation ${EVO.gen} · ${EVO.likes} gemocht · ${EVO.drops} verworfen`:"Noch keine Generation: „Neu starten“ züchtet 8 Varianten aus dem aktuellen Pattern.";
+  $("ev-grid").innerHTML=EVO.vars.map((g,i)=>`<div class="card" style="flex:1;min-width:230px;margin:4px 0;${EVO.rating[i]>0?"border-color:var(--ok)":EVO.rating[i]<0?"opacity:.45":""}"><div class="row" style="margin:0 0 6px"><b>#${i+1}</b><button data-ev="play" data-i="${i}">▶</button><button data-ev="up" data-i="${i}" class="${EVO.rating[i]>0?"on":""}">▲</button><button data-ev="down" data-i="${i}">▼</button></div>
+    <canvas data-mini="${i}" width="256" height="70" style="height:70px;max-width:100%"></canvas><button data-ev="take" data-i="${i}" style="width:100%;margin-top:6px">→ ins Pattern übernehmen</button></div>`).join("");
+  EVO.vars.forEach((g,i)=>drawMini(document.querySelector(`[data-mini="${i}"]`),g))}
+
+/* ============ Klang-Labor (Psychoakustik-Generatoren) ============ */
+const midiHz=m=>440*Math.pow(2,(m-69)/12);
+const GENS={
+  hoover:{n:"Hoover / Goa",d:"Sieben verstimmte Sägezähne, die von unten in den Ton hineinfallen. Rave-Klassiker für Break oder Hook.",par:{note:[33,72,45,1,"Ton (MIDI)"],drop:[0,24,12,1,"Anlauf HT"],det:[0,60,25,1,"Verstimmung ct"],len:[.2,3,1.2,.1,"Länge s"]}},
+  shep:{n:"Shepard-Riser",d:"Oktavgestaffelte Sinustöne unter fester Spektralhülle: steigt scheinbar endlos. Für Builds vor dem Drop.",par:{len:[2,16,8,.5,"Länge s"],oct:[.5,4,2,.1,"Oktaven Anstieg"],noise:[0,1,.2,.05,"Rauschen"]}},
+  phantom:{n:"Phantom-Bass",d:"Nur die Obertöne 2 bis N des Grundtons, ohne Grundton. Das Ohr ergänzt den Bass auch auf kleinen Anlagen, das Sub-Band bleibt für die Kick frei.",par:{note:[28,52,44,1,"Grundton (MIDI)"],harm:[3,8,5,1,"höchster Oberton"],len:[.1,2,.4,.05,"Länge s"],dec:[.05,1,.25,.05,"Decay s"]}},
+  combi:{n:"Kombinationston",d:"Zwei hohe Töne im Abstand des Grundtons. Das Ohr hört zusätzlich den Differenzton f2 − f1.",par:{note:[28,60,44,1,"Differenzton (MIDI)"],k:[3,12,6,1,"Teilton-Lage"],len:[.2,4,1,.1,"Länge s"]}},
+  terror:{n:"Terror-Kick",d:"Gabber/Terror-Kick: steiler Pitch-Sweep, Hard-Clip, kurzer Tail. Nutzt die Kick-Synthese des Designers.",par:{note:[28,48,32,1,"Grundton (MIDI)"],drv:[3,12,8,.5,"Drive"],tail:[80,300,160,5,"Tail ms"],start:[200,600,400,10,"Start Hz"]}}};
+const GL={type:"hoover",p:{},built:false};
+function genFinish(y){const n=y.length,fo=Math.floor(SR*.005);for(let i=0;i<fo;i++)y[n-1-i]*=i/fo;let pk=0;for(const v of y)pk=Math.max(pk,Math.abs(v));const g=Math.pow(10,-1/20)/(pk||1);for(let i=0;i<n;i++)y[i]*=g;return y}
+function genRender(type,P){
+  if(type==="terror")return renderKick({mode:1,base:midiHz(P.note),start:P.start,sweep:30,tail:P.tail,drive:P.drv,click:.3,sub:0});
+  const N=Math.floor(P.len*SR),y=new Float32Array(N);let seed=987;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296*2-1};
+  if(type==="hoover"){const f=midiHz(P.note),ph=new Float64Array(7);let lp=0;
+    for(let i=0;i<N;i++){const t=i/SR,glide=Math.pow(2,-P.drop/12*Math.exp(-t/0.04)),a=Math.min(1,t/.005)*Math.min(1,(N-i)/(SR*.05));let s=0;
+      for(let k=0;k<7;k++){const ct=(k-3)/3*P.det;ph[k]=(ph[k]+f*glide*Math.pow(2,ct/1200)/SR)%1;s+=2*ph[k]-1}
+      lp+=0.35*(s/7-lp);y[i]=lp*a}}
+  if(type==="shep"){const K=10,ph=new Float64Array(K);
+    for(let i=0;i<N;i++){const t=i/SR,u=t/P.len;let s=0;for(let k=0;k<K;k++){const x=((k+u*P.oct)%K+K)%K,f=20*Math.pow(2,x),amp=Math.exp(-Math.pow(x-6,2)/(2*1.6*1.6));ph[k]=(ph[k]+f/SR)%1;s+=amp*Math.sin(2*Math.PI*ph[k])}
+      y[i]=(s*0.5+P.noise*rnd()*u*0.6)*Math.min(1,0.25+u)*Math.min(1,t/.3)}}
+  if(type==="phantom"){const f=midiHz(P.note);for(let i=0;i<N;i++){const t=i/SR;let s=0;for(let h=2;h<=P.harm;h++)s+=Math.sin(2*Math.PI*f*h*t)/h;y[i]=s*Math.exp(-t/P.dec)*Math.min(1,t/.003)}}
+  if(type==="combi"){const f=midiHz(P.note),f1=P.k*f,f2=(P.k+1)*f;for(let i=0;i<N;i++){const t=i/SR;y[i]=(Math.sin(2*Math.PI*f1*t)+Math.sin(2*Math.PI*f2*t))*0.5*Math.min(1,t/.02)*Math.min(1,(N-i)/(SR*.05))}}
+  return genFinish(y)}
+function buildKlang(){
+  const t=$("t-klang");if(!GL.built){GL.built=true;
+    t.innerHTML=`<div class="warn">Die EMX lädt keine eigenen Samples. Diese Klänge sind für den ESX-1 (Keyboard- oder Drum-Part), die DAW oder als Sample-Part in der Pattern-Vorschau: „→ Sample-Lab“ legt sie in die Bibliothek, von dort auf einen Part.</div>
+    <div class="card"><h3>Psychoakustik-Generatoren</h3><div class="row" id="kl-types">${Object.entries(GENS).map(([k,g])=>`<button data-kt="${k}">${g.n}</button>`).join("")}</div>
+    <div id="kl-desc" style="color:var(--dim);margin:6px 0"></div><div id="kl-par"></div><canvas id="kl-cv" width="1100" height="130" style="height:130px"></canvas>
+    <div class="row"><button id="kl-play">▶ Anhören</button><button id="kl-wav">⬇ WAV</button><button id="kl-lab">→ Sample-Lab</button><span id="kl-info" style="color:var(--dim)"></span></div></div>`;
+    $("kl-types").addEventListener("click",e=>{const b=e.target.closest("[data-kt]");if(b){GL.type=b.dataset.kt;GL.p={};renderKlang()}});
+    $("kl-play").onclick=()=>{initAudio();ac.resume();const f=genRender(GL.type,GL.p),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const s=ac.createBufferSource();s.buffer=b;s.connect(master);s.start()};
+    $("kl-wav").onclick=()=>dl({hoover:"HOOVER1",shep:"SHEPRSR1",phantom:"PHNTBAS1",combi:"KOMBTON1",terror:"TERRKCK1"}[GL.type]+".WAV",wavBytes(genRender(GL.type,GL.p)),"audio/wav");
+    $("kl-lab").onclick=()=>{initAudio();const f=genRender(GL.type,GL.p),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const a=analyzeBuf(b),k=LAB.items.filter(i=>i.name.startsWith(GENS[GL.type].n)).length+1;LAB.items.push({id:LAB.items.length,name:GENS[GL.type].n+" "+k,buf:b,...a});$("kl-info").textContent=`In der Bibliothek als „${GENS[GL.type].n} ${k}“ (${a.cls}${a.hz?", "+a.hz.toFixed(1)+" Hz":""})`;if(LAB.built)renderLab()};
+    $("kl-par").addEventListener("input",e=>{const k=e.target.dataset.kp;if(k){GL.p[k]=+e.target.value;$("klv-"+k).textContent=fmtPar(k,GL.p[k]);klDraw()}})}
+  renderKlang()}
+function fmtPar(k,v){return(k==="note")?`${v} (${nn(v)}, ${midiHz(v).toFixed(1)} Hz)`:String(v)}
+function renderKlang(){
+  const g=GENS[GL.type],r=S.root;if(g.par.note&&GL.p.note===undefined)GL.p.note={hoover:48+r,phantom:36+r,combi:36+r,terror:24+r>=28?24+r:36+r}[GL.type]; // startet in der Tonart des Patterns
+  Object.entries(g.par).forEach(([k,[a,b,d]])=>{if(GL.p[k]===undefined)GL.p[k]=d});
+  document.querySelectorAll("#kl-types [data-kt]").forEach(b=>b.classList.toggle("on",b.dataset.kt===GL.type));
+  $("kl-desc").textContent=g.d;
+  $("kl-par").innerHTML=Object.entries(g.par).map(([k,[a,b,d,st,l]])=>`<div class="row"><label style="width:170px">${l}</label><input type="range" data-kp="${k}" min="${a}" max="${b}" step="${st}" value="${GL.p[k]}" style="flex:1;max-width:420px"><span id="klv-${k}">${fmtPar(k,GL.p[k])}</span></div>`).join("");
+  klDraw()}
+function klDraw(){const f=genRender(GL.type,GL.p),c=$("kl-cv").getContext("2d"),W=1100,H=130;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);c.strokeStyle="#ff3b4e";c.beginPath();
+  for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.max(i0+1,Math.floor((x+1)/W*f.length));let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2.2);c.lineTo(x,H/2-mn*H/2.2)}c.stroke();
+  $("kl-info").textContent=`${(f.length/SR).toFixed(2)} s · mono · 44,1 kHz · −1 dBFS`}
 
 /* ============ Musik-Check ============ */
 let kmemo=null;
