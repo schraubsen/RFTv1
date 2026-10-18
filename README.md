@@ -1,18 +1,20 @@
 # RFT Designer EMX-1
 
-Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg EMX-1. Kein Build, keine Abhängigkeiten.
+Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg EMX-1. Kein Build, keine Abhängigkeiten. Optik im Blau der EMX-1 (weiße Tasten, orange = aktiv).
 
 ## Bereiche
 
 - **Pattern:** 14 EMX-Parts + Accent, 1–8 Takte, Templates (Intro bis Outro), Tonart/Skala, Akkordfolge, Lead-Motiv, Euclid, Mutation, Undo. Der Musik-Check prüft Tonart, Kick-Grundton, Bass/Kick-Kollision, Tail-Budget u. a.
-- **Random:** Pattern-Würfel mit Stilen (RFT Hardtekk, Osttekk, Hardtechno/Schranz, Minimal, Chaos), Dichte und Sperre pro Part, Chaos, Fills, Variation. Regeln bleiben: Kick 4/4, Bass nie auf der Hauptkick, Hats nie gleichzeitig, alles in Tonart. Dazu ein Patch-Würfel für Synth 1–5 mit Knopf-Uhrzeiten und das Hi-Hat-Rezept von sequencer.de.
+- **Random:** Pattern-Würfel mit Stilen (Hardtekk rollend, Osttekk, Hardtechno/Schranz, Minimal, Chaos), Dichte und Sperre pro Part, Chaos, Fills, Variation. Regeln bleiben: Kick 4/4, Bass nie auf der Hauptkick, Hats nie gleichzeitig, alles in Tonart. Dazu ein Patch-Würfel für Synth 1–5 mit Knopf-Uhrzeiten und das Hi-Hat-Rezept von sequencer.de.
+- **Custom Build:** Pattern mit Schiebereglern formen: Master-Fader für Tempo, Swing, Chaos, Fills, dazu pro Part ein Kanalzug mit Muster, Dichte, Pegel, Swing an/aus, Mute und Sperre. Jede Änderung baut das Pattern sofort neu, die Regeln bleiben.
+- **Swing:** Off-16tel werden um (Swing/50 − 1) × Step verschoben, in der Vorschau und im MIDI-Export (50 % gerade, 66 % triolisch).
 - **Evolution:** 8 Varianten aus dem aktuellen Pattern, Bewertung ▲/▼, nächste Generation aus Favoriten (Kreuzung + Mutation), feste Parts. Call & Response zwischen zwei Parts (Halbtakt oder taktweise).
 - **Klang-Labor:** EMX-Synth-Emulation (16 Oszillatortypen laut Handbuch, TPT-Filter, EG, LFO, Drive) mit Chaos und Psycho, Presets, Datenblatt mit Knopfstellungen.
 - **Generatoren:** Hoover/Goa, Shepard-Riser, Phantom-Bass, Kombinationston, Terror-Kick als WAV oder Sample-Part (für ESX/DAW, die EMX lädt keine Samples).
 - **Kick-Designer:** Synthese mit Messung (Grundton per Autokorrelation 35–200 ms, Tail), Auto-Einmessen, vier Verzerrungsmodi, WAV-Export.
 - **Sample-Lab:** ZIP/WAV laden, analysieren, klassifizieren, RFT-Score für Kicks, Kit bauen, ESX-fertig exportieren (mono, 44,1 kHz, −1 dBFS, 8.3-Namen). Sample-Editor mit Schnitt (Nulldurchgang), Fades, Attack/Punch/Klick, Pitch, Reverse. Ein Pack mit 207 Dateien wird als EMX-PCM-Satz erkannt (Nummer = vermutlich PCM-Nummer am Gerät).
 - **Spektrum:** Analyzer im SPAN-Stil (FFT bis 32768, Glättung, 4,5 dB/Okt-Neigung, Peak-Hold, Einfrieren, Maus-Readout mit Note), Pegel/RMS/Crest/Korrelation, Clip-Zähler und Bus-Headroom vor der Röhre, Bänder gegen Ziel, Low-End-Balance und Sweetspot (Kick gegen Bass-Töne, Intervalle, Sub-Verteilung live). Alle Zeichenflächen in HiDPI.
-- **RFT-Analyse:** Referenztracks messen (Tempo über Kick-Raster, Kick-Grundton, Tail, Bänder, Bassmauer, Bass-Mono-Kompatibilität, Groove-Profil) und auf den Designer anwenden.
+- **RFT-Analyse:** Referenztracks messen (Tempo über Kick-Raster, Kick-Grundton, Tail, Bänder, Bassmauer, Bass-Mono-Kompatibilität, Groove-Profil, Transienten, Clipping) und auf den Designer anwenden. Die Arrangement-Erkennung teilt den Track in Takte und Abschnitte (Intro, Groove, Break, Build, Drop, Outro). „Arrangement als Set-Kette übernehmen“ legt dafür Slots und die Song-Kette an.
 - **Datei-Inspektor:** .esx/.emx laden, ASCII-Scan (Pattern-/Sample-Namen), Hex-Viewer, Diff zweier Speicherstände, Schema mit `!` = verifiziert. Keine geratenen Offsets.
 - **Motion, FX, Set/Song, Export:** MIDI (Drums Kanal 10), Step-Sheet, Projekt-JSON.
 
@@ -21,4 +23,6 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - EMX-MIDI-Noten und CC-Nummern sind Platzhalter, bis sie aus Korgs MIDI-Implementation übernommen werden.
 - Kein `.emx`-Schreiben (Offsets nicht verifiziert).
 - Szene-Zielwerte stammen aus acht vermessenen Tracks; Bandanteile sind bei Live-Mitschnitten/MP3 nur grob.
+- Die Stil-Vorgaben sind Mittelwerte aus Szene-Tracks, nicht an RFT-Record-Veröffentlichungen gemessen. Für echte RFT-Werte eigene Tracks in der RFT-Analyse laden.
+- Arrangement-Erkennung: Im Test (170 BPM, 64 Takte) lagen Intro, Groove, Break und Outro taktgenau. Build und Drop waren um 2 Takte verschoben, weil laute Snare-Rolls wie ein Drop wirken.
 - Die Onset-Tempomessung des Skills verwechselt Tempo bei Offbeat-Bass (Test: 170 BPM wurde als 136 geschätzt); maßgeblich ist das Kick-Raster.
