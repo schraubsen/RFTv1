@@ -8,7 +8,7 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - **Zoom:** auf dem Handy Standard 80 %, per − / + im Kopf einstellbar (60–125 %), wird gemerkt. Tab-Leiste scrollt in einer Zeile, weitere Regler hinter „⋯“.
 
 - **Raster (früher Pattern):** 14 EMX-Parts + Accent, 1–8 Takte, Templates (Intro bis Outro), Tonart/Skala, Akkordfolge, Lead-Motiv, Euclid, Mutation, Undo. Der Musik-Check prüft Tonart, Kick-Grundton, Bass/Kick-Kollision, Tail-Budget u. a.
-- **Random:** Pattern-Würfel mit Stilen (Hardtekk rollend, Osttekk, Hardtechno/Schranz, Minimal, Chaos), Dichte und Sperre pro Part, Chaos, Fills, Variation. Regeln bleiben: Kick 4/4, Bass nie auf der Hauptkick, Hats nie gleichzeitig, alles in Tonart. Dazu ein Patch-Würfel für Synth 1–5 mit Knopf-Uhrzeiten und das Hi-Hat-Rezept von sequencer.de.
+- **Random:** Pattern-Würfel mit Stilen (Tekk gelernt aus 136 echten ESX-Patterns, Hardtekk rollend, Osttekk, Hardtechno/Schranz, Minimal, Chaos), Dichte und Sperre pro Part, Chaos, Fills, Variation. Regeln bleiben: Kick 4/4, Bass nie auf der Hauptkick, Hats nie gleichzeitig, alles in Tonart. Dazu ein Patch-Würfel für Synth 1–5 mit Knopf-Uhrzeiten und das Hi-Hat-Rezept von sequencer.de.
 - **Custom Build:** Pattern mit Schiebereglern formen: Master-Fader für Tempo, Swing, Chaos, Fills, dazu pro Part ein Kanalzug mit Muster, Dichte, Pegel, Swing an/aus, Mute und Sperre. Jede Änderung baut das Pattern sofort neu, die Regeln bleiben.
 - **Swing:** Off-16tel werden um (Swing/50 − 1) × Step verschoben, in der Vorschau und im MIDI-Export (50 % gerade, 66 % triolisch).
 - **Evolution:** 8 Varianten aus dem aktuellen Pattern, Bewertung ▲/▼, nächste Generation aus Favoriten (Kreuzung + Mutation), feste Parts. Call & Response zwischen zwei Parts (Halbtakt oder taktweise).
@@ -22,6 +22,10 @@ Browser-Tool (eine Datei, `index.html`) für Hardtekk/RFT-Patterns auf der Korg 
 - **MIDI-Live:** EMX per Web MIDI steuern (Clock + Start/Stop, Noten, CC, Program Change, Panic), eingehende Clock anzeigen, SysEx-Dumps mitschneiden, als .syx speichern, entpackt vergleichen und senden. Chrome/Edge am Rechner mit DIN-MIDI-Interface; in der Artifact-Vorschau meist gesperrt. Übersicht der Möglichkeiten: `docs/emx1-moeglichkeiten.md`.
 - **Tempo:** 20–300 BPM wie am Gerät, Kommastellen erlaubt.
 - **Motion, FX, Set/Song, Export:** MIDI (Drums Kanal 10), Step-Sheet, Projekt-JSON.
+
+## Tekk-Profil aus echten Sets
+
+136 einzigartige Patterns aus 6 ESX-Sets: Tempo-Lager 158–168 und 188–192 BPM, Swing 0, rollender 16tel-Bass auf einem Ton, Kick-Samples mit Grundton um 50 Hz (39–57 Hz) und Tail um 300 ms. Details in `docs/tekk-profil-esx.md`.
 
 ## Messbefund Röhre
 

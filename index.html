@@ -664,6 +664,7 @@ $("t-research").innerHTML=`
 <li><b>Fundament:</b> lange Kick (~200 ms Tail) in G#1 ≈ 52 Hz verschmilzt mit dem Bass zur durchgehenden Bassmauer (97–100 % der Zeit Tiefband über −20 dB). ~78 % der Energie unter 120 Hz.</li>
 <li><b>Dynamik:</b> hart limitiert, Crest-Faktor 6–14 dB. Clipping/Sättigung ist Teil des Sounds – hier macht die Röhrenstufe (12AX7) der EMX die Arbeit.</li>
 <li><b>Tempo:</b> 155–175 BPM Standard, zweites Lager ~190 mit kürzeren Kicks.</li>
+<li><b>Gegenprobe an echten ESX-Sets (136 Patterns, 6 Sets):</b> Tempo-Lager 158–168 und 188–192 BPM, Swing immer 0, Bass als rollende 16tel auf einem Ton (84 %), Accent auf allen Vierteln, Kick-Samples 39–57 Hz (Median 49,8 Hz) mit Tail um 300 ms. Als Stil „Tekk gelernt“ im Random-Tab.</li>
 <li><b>Oberseite:</b> Hats und Schranz-Perc metallisch, per Short Delay (hohes Feedback) zum Teppich; nur ~3 % der Energie über 2 kHz.</li>
 <li><b>Melodik:</b> Moll, wenige Töne, Screech-Lead mit offenem Filter, Cutoff live gefahren.</li></ul></div>
 <div class="card"><h3>EMX-1: belegte Fakten</h3><ul>
@@ -1208,6 +1209,7 @@ const RSTYLES={
   ost:{n:"Osttekk (dichter, 16tel-Bass)",bpm:[168,182],p:{S1:[.95,rep4([0,.5,1,.5])],D4:[.95,rep4([.6,1,.9,1])],D5:[.45,rep4([.1,.9,.3,.9])]}},
   hart:{n:"Hardtechno / Schranz (perkussiv)",bpm:[150,158],p:{D2:[.1,rep4([0,0,1,0])],D3:[.2,rep4([0,.3,0,.5])],D4:[.9,rep4([.6,1,.9,1])],D5:[.75,rep4([.2,1,.6,1])],D8:[.6,[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]],S1:[.25,rep4([0,0,1,0])],S2:[.15,rep4([.1,.5,.6,.5])],S3:[0,null],S4:[0,null]}},
   min:{n:"Minimal-Tekk (sparsam)",bpm:[160,170],p:{D4:[.45,rep4([.2,.6,.5,.6])],D5:[.2,rep4([0,.7,.2,.7])],D6:[.3,rep4([1,0,0,0])],D7:[.4,rep4([0,0,1,0])],D8:[.5,[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]],S2:[.25,rep4([.1,.5,.6,.5])],S3:[.15,null],S4:[.1,null]}},
+  esx:{n:"Tekk gelernt (136 Patterns aus 6 ESX-Sets: Kick, Hats, rollender 16tel-Bass)",bpm:[158,192],bpmSet:[159,159,160,162,164,166,168,168,188,188,190,192],p:{D1:[0.88,[0.54,0,0.05,0,0.81,0,0.14,0,0.46,0,0.08,0,0.79,0,0.07,0]],D2:[0.85,[0.16,0.04,0.3,0.06,0.76,0.01,0.25,0.09,0.12,0.01,0.29,0,0.78,0,0.31,0]],D3:[0.89,[0.43,0,0.31,0.15,0.17,0,0.6,0.01,0.63,0.01,0.32,0.14,0.18,0.02,0.59,0]],D4:[0.71,[0.67,0,0.24,0,0.32,0,0.33,0.01,0.42,0.02,0.24,0.02,0.29,0,0.23,0]],D5:[0.74,[0.77,0,0.02,0,0.64,0,0.02,0.04,0.55,0.01,0.03,0.2,0.6,0.01,0.26,0.19]],D6:[0.86,[0.7,0.16,0.64,0.16,0.7,0.16,0.66,0.15,0.7,0.15,0.59,0.2,0.7,0.2,0.61,0.15]],D7:[0.78,[0.41,0.17,0.26,0.17,0.41,0.17,0.43,0.17,0.4,0.17,0.26,0.17,0.41,0.17,0.48,0.17]],D8:[0.88,[0.53,0,0.01,0,0.33,0,0.02,0,0.33,0,0.02,0,0.33,0,0.01,0]],D9:[0.68,[0.41,0,0.04,0,0.41,0,0.02,0,0.41,0,0.02,0.08,0.41,0.08,0.09,0.29]],S1:[0.91,[0.35,0.56,0.45,0.43,0.43,0.57,0.46,0.52,0.24,0.56,0.52,0.47,0.38,0.57,0.41,0.58]],S3:[.1,null],S4:[0,null]}},
   chaos:{n:"Chaos (alles erlaubt, Regeln bleiben)",bpm:[155,190],p:{D3:[.5,rep4([.5,.5,.5,.5])],D4:[.6,rep4([.5,.5,.5,.5])],D5:[.6,rep4([.5,.5,.5,.5])],D9:[.4,rep4([.5,.5,.5,.5])],S2:[.6,rep4([.5,.5,.5,.5])]}}};
 const stylePart=(st,id)=>RSTYLES[st].p[id]||RBASE[id];
 const RND={style:"rft",dens:{},lock:{D1:false},chaos:15,fills:true,tempo:false,vary:15,built:false};
@@ -1217,7 +1219,7 @@ function rBuild(only,live){
   if(!live)snap();const n=nSteps(),seed=S.seed*7919+(only?only.charCodeAt(1)*31+only.charCodeAt(0):0)+RND.style.length*101,rng=mulberry(seed),rnd=a=>rng()<a,pick=a=>a[Math.floor(rng()*a.length)],c=RND.chaos/100;
   const parts=PARTS.filter(p=>p.kind!=="acc"&&!RND.lock[p.id]&&(!only||p.id===only));parts.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});
   const on=id=>parts.some(p=>p.id===id),dens=id=>(RND.dens[id]??0)/100,cd=b=>S.prog[b%4],isB=b=>b%4===3||b===S.bars-1;
-  const prob=(id,s)=>{const w=stylePart(RND.style,id)[1];if(!w)return 0;if(id==="D1")return w[s]?dens(id):0;return Math.min(1,((1-c)*w[s]+c*.5)*dens(id)*1.15)};
+  const prob=(id,s)=>{const w=stylePart(RND.style,id)[1];if(!w)return 0;if(id==="D1")return w[s]>=.3?dens(id):w[s]*dens(id);return Math.min(1,((1-c)*w[s]+c*.5)*dens(id)*1.15)};
   // Drums: Takt A, Variante B (Phrasenende) – wiederholte Struktur statt Zufall pro Takt
   ["D1","D2","D3","D4","D5","D6","D7","D8","D9"].filter(on).forEach(id=>{
     const A=[],B=[];for(let s=0;s<16;s++)A[s]=rnd(prob(id,s))?1:0;for(let s=0;s<16;s++)B[s]=(id!=="D1"&&rnd(.2+c*.3))?(rnd(prob(id,s))?1:0):A[s];
@@ -1228,7 +1230,7 @@ function rBuild(only,live){
   if(on("S1")){const A=[];for(let s=0;s<16;s++)A[s]=rnd(prob("S1",s))?1:0;
     for(let b=0;b<S.bars;b++)for(let s=0;s<16;s++)if(A[s]){let d=cd(b);if(s===14&&b%4===3)d=4;let bn=degNote(bassBase(),d);if(bn-bassBase()>=8)bn-=12;S.steps.S1[b*16+s]=1;S.notes.S1[b*16+s]=bn}}
   // Lead: Motiv (Rhythmus aus Stil-Gewichten, Kontur als Zufallsweg), Antwort im 4. Takt mit Auflösung auf die Tonika
-  if(on("S2")&&dens("S2")>0){let hits=[];for(let s=0;s<16;s++)if(rnd(prob("S2",s)))hits.push(s);
+  if(on("S2")&&dens("S2")>0&&stylePart(RND.style,"S2")[1]){let hits=[];for(let s=0;s<16;s++)if(rnd(prob("S2",s)))hits.push(s);
     if(hits.length<3){const w=stylePart(RND.style,"S2")[1].map((v,s)=>[v+rng()*.3,s]).sort((a,b)=>b[0]-a[0]);hits=[...new Set(hits.concat(w.slice(0,3).map(x=>x[1])))].sort((a,b)=>a-b)}
     if(hits.length>7)hits=hits.filter((_,i)=>i%2===0||i===hits.length-1);
     const ct=o=>[0,2,4].reduce((a,x)=>Math.abs(x-o)<Math.abs(a-o)?x:a,0);let off=pick([0,2,4]);const mot=hits.map((s,j)=>{if(j)off=Math.max(-2,Math.min(6,off+pick([-2,-1,-1,0,1,1,2])));return{s,off}});
@@ -1239,7 +1241,7 @@ function rBuild(only,live){
   if(on("S5")){for(let b=0;b<S.bars;b++)if(rnd(dens("S5"))){S.steps.S5[b*16]=1;S.notes.S5[b*16]=leadBase()}
     if(RND.fills&&dens("S5")>0)for(let i=Math.max(0,n-32);i<n;i+=4){S.steps.S5[i]=1;S.notes.S5[i]=leadBase()}}
   rConstraints();
-  if(RND.tempo&&!only){const[a,b]=RSTYLES[RND.style].bpm;$("bpm").value=Math.round(a+rng()*(b-a));applyFx()}
+  if(RND.tempo&&!only){const st=RSTYLES[RND.style],[a,b]=st.bpm;$("bpm").value=st.bpmSet?pick(st.bpmSet):Math.round(a+rng()*(b-a));applyFx()}
   buildGrid();renderMotionList();drawMotion()}
 function rVary(){
   snap();const rng=mulberry((S.seed^0x5bd1)+Date.now()%100000),rnd=a=>rng()<a,pr=RND.vary/100,n=nSteps();
@@ -2222,9 +2224,12 @@ function renderEsx(){
   $("in-probe").style.display="none";box.style.display="";
   const pats=Array.from({length:256},(_,i)=>decodeStruct(A,0x200+i*4280,D.structs.pattern,D));
   const nm=D.abs.reduce((o,f)=>{o[f.name]=readField(A,f.off,f,D);return o},{});
-  const smp=[...Array.from({length:256},(_,i)=>({i,st:0,...decodeStruct(A,0x1B0100+i*40,D.structs.smono,D)})),...Array.from({length:128},(_,i)=>({i:i+256,st:1,...decodeStruct(A,0x1B2900+i*44,D.structs.sstereo,D)}))].filter(s=>s.off1start!==0xFFFFFFFF&&s.off1end>s.off1start);
+  const smp=[...Array.from({length:256},(_,i)=>({i,st:0,...decodeStruct(A,0x1B0100+i*40,D.structs.smono,D)})),...Array.from({length:128},(_,i)=>({i:i+256,st:1,...decodeStruct(A,0x1B2900+i*44,D.structs.sstereo,D)}))].map(s=>({...s,frames:esxFrames(s)})).filter(s=>s.off1start!==0xFFFFFFFF&&s.frames>0);
   const songs=Array.from({length:64},(_,i)=>({i,...decodeStruct(A,0x130000+i*528,D.structs.song,D)})).filter(s=>s.name.trim()||s.events>0);
-  const used=p=>p.name.trim()!==""||p.drum.some((d,k)=>{const s=d.steps;return k===0?s.some(v=>v!==0x11):s.some(v=>v)})||p.kbd.some(k=>k.notes.some(v=>!(v&0x80)))||p.slice.some(d=>d.steps.some(v=>v))||p.audioin[0].steps.some(v=>v);
+  /* Init-Pattern = häufigster Pattern-Inhalt der Datei (mind. 8×); belegt = davon verschieden */
+  const ph=pats.map(p=>{let h=2166136261;for(let j=p._off;j<p._off+4280;j++){h^=A[j];h=Math.imul(h,16777619)}return h>>>0}),hc={};ph.forEach(h=>hc[h]=(hc[h]||0)+1);
+  const initH=+Object.keys(hc).sort((a,b)=>hc[b]-hc[a])[0],initOk=hc[initH]>=8;
+  const used=p=>!(initOk&&ph[pats.indexOf(p)]===initH)&&(p.name.trim()!==""||p.drum.some(d=>d.steps.some(v=>v))||p.kbd.some(k=>k.notes.some(v=>!(v&0x80)))||p.slice.some(d=>d.steps.some(v=>v))||p.audioin[0].steps.some(v=>v));
   const f=ESX.flt.toLowerCase(),list=pats.map((p,i)=>({p,i})).filter(o=>(!f||o.p.name.toLowerCase().includes(f))&&(ESX.all||used(o.p)));
   const PG=32,np=Math.max(1,Math.ceil(list.length/PG));ESX.pg=Math.min(ESX.pg,np-1);
   const swp=p=>50+p.swing+"%";
@@ -2242,10 +2247,10 @@ function renderEsx(){
     <div style="overflow-x:auto"><table>${p.drum.map((d,k)=>grid("Drum "+ESX_DRUM[k],d.steps)).join("")}${p.slice.map((d,k)=>grid("Slice "+(k+1),d.steps)).join("")}${grid("Audio In",p.audioin[0].steps)}${grid("Accent",p.accent[0].steps)}
     ${p.kbd.map((k,j)=>`<tr><td>Keyboard ${j+1}</td><td style="font:11px monospace;white-space:nowrap">${Array.from({length:n},(_,s)=>(s&&s%16===0?" ":"")+(k.notes[s]&0x80?"·":"♪")).join("")}</td></tr>`).join("")}</table></div>
     <table><tr><th>Part</th><th>Sample</th><th>Filter</th><th>Cutoff</th><th>Reso</th><th>EG Int</th><th>Level</th><th>Pan</th><th>FX</th><th>Mod</th><th>Amp EG</th></tr>`+
-    [...p.drum.map((d,k)=>["Drum "+ESX_DRUM[k],d]),...p.kbd.map((d,k)=>["Keyboard "+(k+1),d]),...p.slice.map((d,k)=>["Slice "+(k+1),d]),["Audio In",p.audioin[0]]].map(([l,d])=>`<tr><td>${l}</td><td>${d.sample!=null?d.sample:"–"}</td><td>${d.filter}</td><td>${d.cutoff}</td><td>${d.resonance}</td><td>${d.egint}</td><td>${d.level}</td><td>${d.pan-64}</td><td>${d.fxsend==="an"?d.fxselect:"–"}</td><td>${d.modtype}→${d.moddest} ${d.modspeed}/${d.moddepth}</td><td>${d.ampeg}</td></tr>`).join("")+"</table>"+
+    [...p.drum.map((d,k)=>["Drum "+ESX_DRUM[k],d]),...p.kbd.map((d,k)=>["Keyboard "+(k+1),d]),...p.slice.map((d,k)=>["Slice "+(k+1),d]),["Audio In",p.audioin[0]]].map(([l,d])=>`<tr><td>${l}</td><td>${d.sample==null||d.sample===0x8000?"–":String(d.sample).padStart(3,"0")}</td><td>${d.filter}</td><td>${d.cutoff}</td><td>${d.resonance}</td><td>${d.egint}</td><td>${d.level}</td><td>${d.pan-64}</td><td>${d.fxsend==="an"?d.fxselect:"–"}</td><td>${d.modtype}→${d.moddest} ${d.modspeed}/${d.moddepth}</td><td>${d.ampeg}</td></tr>`).join("")+"</table>"+
     `<table><tr><th>FX</th><th>Typ</th><th>Edit 1</th><th>Edit 2</th></tr>${p.fx.map((x,k)=>`<tr><td>FX${k+1}</td><td>${x.type}</td><td>${x.edit1}</td><td>${x.edit2}</td></tr>`).join("")}</table>`}
   ESX.smp=smp;
-  if(smp.length)h+=`<h3 style="margin-top:12px">Samples</h3><div class="row"><button id="esx-zip">⬇ Alle ${smp.length} Samples als WAV (ZIP)</button><button id="esx-lab">Alle ins Sample-Lab</button><span style="color:var(--dim)">Audio direkt aus der Datei (16 Bit, Original-Rate). Rechte an den Samples liegen bei den Urhebern.</span></div><div style="max-height:320px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge</th><th>Loop</th><th>Tune</th><th>Level</th><th></th></tr>${smp.slice(0,400).map((s,k)=>`<tr><td>${String(s.i+1).padStart(3,"0")}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?((s.end+1)/s.rate).toFixed(2)+" s":"–"}</td><td>${s.st||s.loopstart>=s.end?"–":(s.loopstart/s.rate).toFixed(2)+" s"}</td><td>${s.tune.toFixed(2)} HT</td><td>${s.playlevel?"+12 dB":"0 dB"}</td><td><button data-sp="${k}">▶</button> <button data-sw="${k}">⬇ WAV</button></td></tr>`).join("")}</table></div>`;
+  if(smp.length)h+=`<h3 style="margin-top:12px">Samples <span style="font-weight:normal;color:var(--dim)">(Nummern ab 000 wie am Gerät)</span></h3><div class="row"><button id="esx-zip">⬇ Alle ${smp.length} Samples als WAV (ZIP)</button><button id="esx-lab">Alle ins Sample-Lab</button><span style="color:var(--dim)">Audio direkt aus der Datei (16 Bit, Original-Rate). Rechte an den Samples liegen bei den Urhebern.</span></div><div style="max-height:320px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge</th><th>Loop</th><th>Tune</th><th>Level</th><th></th></tr>${smp.slice(0,400).map((s,k)=>`<tr><td>${String(s.i).padStart(3,"0")}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?(s.frames/s.rate).toFixed(2)+" s":"–"}</td><td>${s.st||s.loopstart>=s.end?"–":(s.loopstart/s.rate).toFixed(2)+" s"}</td><td>${s.tune.toFixed(2)} HT</td><td>${s.playlevel?"+12 dB":"0 dB"}</td><td><button data-sp="${k}">▶</button> <button data-sw="${k}">⬇ WAV</button></td></tr>`).join("")}</table></div>`;
   if(songs.length)h+=`<h3 style="margin-top:12px">Songs</h3><table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Länge</th><th>Events</th><th>Pattern-Folge (Anfang)</th></tr>${songs.map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.tempo.toFixed(1)}</td><td>${s.length+1}</td><td>${s.events}</td><td>${[...s.patterns.subarray(0,Math.min(16,s.length+1))].map(x=>x+1).join(" ")}</td></tr>`).join("")}</table>`;
   box.innerHTML=h;
   $("esx-f").oninput=e=>{ESX.flt=e.target.value;ESX.pg=0;renderEsx();const i=$("esx-f");i.focus();i.setSelectionRange(i.value.length,i.value.length)};
@@ -2257,15 +2262,18 @@ function renderEsx(){
   box.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>esxPlay(ESX.smp[+b.dataset.sp]));
   box.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{const s=ESX.smp[+b.dataset.sw];dl(esxFile(s),new Blob([esxWav(esxPcm(s))],{type:"audio/wav"}),"audio/wav")});
   const z=$("esx-zip");if(z)z.onclick=()=>{const files=ESX.smp.map(s=>({name:esxFile(s),data:new Uint8Array(esxWav(esxPcm(s)))}));dl((INS.an||"esx").replace(/\.[^.]+$/,"")+"-samples.zip",zipFiles(files),"application/zip")};
-  const lb=$("esx-lab");if(lb)lb.onclick=()=>{initAudio();let n=0;ESX.smp.forEach(s=>{const ab=esxBuffer(s),a=analyzeBuf(ab);LAB.items.push({id:LAB.items.length,name:s.name.trim()||("ESX "+(s.i+1)),buf:ab,...a,tag:{src:"ESX #"+(s.i+1)}});n++});lb.textContent=n+" Samples im Sample-Lab";try{if(LAB.built)renderLab()}catch(e){}}}
-function esxPcm(s){const A=INS.A,au=ESX.def.audio,lim=o=>Math.max(0,Math.min(Math.floor((A.length-au.off-o-au.pre)/2),s.end+1)),n=Math.min(lim(s.off1start),s.st?lim(s.off2start):1e9),rd=o=>{const a=new Int16Array(n);for(let i=0;i<n;i++){const j=au.off+o+au.pre+i*2;a[i]=(A[j]<<24>>16)|A[j+1]}return a};
+  const lb=$("esx-lab");if(lb)lb.onclick=()=>{initAudio();let n=0;ESX.smp.forEach(s=>{const ab=esxBuffer(s),a=analyzeBuf(ab);LAB.items.push({id:LAB.items.length,name:s.name.trim()||("ESX "+String(s.i).padStart(3,"0")),buf:ab,...a,tag:{src:"ESX #"+String(s.i).padStart(3,"0")}});n++});lb.textContent=n+" Samples im Sample-Lab";try{if(LAB.built)renderLab()}catch(e){}}}
+/* Spielbare Frames: end+1, aber nie mehr als der gespeicherte Datenbereich (abzüglich Vorspann) und das Dateiende; end = 0xFFFFFFFF = leer */
+function esxFrames(s){const A=INS.A,au=ESX.def.audio;if(s.end===0xFFFFFFFF)return 0;const ch=(a,b)=>Math.max(0,Math.min(Math.floor((b-a-au.pre)/2),Math.floor((A.length-au.off-a-au.pre)/2)));
+  return Math.max(0,Math.min(s.end+1,ch(s.off1start,s.off1end),s.st?ch(s.off2start,s.off2end):1e12))}
+function esxPcm(s){const A=INS.A,au=ESX.def.audio,n=esxFrames(s),rd=o=>{const a=new Int16Array(n);for(let i=0;i<n;i++){const j=au.off+o+au.pre+i*2;a[i]=(A[j]<<24>>16)|A[j+1]}return a};
   return{rate:s.rate||32000,ch:s.st?[rd(s.off1start),rd(s.off2start)]:[rd(s.off1start)]}}
 function esxWav(P){const c=P.ch.length,n=P.ch[0].length,b=new DataView(new ArrayBuffer(44+n*2*c)),w=(o,t)=>[...t].forEach((x,i)=>b.setUint8(o+i,x.charCodeAt(0)));
   w(0,"RIFF");b.setUint32(4,36+n*2*c,true);w(8,"WAVEfmt ");b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,c,true);b.setUint32(24,P.rate,true);b.setUint32(28,P.rate*2*c,true);b.setUint16(32,2*c,true);b.setUint16(34,16,true);w(36,"data");b.setUint32(40,n*2*c,true);
   for(let i=0;i<n;i++)for(let k=0;k<c;k++)b.setInt16(44+(i*c+k)*2,P.ch[k][i],true);return b.buffer}
 function esxBuffer(s){const P=esxPcm(s),ab=ac.createBuffer(P.ch.length,P.ch[0].length,P.rate);P.ch.forEach((a,k)=>{const f=ab.getChannelData(k);for(let i=0;i<a.length;i++)f[i]=a[i]/32768});return ab}
 function esxPlay(s){initAudio();ac.resume();const src=ac.createBufferSource();src.buffer=esxBuffer(s);src.connect(master);src.start()}
-const esxFile=s=>String(s.i+1).padStart(3,"0")+"_"+(s.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"sample")+(s.st?"_st":"")+".wav";
+const esxFile=s=>String(s.i).padStart(3,"0")+"_"+(s.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"sample")+(s.st?"_st":"")+".wav";
 function esxImport(p){
   snap();const n=(p.length+1)*16,bars=[1,2,4,8].find(b=>b>=p.length+1)||8;S.bars=bars;$("bars").value=String(bars);
   PARTS.forEach(q=>{S.steps[q.id].fill(0);S.notes[q.id].fill(0)});S.motion=[];
