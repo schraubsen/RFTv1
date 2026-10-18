@@ -23,7 +23,7 @@ Steht vollständig in `schema/esx1.def` und wird vom Datei-Inspektor geladen. Ke
 | Zweiter Kopf „KORG“ | 0x1B0000 | |
 | Anzahl Mono/Stereo-Samples | 0x1B0020 / 0x1B0024 | je 4 |
 | Sample-Header Mono (256 ×) / Stereo (128 ×) | 0x1B0100 / 0x1B2900 | 40 / 44 |
-| Slice-Daten | 0x1B4600 | je 2 048 |
+| Slice-Daten | 0x1B4200 | je 2 048 |
 | Audiodaten | 0x250000 | variabel |
 
 Im Pattern: Name 8 Bytes, Tempo als 16-Bit-Wert (Bits 7–15 ganzzahlig, Bits 0–3 Zehntel), Swing (0 = 50 %), Länge/Beat/Roll als Bitfelder, FX-Kette, Last Step, Arpeggiator-Skala, vier 16-Bit-Masken (Mute, Swing, Output-Bus, Accent). Danach 9 Drum-Parts à 34, 2 Keyboard-Parts à 274, 3 Slice-Parts à 32, Audio In 156, Accent 18, 3 FX à 4 und 24 Motion-Spuren à 130 Bytes.
