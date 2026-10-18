@@ -28,6 +28,17 @@ Keyboard 1 spielt rollende 16tel, 84 % der Noten auf demselben Ton (Keyboard 2: 
 
 16 einzigartige Kick-Samples: Grundton Median 49,8 Hz (G1), Bereich 39–57 Hz; Tail Median 303 ms, Bereich 141–557 ms. Das bestätigt die bisherigen Szene-Messwerte (41–58 Hz, Median 51,9 Hz). Auf Drum 1 liegen in manchen Patterns auch Snares oder Breaks; die sind hier ausgefiltert.
 
+## Klang-Einstellungen (136 Patterns)
+
+- **Effekte:** FX-Kette 1→2→3 in 108 von 136 Patterns. FX1 meist **Compressor** (111×), FX2 meist **EQ** (93×), FX3 **Ring Mod** (53×) oder **BPM Sync Delay** (43×). Compressor und EQ stehen im Median auf Edit 1/2 = 127 (Maximum), Ring Mod auf 0/63, BPM Sync Delay auf 64/30.
+- **FX-Send:** Fast alle Parts senden in die Kette (Drum 2, 6B, 7A, 7B und Keyboard 2 zu 96–99 %, Kick 59 %). Die Kette wirkt damit als Lautheits- und Sättigungs-Bus über den Mix.
+- **Kick (Drum 1):** Level 127, LPF voll offen (Cutoff 127), Resonanz 0, Amp EG auf Gate.
+- **Bass (Keyboard 1):** LPF, Cutoff ~79, Resonanz ~45, Level ~96, Glide 0, Amp EG Gate.
+- **Sonstiges:** Last Step immer 16, Arp-Skala immer Chromatic, Mute-Maske in 66 Patterns gesetzt.
+- **Motion:** Nur CATTY nutzt Motion-Spuren (81); die anderen fünf Tekk-Sets haben keine.
+
+Im Tool setzt „Tekk-Klang übernehmen“ (Random-Tab) diese Werte als Startpunkt: FX Compressor → EQ → Ring Mod mit Kette 1→2→3, alle Parts auf die Kette, Synth-1-Bass LPF 79/45, Kick-Level 127.
+
 ## Datei-Diagnose
 
 - Alle Dateien sind strukturell gültig (Köpfe, Zähler, keine überlappenden Samples, Vorspann an jedem Sample).

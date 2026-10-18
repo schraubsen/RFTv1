@@ -39,6 +39,13 @@ Geprüft an fünf echten `.esx` (ESX-Werksdaten mit 256 Patterns, 200 Samples un
 - Sample-Audio: 16-Bit-PCM Big-Endian ab 0x250000 + `off1start` + 16 Byte Vorspann (beginnt immer mit `80 00 7F FF`), Frames = `end` + 1, Rate aus dem Header (31 250, 32 000 oder 44 100 Hz). Alle elf WAVs stimmen Sample für Sample überein.
 - Sample-Tune: 32-kHz-Samples tragen −5,55 Halbtöne (= 12·log2(32000/44100)), 44,1-kHz-Samples 0.
 
+## Tiefer: Motion, unbekannte Bereiche, Song-Events
+
+- **Motion-Nummer = Part × 32 + Parameter.** Die oberen Bits (0–15) entsprechen genau den 16 Parts (Drum 1–7B, Keyboard 1–2, Slice 1–3, Audio In, Accent; Accent hat die meisten Spuren). Welcher Parameter-Index welcher Regler ist, ließ sich statistisch nicht eindeutig klären (Kandidaten: 6 = Cutoff, 10 = Level). Der Wert 128 heißt „an diesem Step keine Bewegung“, 65535 als Nummer = leere Spur. Die Hypothese „Nummer = Byte-Offset im Pattern“ ist widerlegt (nur 5 % Übereinstimmung).
+- **Unbekannte Bereiche:** U1 (0xE0–0x1FF) ist in allen 13 Dateien leer. U2 (0x10BA00–0x12FFFF) und U3 (0x15F500–0x1AFFFF) enthalten zufällig wirkende Bitmuster, in allen Werksdateien identisch: vermutlich uninitialisierter Speicher, kein Nutzinhalt. U4 (0x1B3E00) beginnt mit 0xFF, sonst leer.
+- **Zweiter Kopf** bei 0x1B0000: „KORG … q“ gefolgt von „BPS “ oder „BPA “ und einer ASCII-Ziffernfolge.
+- **Song-Events:** 8 Bytes je Ereignis ab 0x138400 (z. B. „PartyOn!“ mit 293 Events); Aufbau noch nicht entschlüsselt.
+
 ## Offen / Vermutungen
 
 - Bedeutung der Bytes 4–12 im 16-Byte-Vorspann der Samples und des Bereichs „BPS“ bei 0x1B0000.

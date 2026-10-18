@@ -465,19 +465,27 @@ function initAudio(){
   audioReady=true;
 }
 function satCurve(k){const n=2048,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/n*2-1;c[i]=Math.tanh(k*x)/Math.tanh(k)}return c}
-let fxDel=[];
+let fxDel=[],irBuf=null;
+/* Vorschau-Effekte: jeder Bus wird nach seinem eingestellten Typ aufgebaut. Gerechnet werden nur Short Delay, BPM Sync Delay (3/16) und Reverb;
+   andere Typen (Compressor, EQ, Ring Mod …) bleiben in der Vorschau stumm, statt falsch zu klingen. */
+const FX_PREVIEW=["Short Delay","BPM Delay 3/16","Reverb"];
+function buildFxBus(i){const n=fxNodes[i];try{n.inp.disconnect()}catch(e){}
+  if(fxDel[i]){try{fxDel[i].d.disconnect();fxDel[i].f.disconnect()}catch(e){}fxDel[i]=null}
+  if(n.conv){try{n.conv.disconnect()}catch(e){}n.conv=null}
+  const t=S.fxType[i];n.type=t;
+  if(t==="Short Delay"||t==="BPM Delay 3/16"){const d=ac.createDelay(2),f=ac.createGain();d.delayTime.value=t==="Short Delay"?0.045:60/bpmNow()/4*3;
+    f.gain.value=(S.fxFb&&S.fxFb[i]!=null)?S.fxFb[i]:(t==="Short Delay"?0.6:0.45);n.inp.connect(d);d.connect(f);f.connect(d);d.connect(n.out);fxDel[i]={d,f}}
+  else if(t==="Reverb"){n.conv=ac.createConvolver();n.conv.buffer=irBuf;n.inp.connect(n.conv);n.conv.connect(n.out)}}
 function buildFxGraph(){
-  // FX1 short feedback delay, FX2 BPM delay 3/16, FX3 reverb
-  const bpm=bpmNow(),sx=60/bpm/4;
-  const mk=(i,time,fb)=>{const d=ac.createDelay(2);d.delayTime.value=time;const f=ac.createGain();f.gain.value=fb;fxNodes[i].inp.connect(d);d.connect(f);f.connect(d);d.connect(fxNodes[i].out);return{d,f}};
-  fxDel[0]=mk(0,0.045,0.6);fxDel[1]=mk(1,sx*3,0.45);
-  const conv=ac.createConvolver();const len=ac.sampleRate*1.8,ir=ac.createBuffer(2,len,ac.sampleRate);
-  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)}
-  conv.buffer=ir;fxNodes[2].inp.connect(conv);conv.connect(fxNodes[2].out);
+  const len=ac.sampleRate*1.8;irBuf=ac.createBuffer(2,len,ac.sampleRate);
+  for(let c=0;c<2;c++){const d=irBuf.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)}
+  for(let i=0;i<3;i++)buildFxBus(i);
   applyFx();
 }
-function applyFx(){if(!audioReady)return;if(S.fxFb)[0,1].forEach(i=>{if(fxDel[i])fxDel[i].f.gain.value=S.fxFb[i]});for(let i=0;i<3;i++)fxNodes[i].out.gain.value=S.fxAmt[i];
-  const sx=60/(bpmNow())/4;if(fxDel[1])fxDel[1].d.delayTime.value=sx*(S.fxType[1]==="BPM Delay 3/16"?3:2);}
+function applyFx(){if(!audioReady)return;const sx=60/bpmNow()/4;
+  for(let i=0;i<3;i++){if(fxNodes[i].type!==S.fxType[i])buildFxBus(i);const x=fxDel[i];
+    if(x){if(S.fxType[i]==="BPM Delay 3/16")x.d.delayTime.value=sx*3;if(S.fxFb&&S.fxFb[i]!=null)x.f.gain.value=S.fxFb[i]}
+    fxNodes[i].out.gain.value=FX_PREVIEW.includes(S.fxType[i])?S.fxAmt[i]:0}}
 $("bpm").onchange=()=>{const r=parseFloat($("bpm").value),v=isNaN(r)?lastBpm:Math.min(300,Math.max(20,r));lastBpm=v;$("bpm").value=String(Math.round(v*10)/10);applyFx();if(typeof pRefresh==="function")pRefresh()};$("tube").oninput=e=>{S.tube=+e.target.value;if(tubeNode)tubeNode.curve=satCurve(0.5+S.tube/127*4.5)};$("mvol").oninput=()=>{if(master)master.gain.value=(typeof MID!=="undefined"&&MID.mute)?0:$("mvol").value/100};
 
 function sendFx(p,node,t){p.fx.forEach((on,i)=>{if(on){const s=ac.createGain();s.gain.value=0.8;node.connect(s);s.connect(fxIn[i])}})}
@@ -594,7 +602,7 @@ function buildMidi(){
   return new Uint8Array(out);
 }
 function stepSheet(){
-  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]} ${SCALES[S.scale].n}\nX=Accent-Step  o=Step an  -=aus\nSwing: ${S.swing} %\nPart-Level: ${PARTS.filter(p=>p.kind!=="acc").map(p=>p.id+" "+p.lvl).join(" · ")}\n\n`;
+  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]} ${SCALES[S.scale].n}\nX=Accent-Step  o=Step an  -=aus\nSwing: ${S.swing} %\nFX: ${S.fxType.map((t,i)=>"FX"+(i+1)+" "+t).join(" · ")}${S.fxChain?" · Kette "+S.fxChain:""}\nPart-Level: ${PARTS.filter(p=>p.kind!=="acc").map(p=>p.id+" "+p.lvl).join(" · ")}\n\n`;
   for(let b=0;b<S.bars;b++){{const c=chordInfo(S.prog[b%4]);o+=`--- Takt ${b+1} · Akkord ${c.name} (EMX Chord-Typ: ${c.q}) ---\n`;}
     PARTS.forEach(p=>{let s="";for(let i=b*16;i<b*16+16;i++){if(i%4===0&&i%16)s+=" ";const on=S.steps[p.id][i];s+=on?(p.kind==="syn"?"":(S.steps.AC[i]&&p.kind!=="acc"?"X":"o")):"-";if(on&&p.kind==="syn")s+=nn(S.notes[p.id][i])+" "}
       if(s.replace(/[- ]/g,"")||p.kind==="acc")o+=(p.id+" "+p.name).padEnd(30)+s+"\n"});o+="\n"}
@@ -1254,7 +1262,7 @@ function buildRandom(){
     <div class="card"><h3>Würfeln</h3><div class="row"><label>Stil <select id="r-style">${Object.entries(RSTYLES).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join("")}</select></label>
     <label>Chaos <input id="r-chaos" type="range" min="0" max="100" value="${RND.chaos}"> <span id="r-chaos-v">${RND.chaos}</span></label>
     <label><input id="r-fills" type="checkbox" checked> Fills am Phrasenende</label><label><input id="r-tempo" type="checkbox"> Tempo aus Stil würfeln</label></div>
-    <div class="row"><button id="r-go" class="on">🎲 Pattern würfeln</button><button id="r-seed">Neuer Seed + würfeln</button><label>Variation % <input id="r-vary" type="number" min="1" max="60" value="${RND.vary}" style="width:60px"></label><button id="r-var">Variieren</button><button id="r-play">▶ Anhören</button><span style="color:var(--dim)">Seed oben im Pattern-Tab, Undo mit Strg+Z</span></div></div>
+    <div class="row"><button id="r-go" class="on">🎲 Pattern würfeln</button><button id="r-seed">Neuer Seed + würfeln</button><label>Variation % <input id="r-vary" type="number" min="1" max="60" value="${RND.vary}" style="width:60px"></label><button id="r-var">Variieren</button><button id="r-tekkfx" title="Gemessen an 136 echten Tekk-Patterns">Tekk-Klang übernehmen</button><button id="r-play">▶ Anhören</button><span style="color:var(--dim)">Seed oben im Pattern-Tab, Undo mit Strg+Z</span></div></div>
     <div class="card"><h3>Parts</h3><div id="r-parts"></div></div>
     <div class="card"><h3>Patch-Würfel (Synth 1–5)</h3><div style="color:var(--dim)">Startwerte für die EMX-Synth-Parts, passend zur Rolle. Uhrzeit = Knopfstellung (7:00 = links, 17:00 = rechts). Parameternamen sinngemäß, am Gerät gegenhören. „In Vorschau“ überträgt Filter, Resonanz, Drive und Wellenform in die Pattern-Vorschau.</div>
     <div class="row"><button id="p-all">Alle 5 würfeln</button><button id="p-hat">Synth-Hat-Rezept auf S5</button><button id="p-clr">Vorschau-Patches zurücksetzen</button></div><div id="p-out"></div></div>`;
@@ -1262,7 +1270,11 @@ function buildRandom(){
     $("r-chaos").oninput=e=>{RND.chaos=+e.target.value;$("r-chaos-v").textContent=e.target.value};
     $("r-fills").onchange=e=>RND.fills=e.target.checked;$("r-tempo").onchange=e=>RND.tempo=e.target.checked;
     $("r-vary").onchange=e=>RND.vary=+e.target.value;
-    $("r-go").onclick=()=>rBuild();$("r-seed").onclick=()=>{S.seed=Math.floor(Math.random()*1e6);$("seed").value=S.seed;rBuild()};
+    $("r-go").onclick=()=>rBuild();
+    $("r-tekkfx").onclick=()=>{snap();S.fxType=["Compressor","EQ","Ring Mod"];S.fxAmt=[1,1,.5];S.fxChain="1→2→3";PARTS.forEach(q=>{if(q.kind!=="acc")q.fx=[1,1,1]});
+      const P=S.patch.S1=S.patchSheet.S1={role:"Bass (Tekk gemessen)",osc:"Waveform",e1:10,e2:64,flt:"LPF",cut:79,res:45,egi:64,drv:95,att:0,dec:40,lfo:0,lspd:0,fx:"FX-Kette 1→2→3",wave:"sawtooth"};if(typeof pOscApply==="function")pOscApply(P);
+      const d1=PARTS.find(q=>q.id==="D1");d1.lvl=127;if(partGain.D1)partGain.D1.gain.value=1;applyFx();try{buildFx()}catch(e){}if(typeof pRefresh==="function")pRefresh();
+      $("r-tekkfx").textContent="✓ Tekk-Klang gesetzt";setTimeout(()=>{const b=$("r-tekkfx");if(b)b.textContent="Tekk-Klang übernehmen"},2500)};$("r-seed").onclick=()=>{S.seed=Math.floor(Math.random()*1e6);$("seed").value=S.seed;rBuild()};
     $("r-var").onclick=rVary;$("r-play").onclick=()=>{if(!playing)$("play").click()};
     $("r-parts").addEventListener("input",e=>{const d=e.target.dataset;if(d.rd){RND.dens[d.rd]=+e.target.value;$("rdv-"+d.rd).textContent=e.target.value}});
     $("r-parts").addEventListener("change",e=>{const d=e.target.dataset;if(d.rl)RND.lock[d.rl]=e.target.checked});
@@ -1825,7 +1837,7 @@ const P_WAVE={"Dual Osc":"sawtooth",Chord:"sawtooth",Unison:"sawtooth","Ring Mod
 const P_FLT=["LPF","HPF","BPF","BPF+"];
 const P_DEF={S1:{osc:"Waveform",e1:10,flt:"LPF",cut:45,res:65,egi:65,drv:95,att:3,dec:40},S2:{osc:"VPM",flt:"BPF+",cut:85,res:100,egi:80,drv:95,att:4,dec:45},S3:{osc:"Chord",flt:"LPF",cut:65,res:30,egi:30,drv:30,att:25,dec:100},S4:{osc:"Formant",flt:"BPF",cut:70,res:75,egi:45,drv:50,att:20,dec:80},S5:{osc:"Noise",flt:"HPF",cut:75,res:65,egi:70,drv:70,att:30,dec:85}};
 const P_KEY={D1:"1",D2:"2",D3:"3",D4:"4",D5:"5",D6:"6A",D7:"6B",D8:"7A",D9:"7B",AC:"ACC",S1:"1",S2:"2",S3:"3",S4:"4",S5:"5"};
-const P_PREV_FX=["Short Delay","BPM Delay 3/16","Reverb"];
+
 const pPart=()=>PARTS.find(p=>p.id===PN.part);
 /* Reihenfolge = Effekt-Nummer in der ESX-Datei (laut Open Electribe Editor); bei der EMX vermutlich gleich */
 const fxNames=()=>["Reverb","BPM Delay 3/16","Short Delay","Mod Delay","Grain Shifter","Cho/Flg","Phaser","Ring Mod","Talking Mod","Pitch Shifter","Compressor","Distortion","Decimator","EQ","LPF","HPF"].filter(k=>k in FXTYPES);
@@ -1963,10 +1975,10 @@ function buildPanel(){
     knob({label:"Drive",def:64,get:()=>pv("drv"),set:setP("drv")}),knob({label:"Attack",def:0,get:()=>pv("att"),set:setP("att")}),knob({label:"EG Time",def:60,get:()=>pv("dec"),set:setP("dec")}));
   // FX
   const fs=$("pn-fxsel");[0,1,2].forEach(i=>{const b=document.createElement("button");b.className="pt";b.textContent="FX "+(i+1);b.onclick=()=>{PN.fxSel=i;pRefresh();fxNote()};fs.appendChild(b)});
-  const fxNote=()=>{const n=S.fxType[PN.fxSel];$("pn-fxn").textContent=(FXTYPES[n]||"")+(P_PREV_FX.includes(n)?"":" · Vorschau: dieser Effekt klingt nur am Gerät.")};
+  const fxNote=()=>{const n=S.fxType[PN.fxSel];$("pn-fxn").textContent=(FXTYPES[n]||"")+(FX_PREVIEW.includes(n)?"":" · Vorschau: dieser Effekt klingt nur am Gerät.")};
   $("pn-fx").append(knob({label:"Effect",min:0,max:15,get:()=>Math.max(0,fxNames().indexOf(S.fxType[PN.fxSel])),set:v=>{S.fxType[PN.fxSel]=fxNames()[v];applyFx();fxNote();try{buildFx()}catch(e){}},fmt:v=>fxLbl(fxNames()[v])}),
     knob({label:"FX Edit 1",def:40,get:()=>Math.round(S.fxAmt[PN.fxSel]*127),set:v=>{S.fxAmt[PN.fxSel]=v/127;applyFx()}}),
-    knob({label:"FX Edit 2",def:64,get:()=>Math.round(((S.fxFb||[.6,.45,0])[PN.fxSel])/.9*127),set:v=>{S.fxFb=S.fxFb||[.6,.45,0];S.fxFb[PN.fxSel]=v/127*.9;applyFx()},fmt:v=>PN.fxSel<2?v:"–"}));
+    knob({label:"FX Edit 2",def:64,get:()=>Math.round(((S.fxFb||[.6,.45,0])[PN.fxSel])/.9*127),set:v=>{S.fxFb=S.fxFb||[.6,.45,0];S.fxFb[PN.fxSel]=v/127*.9;applyFx()},fmt:v=>["Short Delay","BPM Delay 3/16"].includes(S.fxType[PN.fxSel])?v:"–"}));
   fxNote();
   // Pattern bauen
   $("pn-tpl").innerHTML=$("tpl").innerHTML;$("pn-tpl").value=$("tpl").value;$("pn-tpl").onchange=e=>{$("tpl").value=e.target.value};
@@ -2243,12 +2255,12 @@ function renderEsx(){
   if(ESX.sel>=0){const p=pats[ESX.sel],n=(p.length+1)*16;
     const grid=(lbl,st)=>`<tr><td>${lbl}</td><td style="font:11px monospace;white-space:nowrap">${esxSteps(st,n).map((v,k)=>(k&&k%16===0?" ":"")+(v?"■":"·")).join("")}</td></tr>`;
     h+=`<h3 style="margin-top:12px">Pattern ${String(ESX.sel+1).padStart(3,"0")} „${p.name.replace(/</g,"&lt;")}“ · ${p.tempo.toFixed(1)} BPM · Swing ${swp(p)} · ${p.length+1} Takt(e) · Last Step ${p.laststep+1} · Arp ${p.arpscale}</h3>
-    <div class="row"><button id="esx-imp" class="on">In Designer übernehmen (EMX)</button><span style="color:var(--dim)">Drum 1–7B → Drum 1–7B, Accent → Accent, Keyboard 1/2 → Synth 1/2 (Note = Byte &amp; 0x7F, Bit 7 gesetzt = Step aus: Vermutung, Werksdatei hat überall 0xBC)</span></div>
+    <div class="row"><button id="esx-imp" class="on">In Designer übernehmen (EMX)</button><button id="esx-mid">⬇ Pattern als MIDI</button><button id="esx-midall">⬇ Alle belegten als MIDI (ZIP)</button><span style="color:var(--dim)">Drum 1–7B → Drum 1–7B, Accent → Accent, Keyboard 1/2 → Synth 1/2 (Note = Byte &amp; 0x7F, Bit 7 gesetzt = Step aus: Vermutung, Werksdatei hat überall 0xBC)</span></div>
     <div style="overflow-x:auto"><table>${p.drum.map((d,k)=>grid("Drum "+ESX_DRUM[k],d.steps)).join("")}${p.slice.map((d,k)=>grid("Slice "+(k+1),d.steps)).join("")}${grid("Audio In",p.audioin[0].steps)}${grid("Accent",p.accent[0].steps)}
     ${p.kbd.map((k,j)=>`<tr><td>Keyboard ${j+1}</td><td style="font:11px monospace;white-space:nowrap">${Array.from({length:n},(_,s)=>(s&&s%16===0?" ":"")+(k.notes[s]&0x80?"·":"♪")).join("")}</td></tr>`).join("")}</table></div>
     <table><tr><th>Part</th><th>Sample</th><th>Filter</th><th>Cutoff</th><th>Reso</th><th>EG Int</th><th>Level</th><th>Pan</th><th>FX</th><th>Mod</th><th>Amp EG</th></tr>`+
     [...p.drum.map((d,k)=>["Drum "+ESX_DRUM[k],d]),...p.kbd.map((d,k)=>["Keyboard "+(k+1),d]),...p.slice.map((d,k)=>["Slice "+(k+1),d]),["Audio In",p.audioin[0]]].map(([l,d])=>`<tr><td>${l}</td><td>${d.sample==null||d.sample===0x8000?"–":String(d.sample).padStart(3,"0")}</td><td>${d.filter}</td><td>${d.cutoff}</td><td>${d.resonance}</td><td>${d.egint}</td><td>${d.level}</td><td>${d.pan-64}</td><td>${d.fxsend==="an"?d.fxselect:"–"}</td><td>${d.modtype}→${d.moddest} ${d.modspeed}/${d.moddepth}</td><td>${d.ampeg}</td></tr>`).join("")+"</table>"+
-    `<table><tr><th>FX</th><th>Typ</th><th>Edit 1</th><th>Edit 2</th></tr>${p.fx.map((x,k)=>`<tr><td>FX${k+1}</td><td>${x.type}</td><td>${x.edit1}</td><td>${x.edit2}</td></tr>`).join("")}</table>`}
+    `<table><tr><th>FX</th><th>Typ</th><th>Edit 1</th><th>Edit 2</th></tr>${p.fx.map((x,k)=>`<tr><td>FX${k+1}</td><td>${x.type}</td><td>${x.edit1}</td><td>${x.edit2}</td></tr>`).join("")}</table>`+esxMotionHtml(p,n)}
   ESX.smp=smp;
   if(smp.length)h+=`<h3 style="margin-top:12px">Samples <span style="font-weight:normal;color:var(--dim)">(Nummern ab 000 wie am Gerät)</span></h3><div class="row"><button id="esx-zip">⬇ Alle ${smp.length} Samples als WAV (ZIP)</button><button id="esx-lab">Alle ins Sample-Lab</button><span style="color:var(--dim)">Audio direkt aus der Datei (16 Bit, Original-Rate). Rechte an den Samples liegen bei den Urhebern.</span></div><div style="max-height:320px;overflow:auto"><table><tr><th>#</th><th>Name</th><th>Typ</th><th>Rate</th><th>Länge</th><th>Loop</th><th>Tune</th><th>Level</th><th></th></tr>${smp.slice(0,400).map((s,k)=>`<tr><td>${String(s.i).padStart(3,"0")}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.st?"Stereo":"Mono"}</td><td>${s.rate}</td><td>${s.rate?(s.frames/s.rate).toFixed(2)+" s":"–"}</td><td>${s.st||s.loopstart>=s.end?"–":(s.loopstart/s.rate).toFixed(2)+" s"}</td><td>${s.tune.toFixed(2)} HT</td><td>${s.playlevel?"+12 dB":"0 dB"}</td><td><button data-sp="${k}">▶</button> <button data-sw="${k}">⬇ WAV</button></td></tr>`).join("")}</table></div>`;
   if(songs.length)h+=`<h3 style="margin-top:12px">Songs</h3><table><tr><th>#</th><th>Name</th><th>Tempo</th><th>Länge</th><th>Events</th><th>Pattern-Folge (Anfang)</th></tr>${songs.map(s=>`<tr><td>${s.i+1}</td><td>${s.name.replace(/</g,"&lt;")}</td><td>${s.tempo.toFixed(1)}</td><td>${s.length+1}</td><td>${s.events}</td><td>${[...s.patterns.subarray(0,Math.min(16,s.length+1))].map(x=>x+1).join(" ")}</td></tr>`).join("")}</table>`;
@@ -2259,6 +2271,8 @@ function renderEsx(){
   $("esx-def").onclick=()=>dl("esx1.def",ESX1_DEF,"text/plain");
   box.querySelectorAll("[data-esx]").forEach(b=>b.onclick=()=>{ESX.sel=+b.dataset.esx;renderEsx()});
   const imp=$("esx-imp");if(imp)imp.onclick=()=>esxImport(pats[ESX.sel]);
+  const em=$("esx-mid");if(em)em.onclick=()=>dl(esxMidName(pats[ESX.sel],ESX.sel),new Blob([esxMidi(pats[ESX.sel])],{type:"audio/midi"}),"audio/midi");
+  const ea=$("esx-midall");if(ea)ea.onclick=()=>{const files=pats.map((p,i)=>({p,i})).filter(o=>used(o.p)).map(o=>({name:esxMidName(o.p,o.i),data:esxMidi(o.p)}));if(!files.length){alert("Keine belegten Patterns.");return}dl((INS.an||"esx").replace(/\.[^.]+$/,"")+"-patterns-midi.zip",zipFiles(files),"application/zip")};
   box.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>esxPlay(ESX.smp[+b.dataset.sp]));
   box.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{const s=ESX.smp[+b.dataset.sw];dl(esxFile(s),new Blob([esxWav(esxPcm(s))],{type:"audio/wav"}),"audio/wav")});
   const z=$("esx-zip");if(z)z.onclick=()=>{const files=ESX.smp.map(s=>({name:esxFile(s),data:new Uint8Array(esxWav(esxPcm(s)))}));dl((INS.an||"esx").replace(/\.[^.]+$/,"")+"-samples.zip",zipFiles(files),"application/zip")};
@@ -2274,6 +2288,21 @@ function esxWav(P){const c=P.ch.length,n=P.ch[0].length,b=new DataView(new Array
 function esxBuffer(s){const P=esxPcm(s),ab=ac.createBuffer(P.ch.length,P.ch[0].length,P.rate);P.ch.forEach((a,k)=>{const f=ab.getChannelData(k);for(let i=0;i<a.length;i++)f[i]=a[i]/32768});return ab}
 function esxPlay(s){initAudio();ac.resume();const src=ac.createBufferSource();src.buffer=esxBuffer(s);src.connect(master);src.start()}
 const esxFile=s=>String(s.i).padStart(3,"0")+"_"+(s.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"sample")+(s.st?"_st":"")+".wav";
+/* Motion: Nummer = Part × 32 + Parameter (Part 0–15 = Drum 1–7B, Keyboard 1–2, Slice 1–3, Audio In, Accent; aus 13 echten Dateien abgeleitet).
+   Welcher Parameter-Index welcher Regler ist, ist noch unbestätigt. Wert 128 = an diesem Step keine Bewegung. */
+const ESX_PARTS16=["Drum 1","Drum 2","Drum 3","Drum 4","Drum 5","Drum 6A","Drum 6B","Drum 7A","Drum 7B","Keyboard 1","Keyboard 2","Slice 1","Slice 2","Slice 3","Audio In","Accent"];
+function esxMotionHtml(p,n){const L=p.motion.map((m,k)=>({k,op:m.operation,v:m.values})).filter(m=>m.op<512&&new Set(m.v).size>1);if(!L.length)return"";
+  const bar=v=>"▁▂▃▄▅▆▇█"[Math.min(7,v>>4)];
+  return`<h3 style="margin-top:10px">Motion-Spuren (${L.length})</h3><div class="warn">Part sicher zugeordnet; welcher Regler hinter dem Parameter-Index steckt, ist noch unbestätigt (Test am Gerät: genau einen bekannten Regler als Motion aufnehmen).</div><div style="overflow-x:auto"><table><tr><th>Slot</th><th>Part</th><th>Param-Index</th><th>Bereich</th><th>Verlauf (Steps 1–${Math.min(n,128)})</th></tr>`+
+    L.map(m=>{const vv=[...m.v.subarray(0,n)].filter(x=>x<128);return`<tr><td>${m.k+1}</td><td>${ESX_PARTS16[m.op>>5]||"?"}</td><td>${m.op&31}</td><td>${vv.length?Math.min(...vv)+"–"+Math.max(...vv):"–"}</td><td style="font:11px monospace;white-space:nowrap">${[...m.v.subarray(0,n)].map((x,i)=>(i&&i%16===0?" ":"")+(x<128?bar(x):"·")).join("")}</td></tr>`}).join("")+"</table></div>"}
+/* ESX-Pattern → Standard-MIDI-Datei (Typ 1, 480 PPQN): Drums Kanal 10 mit den Noten aus dem Export-Tab, Keyboard 1/2 auf Kanal 1/2, Accent = Velocity 127 */
+function esxMidi(p){const ppq=480,st=ppq/4,n=(p.length+1)*16,tempo=Math.round(60000000/Math.max(20,Math.min(300,p.tempo))),acc=esxSteps(p.accent[0].steps,n),tr=[];
+  tr.push([0,0xFF,0x51,3,(tempo>>16)&255,(tempo>>8)&255,tempo&255,0,0xFF,0x58,4,4,2,24,8,0,0xFF,0x2F,0]);
+  const track=(name,ev)=>{ev.sort((a,b)=>a[0]-b[0]||(a[1]&0xF0)-(b[1]&0xF0));const nm=Array.from(new TextEncoder().encode(name)),t=[0,0xFF,0x03,nm.length,...nm];let last=0;ev.forEach(e=>{t.push(...vlq(e[0]-last),e[1],e[2],e[3]);last=e[0]});t.push(...vlq(0),0xFF,0x2F,0);tr.push(t)};
+  p.drum.forEach((d,k)=>{const note=S.midiNotes["D"+(k+1)]||36,ev=[];esxSteps(d.steps,n).forEach((v,i)=>{if(v){const vel=acc[i]?127:100;ev.push([i*st,0x99,note,vel],[i*st+st/2,0x89,note,0])}});if(ev.length)track("Drum "+ESX_DRUM[k],ev)});
+  p.kbd.forEach((k,j)=>{const ev=[];for(let i=0;i<n;i++)if(!(k.notes[i]&0x80)){const note=k.notes[i]&0x7f,vel=acc[i]?127:100,gl=Math.max(1,Math.round(st*0.9));ev.push([i*st,0x90|j,note,vel],[i*st+gl,0x80|j,note,0])}if(ev.length)track("Keyboard "+(j+1),ev)});
+  const out=[...Array.from("MThd",c=>c.charCodeAt(0)),0,0,0,6,0,1,0,tr.length,ppq>>8,ppq&255];tr.forEach(t=>out.push(...Array.from("MTrk",c=>c.charCodeAt(0)),(t.length>>>24)&255,(t.length>>>16)&255,(t.length>>>8)&255,t.length&255,...t));return new Uint8Array(out)}
+const esxMidName=(p,i)=>String(i+1).padStart(3,"0")+"_"+(p.name.trim().replace(/[^A-Za-z0-9_.+-]+/g,"_")||"pattern")+"_"+Math.round(p.tempo)+"bpm.mid";
 function esxImport(p){
   snap();const n=(p.length+1)*16,bars=[1,2,4,8].find(b=>b>=p.length+1)||8;S.bars=bars;$("bars").value=String(bars);
   PARTS.forEach(q=>{S.steps[q.id].fill(0);S.notes[q.id].fill(0)});S.motion=[];
