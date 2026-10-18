@@ -58,6 +58,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
   <button id="gen">Generieren</button>
   <button id="clear">Leeren</button>
   <label>Master <input id="mvol" type="range" min="0" max="100" value="70"></label>
+  <label title="Sättigung der Röhrenstufe in der Vorschau">Tube <input id="tube" type="range" min="0" max="127" value="70"></label>
 </header>
 <nav id="nav"></nav>
 <main>
@@ -85,6 +86,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
   <div id="mcheck"></div>
 </section>
 
+<section id="t-rnd"></section>
 <section id="t-sound"></section>
 <section id="t-fx"></section>
 
@@ -141,7 +143,7 @@ const PARTS=[
 const S={ // Zustand
  bars:8, root:8 /*G#*/, brush:56, mute:{}, solo:{}, steps:{}, notes:{}, motion:[],
  fxType:["Short Delay","BPM Delay 3/16","Reverb"], fxAmt:[0.35,0.4,0.3],
- slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{mode:0,base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},scale:"minor",seed:1337,prog:[0,0,5,6],ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
+ slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{mode:0,base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},scale:"minor",seed:1337,patch:{},patchSheet:{},prog:[0,0,5,6],ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
 };
 PARTS.forEach(p=>{S.steps[p.id]=new Array(MAXSTEPS).fill(0);S.notes[p.id]=new Array(MAXSTEPS).fill(0);if(p.note)S.midiNotes[p.id]=p.note;S.mute[p.id]=false;S.solo[p.id]=false;});
 const $=id=>document.getElementById(id);
@@ -180,7 +182,7 @@ const SOUND={
  S1:{what:"Offbeat-Bass auf 3/7/11/15, nie auf die Eins (Kick-Kollision). Osz: Saw/Square-Typ, Filter LPF + Drive, Reso ~65 %, LFO auf Cutoff.",set:"Filter LPF · Reso ≈ 65 % · Drive hoch · EG kurzer Decay · Level 105",src:"v"},
  S2:{what:"Screech-Lead: VPM- oder Formant-Oszillator, BPF+ mit hoher Resonanz, Cutoff = Haupt-Liveregler.",set:"Osz VPM/Formant · Filter BPF+ · Reso hoch · Drive an · FX2 BPM Delay 3/16",src:"u"},
  S3:{what:"Moll-Akkord (Chord-Oszillator) – eine Note im Break, ins BPM-Delay.",set:"Osz Chord · Moll-Typ · FX2+FX3 · lange Gate",src:"u"},
- S4:{what:"STIMME: Formant-Oszillator als Vokal-Synthese („a-e-i-o-u“ per Motion auf Formant-Parameter), alternativ Samples vom ESX/DAW über Audio In.",set:"Osz Formant · Parameter 1 per Motion fahren · BPF+ nachschalten · FX2/FX3",src:"u"},
+ S4:{what:"STIMME: Formant-Oszillator als Vokal-Synthese („a-e-i-o-u“ per Motion auf Formant-Parameter), alternativ Talking-Modulator-FX oder Samples vom ESX/DAW über Audio In.",set:"Osz Formant · Parameter 1 per Motion fahren · BPF+ nachschalten · FX2/FX3",src:"u"},
  S5:{what:"Noise/Riser/Sirene (Noise-Osz, Cutoff-Sweep).",set:"Osz Noise · HPF/BPF · Cutoff-Motion über 8 Takte · FX3",src:"u"},
  AC:{what:"Accent verstärkt gewählte Parts (ACCENT SW) – es ducked NICHT. Pumpen via FX-Kompressor oder Level-Motion.",set:"Steps 1/5/9/13 · Accent-Switch an Kick + Bass",src:"v"}
 };
@@ -189,6 +191,7 @@ const FXTYPES={ // laut Skill-Referenz / Gerät – Parameternamen nicht verifiz
  "BPM Delay 3/16":"Vocals, Lead, Chord – punktierter 16tel-Hall",
  "Reverb":"Riser/Break, sparsam",
  "Grain Shifter":"Live-Zerstörung im Break",
+ "Talking Modulator":"vokalartige Filterbewegung auf Lead/Voice (laut sequencer.de an Bord)",
  "Compressor":"Pumpen (Sidechain-Ersatz; Accent ducked nicht)",
  "Distortion":"Schranz-Kante auf Perc/Lead"
 };
@@ -204,9 +207,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["rnd","Random"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rnd")buildRandom();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
 Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
@@ -373,7 +376,7 @@ function initAudio(){
   if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();
   master=ac.createGain();master.gain.value=$("mvol").value/100;
   const comp=ac.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=8;comp.attack.value=0.003;
-  tubeNode=ac.createWaveShaper();tubeNode.curve=satCurve(2.2);tubeNode.oversample="4x";
+  tubeNode=ac.createWaveShaper();tubeNode.curve=satCurve(0.5+S.tube/127*4.5);tubeNode.oversample="4x";
   master.connect(tubeNode);tubeNode.connect(comp);comp.connect(ac.destination);anMix=mkAn(comp);
   noiseBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   // FX-Busse
@@ -397,7 +400,7 @@ function buildFxGraph(){
 }
 function applyFx(){if(!audioReady)return;for(let i=0;i<3;i++)fxNodes[i].out.gain.value=S.fxAmt[i];
   const sx=60/(+$("bpm").value)/4;if(fxDel[1])fxDel[1].d.delayTime.value=sx*(S.fxType[1]==="BPM Delay 3/16"?3:2);}
-$("bpm").onchange=applyFx;$("mvol").oninput=()=>{if(master)master.gain.value=$("mvol").value/100};
+$("bpm").onchange=applyFx;$("tube").oninput=e=>{S.tube=+e.target.value;if(tubeNode)tubeNode.curve=satCurve(0.5+S.tube/127*4.5)};$("mvol").oninput=()=>{if(master)master.gain.value=$("mvol").value/100};
 
 function sendFx(p,node,t){p.fx.forEach((on,i)=>{if(on){const s=ac.createGain();s.gain.value=0.8;node.connect(s);s.connect(fxIn[i])}})}
 function env(g,t,a,d,peak){g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(0.0001,t+a+d)}
@@ -425,22 +428,24 @@ function trig(p,i,t){
    case "S1":{synthVoice(p,i,t,stepDur*1.6,"sawtooth",0.7,true,out,g);break;}
    case "S2":{synthVoice(p,i,t,stepDur*0.9,"square",1.3,false,out,g);break;}
    case "S3":{triadSemis(S.notes.S3[i]).forEach(d=>synthVoice(p,i,t,stepDur*6,"sawtooth",0.4,false,out,g,d));break;}
-   case "S4":{formantVoice(p,i,t,stepDur*3,out,g);break;}
-   case "S5":{const n=noise(t,stepDur*4),f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=500+cutoffNow.S5*6000;f.Q.value=6;n.connect(f);f.connect(g);env(g,t,0.01,stepDur*4,0.5);sendFx(p,g,t);break;}
+   case "S4":{if(S.patch.S4){synthVoice(p,i,t,stepDur*3,"sawtooth",1,false,out,g);break}formantVoice(p,i,t,stepDur*3,out,g);break;}
+   case "S5":{if(S.patch.S5){synthVoice(p,i,t,stepDur*1.2,"sawtooth",1,false,out,g);break}const n=noise(t,stepDur*4),f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=500+cutoffNow.S5*6000;f.Q.value=6;n.connect(f);f.connect(g);env(g,t,0.01,stepDur*4,0.5);sendFx(p,g,t);break;}
    case "AC":break;
   }
   if(p.kind==="syn"||p.id==="D4"||p.id==="D5"||p.id==="D6"||p.id==="D7"||p.id==="D8"||p.id==="D9"){}
 }
 function synthVoice(p,i,t,dur,type,q,drive,out,g,semi=0){
-  const m=S.notes[p.id][i]+semi,f0=440*Math.pow(2,(m-69)/12);
-  const o=ac.createOscillator(),o2=ac.createOscillator();o.type=type;o2.type=type;o.frequency.value=f0;o2.frequency.value=f0*1.006;
-  const f=ac.createBiquadFilter();f.type=p.id==="S2"?"bandpass":"lowpass";
-  const cutoff=(p.id==="S1"?80+cutoffNow.S1*1600:p.id==="S2"?400+cutoffNow.S2*5000:300+cutoffNow[p.id]*3000);
-  f.frequency.setValueAtTime(cutoff*(drive?2:1),t);if(drive)f.frequency.exponentialRampToValueAtTime(cutoff,t+dur);
-  f.Q.value=p.id==="S2"?14*q/1.3:8;
-  const sh=ac.createWaveShaper();sh.curve=satCurve(drive?4:2.5);
-  o.connect(f);o2.connect(f);f.connect(sh);sh.connect(g);
-  env(g,t,0.003,dur,p.id==="S3"?0.18:0.5);o.start(t);o2.start(t);o.stop(t+dur+0.05);o2.stop(t+dur+0.05);sendFx(p,g,t);
+  const P=S.patch&&S.patch[p.id];if(P)type=P.wave;
+  const m=S.notes[p.id][i]+semi,f0=440*Math.pow(2,(m-69)/12),det=P&&P.uni?[-.012,-.007,-.003,.003,.007,.012]:[0,.006];
+  const oscs=det.map(d=>{const o=ac.createOscillator();o.type=type;o.frequency.value=f0*(1+d);return o});
+  const f=ac.createBiquadFilter();
+  if(P){f.type={LPF:"lowpass",HPF:"highpass",BPF:"bandpass","BPF+":"bandpass"}[P.flt]||"lowpass";const cutoff=Math.min(18000,40*Math.pow(2,P.cut/127*9)*(0.4+1.2*cutoffNow[p.id]));
+    f.frequency.setValueAtTime(Math.min(18000,cutoff*(1+P.egi/127*3)),t);f.frequency.exponentialRampToValueAtTime(cutoff,t+Math.max(.02,P.dec/127*dur*1.5));f.Q.value=0.5+P.res/127*(P.flt==="BPF+"?22:15)}
+  else{f.type=p.id==="S2"?"bandpass":"lowpass";const cutoff=(p.id==="S1"?80+cutoffNow.S1*1600:p.id==="S2"?400+cutoffNow.S2*5000:300+cutoffNow[p.id]*3000);
+    f.frequency.setValueAtTime(cutoff*(drive?2:1),t);if(drive)f.frequency.exponentialRampToValueAtTime(cutoff,t+dur);f.Q.value=p.id==="S2"?14*q/1.3:8}
+  const sh=ac.createWaveShaper();sh.curve=P?satCurve(1+P.drv/127*5):satCurve(drive?4:2.5);
+  const mix=ac.createGain();mix.gain.value=1/Math.sqrt(det.length);oscs.forEach(o=>o.connect(mix));mix.connect(f);f.connect(sh);sh.connect(g);
+  env(g,t,P?0.002+P.att/127*0.2:0.003,dur,p.id==="S3"?0.18:0.5);oscs.forEach(o=>{o.start(t);o.stop(t+dur+0.25)});sendFx(p,g,t);
 }
 const VOWELS=[[800,1150],[400,1700],[350,2000],[450,800],[325,700]]; // a e i o u, Näherungswerte
 function formantVoice(p,i,t,dur,out,g){
@@ -543,6 +548,11 @@ function buildExport(){
   <div class="row"><button id="e-mid">⬇ MIDI</button><button id="e-txt">⬇ Step-Sheet (.txt)</button><button id="e-json">⬇ Projekt (.json)</button><label>Projekt laden <input type="file" id="e-load" accept=".json"></label></div>
   <div id="e-note" style="color:var(--dim)">Im Artifact-Viewer kommen MIDI und Kick-WAV als ZIP (der Viewer erlaubt nur bestimmte Dateitypen); Step-Sheet und Projekt als .txt/.json.</div>
   <pre id="e-pre">${stepSheet().replace(/</g,"&lt;")}</pre>
+  <div class="card"><h3>Sync ESX-1 ↔ EMX-1</h3><table><tr><th>Gerät</th><th>Einstellung</th></tr>
+  <tr><td>ESX-1 (Master)</td><td>Global → Clock Int · MIDI OUT → MIDI IN der EMX</td></tr>
+  <tr><td>EMX-1 (Slave)</td><td>Global → Clock Ext · folgt Start/Stop und Tempo</td></tr>
+  <tr><td>Beide</td><td>Tempo Lock an · MIDI-Kanäle pro Part getrennt halten · MIDI-Clock läuft mit 24 Pulsen pro Viertel (Standard)</td></tr></table>
+  <div style="color:var(--dim)">Ob die EMX Song-Position und Program Change vom ESX auswertet, steht in Korgs MIDI-Implementation: am Gerät prüfen, bevor du dich live darauf verlässt.</div></div>
   <div class="card"><h3>Einspielen am Gerät</h3><ol>
   <li>Global → Clock = Ext, MIDI-Kanäle prüfen, Tempo Lock an.</li>
   <li>Pattern anlegen: Length = ${S.bars}, Beat = 16.</li>
@@ -575,6 +585,7 @@ $("t-research").innerHTML=`
 <tr><td>1. ESX-1 als Sampler</td><td>Vocal-Chops (One-Shots, Wörter, Schreie) auf der ESX als Slice/Keyboard-Part, Ausgang in EMX Audio In oder getrennt in den Mixer.</td><td>Beste Lösung. ESX: 44,1 kHz/16 Bit, 285 s. Vocals vorher in der DAW trimmen, mono, −1 dBFS (Skill: <code>prep_esx.py</code>).</td></tr>
 <tr><td>2. DAW-Chops → Audio In</td><td>Gesprochene Phrasen aus DAW (Pitch/Formant vorher einstellen) auf EMX Audio In, dort BPM-Delay + Filter (HPF/BPF).</td><td>Flexibel, aber kein Sample-Retrigger am EMX → Timing kommt aus der DAW/MIDI-Sync.</td></tr>
 <tr><td>3. Formant-Oszillator</td><td>Synth 4 mit Formant-Osz, Parameter per Motion durch Vokale fahren (a-e-i-o-u), danach BPF+ und FX2.</td><td>Klingt robotisch-vokalisch, kein echter Text. Genau das passt zu Rave-/Hardtekk-„Stab“-Stimmen. In der Vorschau grob modelliert (Näherungswerte).</td></tr>
+<tr><td>5. Talking Modulator (FX)</td><td>Einer der drei FX-Slots als Talking Modulator auf Synth 2 oder 4, Motion auf den FX-Parameter.</td><td>Laut sequencer.de an Bord. Erzeugt sprechende Vokal-Bewegung ohne Samples, gut für Rave-Stabs.</td></tr>
 <tr><td>4. Mikrofon live</td><td>Audio In (Mic/Line) – Echo/Reverb/Grain Shifter als Schmutzfilter.</td><td>Nur für Rufe/Shouts im Set.</td></tr></table>
 <div class="warn">Voice-Tricks sind Erfahrungswerte, am EMX gegenhören. Ein Vocoder-/Formant-Shift wie beim microKORG ist für den EMX <b>nicht belegt</b>.</div></div>
 <div class="card"><h3>Warum es musikalisch passt (Generator-Logik)</h3><ul>
@@ -584,8 +595,20 @@ $("t-research").innerHTML=`
 <li><b>Lead:</b> ein Motiv (Rhythmus + Kontur), pro Takt auf den Akkordgrundton transponiert; Anfang und Ende auf Akkordtönen; Takt 4 = Antwort (rückwärts) mit Auflösung auf die Tonika. Per Seed reproduzierbar.</li>
 <li><b>Chord-Part:</b> Dreiklang entsteht aus der Skala (Moll/Dur/vermindert je Stufe). Am EMX ist der Chord-Typ ein Oszillator-Parameter – bei Wechsel Moll↔Dur den Typ per Motion/Hand umstellen (Step-Sheet nennt ihn pro Takt).</li>
 <li><b>Rhythmus:</b> Hauptkick auf jedem Viertel, Open Hat nur auf Offbeats, Clap auf 2 und 4, Fill/Roll am Phrasenende (Takt 4/8), Riser vor dem Drop, Impact auf der Eins.</li></ul></div>
+<div class="card"><h3>EMX-1 laut sequencer.de (Moogulator)</h3><ul>
+<li>5 monophone Synth-Spuren, 9 Drum-Spuren, 128 Steps (8 Takte), bis zu 24 Motion Sequences (aufgezeichnete Knopfbewegungen).</li>
+<li>207 Drum- und Lead-Sounds als PCM, keine eigenen Samples. Oszillatoren: VPM, Unison, Chord, PCM, Waveshape (ein Osz formt den anderen), Comb, Additiv, 76 Synth-Wellen, je 2 Echtzeit-Parameter.</li>
+<li>Multimode-Filter LPF, HPF, BPF, BPF+ mit Resonanz, LFO (auf BPM synchronisierbar), EG, Röhrenstufe als Master-Effekt.</li>
+<li>3 FX seriell oder parallel, darunter ein Talking Modulator und eine Grain-Maschine. Accent und Swing pro Part abschaltbar. 2 Einzelausgänge. Arpeggiator über Ribbon und Slider steuerbar. BPM-Erkennung für Audio In.</li>
+<li>OS 1.02 ist die letzte Version (Bugfixes). Version prüfen: Shift + Pattern-Taste beim Einschalten halten.</li>
+<li><b>Hi-Hat aus dem Synth:</b> Unison mit 6 Saw, Parameter 1 (Detune) auf Maximum, zweite Osz-Tonhöhe auf 0, Filter HPF, Drive und Resonanz auf 11 Uhr, Cutoff und EG Int auf 14 Uhr, EG auf fallende Kurve (nicht Gate), Decay nach Geschmack. Im Random-Tab als „Synth-Hat-Rezept“ hinterlegt.</li>
+<li><b>Röhren:</b> Moogulator meint, zwei ECC83 von RFT (deutsche Röhren) klingen schöner als die verbauten Electro-Harmonix. Das ist eine Höreinschätzung, keine Messung.</li></ul></div>
+<div class="card"><h3>RFT-Record (Berlin)</h3><ul>
+<li>Laut Forum-Thread auf usb.unitedsb.de: „RFT-Record presents: Kontrollverlust“ am 03.10.2008 in der Zelle, Wiesenweg 5–9, 10365 Berlin. Hardtechno + Hardtekk, 22 Uhr bis Open End, 5 Euro, www.rft-record.com.</li>
+<li>Timetable: Metzka Live, Insane, Pat Sanders Live, White Fear Live, Psycho (Tonica Records), Hc_tur, Syko Dad Live, Dj Boxbeat, Raspercasper Live.</li>
+<li>Viele Live-Acts: genau der Kontext, in dem Groove-Boxen wie die Electribe live gespielt werden. Der Random-Stil „RFT Hardtekk“ bildet den rollenden Offbeat-Bass-Groove ab, Tempo 165–175 BPM.</li></ul></div>
 <div class="card"><h3>Ausgewertet: EMX-Sample-Pack „50tube“ (Beispiel)</h3><ul>
-<li>207 Stereo-WAVs, 44,1 kHz, 16 Bit, zusammen 80 s. Reihenfolge: ca. 1–40 Kicks, 41 langer Sub-Ton, 42–90 Snare/Clap/Perc, 91–130 Hats/Becken, 131–207 Toms und tiefe Percussion.</li>
+<li>207 Stereo-WAVs, 44,1 kHz, 16 Bit, zusammen 80 s. Die Zahl 207 entspricht genau den PCM-Sounds der EMX laut sequencer.de: das Pack ist sehr wahrscheinlich der EMX-Sound-Satz. Reihenfolge: ca. 1–40 Kicks, 41 langer Sub-Ton, 42–90 Snare/Clap/Perc, 91–130 Hats/Becken, 131–207 Toms und tiefe Percussion.</li>
 <li>Die Kicks haben ihren Schwerpunkt bei 35–75 Hz und mehr als 95 % Energie unter 120 Hz. Viele liegen bei ca. 50 Hz und damit im Szene-Fenster. Sie lassen sich im Sample-Lab auf den Grundton stimmen.</li>
 <li>Das Sample-Lab klassifiziert nach Länge, Spektrum und Tonhöhe, baut ein Kit und exportiert es ESX-fertig (mono, 44,1 kHz, 5-ms-Fade, −1 dBFS, 8.3-Namen).</li>
 <li>Installer „EMX1Config 3.01“ (Freeware von PhiLiZound Software, www.philizound.co.uk): nur der Installer-Header wurde gelesen, nicht ausgeführt, die Funktion des Programms ist daher nicht geprüft.</li></ul></div>
@@ -829,7 +852,8 @@ function buildLab(){
     t.innerHTML=`<div class="warn">Die Samples werden nur im Browser analysiert und nicht hochgeladen. Pack-Rechte liegen beim jeweiligen Autor – lade nur Material, das du nutzen darfst.</div>
     <div class="card"><h3>Samples laden</h3><div class="row"><input id="lab-file" type="file" multiple accept=".zip,.wav,.flac,.mp3,.ogg"><span id="lab-stat" style="color:var(--dim)">Noch nichts geladen.</span></div>
     <div id="lab-drop" style="border:1px dashed var(--line);padding:14px;text-align:center;color:var(--dim)">ZIP oder WAV-Dateien hierher ziehen</div>
-    <div style="color:var(--dim);margin-top:6px">Gemessen werden Länge, Tail, Spektrum, Stereobreite und Tonhöhe. Daraus entsteht die Klasse (Kick, Hat, Snare/Clap/Perc …).</div></div>
+    <div style="color:var(--dim);margin-top:6px">Gemessen werden Länge, Tail, Spektrum, Stereobreite und Tonhöhe. Daraus entsteht die Klasse (Kick, Hat, Snare/Clap/Perc …). Ein Pack mit genau 207 nummerierten Dateien entspricht vermutlich den 207 PCM-Sounds der EMX (laut sequencer.de): die Dateinummer wird dann als PCM-Nummer angezeigt, mit Fragezeichen, bis du sie am Gerät gegengehört hast.</div></div>
+    <div class="card" id="ed-card" hidden></div>
     <div class="card"><h3>Kit</h3><div id="lab-kit"></div>
     <div class="row"><button id="lab-auto">Auto-Kit</button><button id="lab-clr">Kit leeren</button><label><input type="checkbox" id="lab-tune" checked> Kick auf Grundton stimmen</label><button id="lab-exp">⬇ Kit (ZIP)</button><button id="lab-exp2">⬇ Sichtbare (ZIP)</button></div>
     <div style="color:var(--dim)">Zugewiesene Samples ersetzen in der Pattern-Vorschau (Play) die Synth-Klänge. Synth-Parts werden auf die Pattern-Noten umgestimmt, wenn die Tonhöhe sicher erkannt wurde.</div></div>
@@ -839,20 +863,20 @@ function buildLab(){
     $("lab-auto").onclick=autoKit;$("lab-clr").onclick=()=>{Object.keys(sampAssign).forEach(k=>delete sampAssign[k]);renderLab()};
     $("lab-tune").onchange=e=>{sampTune=e.target.checked;renderLab();if(typeof runCheck==="function")runCheck()};
     $("lab-exp").onclick=exportKit;$("lab-exp2").onclick=exportVisible;
-    $("lab-table").addEventListener("click",e=>{const b=e.target.closest("[data-pl]");if(b)audition(LAB.items[+b.dataset.pl])});
+    $("lab-table").addEventListener("click",e=>{const b=e.target.closest("[data-pl]");if(b)audition(LAB.items[+b.dataset.pl]);const ed=e.target.closest("[data-ed]");if(ed)edOpen(LAB.items[+ed.dataset.ed])});
     $("lab-table").addEventListener("change",e=>{const s=e.target.closest("[data-as]");if(!s)return;const it=LAB.items[+s.dataset.as];Object.keys(sampAssign).forEach(k=>{if(sampAssign[k]===it)delete sampAssign[k]});if(s.value)sampAssign[s.value]=it;renderLab();if(typeof runCheck==="function")runCheck()});
     $("lab-filter").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(b){LAB.filter=b.dataset.f;renderLab()}});
     $("lab-filter").addEventListener("change",e=>{if(e.target.id==="lab-sort"){LAB.sort=e.target.value;renderLab()}})}
   renderLab()}
 function renderLab(){
   if(!LAB.built)return;
-  $("lab-kit").innerHTML=Object.keys(sampAssign).length?"<table>"+PARTS.filter(p=>sampAssign[p.id]).map(p=>{const it=sampAssign[p.id],r=tuneRate(p.id,it);return`<tr><td>${p.name}</td><td>${it.name} <span class="tag">${it.cls}</span></td><td>${it.hz?it.hz.toFixed(1)+" Hz ("+nn(Math.round(it.midi))+")":"–"}${r!==1?` <span class="tag v">gestimmt → ${kickTarget().hz.toFixed(1)} Hz</span>`:""}</td></tr>`}).join("")+"</table>":'<span style="color:var(--dim)">Leer. „Auto-Kit“ wählt passende Samples nach Tonart, Tail und Klasse.</span>';
+  $("lab-kit").innerHTML=Object.keys(sampAssign).length?"<table>"+PARTS.filter(p=>sampAssign[p.id]).map(p=>{const it=sampAssign[p.id],r=tuneRate(p.id,it);return`<tr><td>${p.name}</td><td>${it.name} <span class="tag">${it.cls}</span>${pcmNo(it)?` <span class="tag v">am EMX: PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.hz?it.hz.toFixed(1)+" Hz ("+nn(Math.round(it.midi))+")":"–"}${r!==1?` <span class="tag v">gestimmt → ${kickTarget().hz.toFixed(1)} Hz</span>`:""}</td></tr>`}).join("")+"</table>":'<span style="color:var(--dim)">Leer. „Auto-Kit“ wählt passende Samples nach Tonart, Tail und Klasse.</span>';
   const cls=["Alle",...Object.keys(CLSN)],cnt=c=>c==="Alle"?LAB.items.length:LAB.items.filter(i=>i.cls===c).length;
   $("lab-filter").innerHTML=cls.map(c=>`<button data-f="${c}" class="${LAB.filter===c?"on":""}">${c} ${cnt(c)}</button>`).join("")+`<label>Sortierung <select id="lab-sort">${[["name","Reihenfolge"],["kick","Kick-Passung"],["dur","Länge"],["bright","Helligkeit"],["rft","RFT-Score (Kicks)"]].map(([v,n])=>`<option value="${v}" ${LAB.sort===v?"selected":""}>${n}</option>`).join("")}</select></label>`;
   const v=visibleItems(),tg=kickTarget().hz;
   $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Klick</th><th>RFT</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
     const c=(it.cls==="Kick"||it.cls==="Sub")?centsToKick(it):null,okc=c!==null&&Math.abs(c)<=35,conf=it.pr>=.6?"":' <span class="tag u">unsicher</span>';
-    return`<tr><td><button data-pl="${it.id}">▶</button></td><td>${it.name}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
+    return`<tr><td><button data-pl="${it.id}">▶</button> <button data-ed="${it.id}" title="Im Sample-Editor öffnen">✎</button></td><td>${it.name}${pcmNo(it)?` <span class="tag">PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
 function playSample(p,sa,i,t,out){
   const s=ac.createBufferSource();s.buffer=sa.buf;let rate=1;
   if(p.id==="D1")rate=tuneRate("D1",sa);else if(p.kind==="syn"&&sa.hz&&sa.pr>=.5){rate=Math.pow(2,(S.notes[p.id][i]-sa.midi)/12);if(rate<.25||rate>4)rate=1}
@@ -1009,6 +1033,149 @@ function renderRft(){
    rows.map(r=>`<tr${r[6]?' style="color:var(--hot)"':""}><td>${r[0]}</td><td>${r[1].toFixed(1)}</td><td>${r[2].toFixed(1)}</td><td>${Math.round(r[3])}</td><td>${r[4].toFixed(1)}</td><td>${r[5].toFixed(1)}</td></tr>`).join("")+
    `<tr><th>Spanne</th><th>${st(1)}</th><th>${st(2)}</th><th>${st(3)}</th><th>${st(4)}</th><th>${st(5)}</th></tr></table></div>
    <div style="color:var(--dim);margin-top:6px">Szene-Messwerte stammen aus dem Hardtekk-Skill (acht Tracks, lauteste 30 s). Zwei Tempo-Lager: 155–175 und ca. 190 BPM.</div></div>`}
+
+
+/* ============ Random Pattern Builder ============ */
+const rep4=a=>[...a,...a,...a,...a];
+const RBASE={D1:[1,rep4([1,0,0,0])],D2:[.9,rep4([0,0,1,0])],D3:[.15,rep4([0,0,.3,.6])],D4:[.85,rep4([.5,1,.8,1])],D5:[.35,rep4([0,.8,.3,.9])],D6:[.5,rep4([1,0,0,0])],D7:[.6,rep4([0,0,1,0])],
+  D8:[.9,[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]],D9:[.1,rep4([0,0,.4,1])],S1:[.9,rep4([0,0,1,0])],S2:[.5,rep4([.2,.6,.8,.7])],S3:[.3,null],S4:[.15,null],S5:[.15,null]};
+const RSTYLES={
+  rft:{n:"RFT Hardtekk (rollend, Offbeat-Bass)",bpm:[165,175],p:{}},
+  ost:{n:"Osttekk (dichter, 16tel-Bass)",bpm:[168,182],p:{S1:[.95,rep4([0,.5,1,.5])],D4:[.95,rep4([.6,1,.9,1])],D5:[.45,rep4([.1,.9,.3,.9])]}},
+  hart:{n:"Hardtechno / Schranz (perkussiv)",bpm:[150,158],p:{D2:[.1,rep4([0,0,1,0])],D3:[.2,rep4([0,.3,0,.5])],D4:[.9,rep4([.6,1,.9,1])],D5:[.75,rep4([.2,1,.6,1])],D8:[.6,[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]],S1:[.25,rep4([0,0,1,0])],S2:[.15,rep4([.1,.5,.6,.5])],S3:[0,null],S4:[0,null]}},
+  min:{n:"Minimal-Tekk (sparsam)",bpm:[160,170],p:{D4:[.45,rep4([.2,.6,.5,.6])],D5:[.2,rep4([0,.7,.2,.7])],D6:[.3,rep4([1,0,0,0])],D7:[.4,rep4([0,0,1,0])],D8:[.5,[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]],S2:[.25,rep4([.1,.5,.6,.5])],S3:[.15,null],S4:[.1,null]}},
+  chaos:{n:"Chaos (alles erlaubt, Regeln bleiben)",bpm:[155,190],p:{D3:[.5,rep4([.5,.5,.5,.5])],D4:[.6,rep4([.5,.5,.5,.5])],D5:[.6,rep4([.5,.5,.5,.5])],D9:[.4,rep4([.5,.5,.5,.5])],S2:[.6,rep4([.5,.5,.5,.5])]}}};
+const stylePart=(st,id)=>RSTYLES[st].p[id]||RBASE[id];
+const RND={style:"rft",dens:{},lock:{D1:false},chaos:15,fills:true,tempo:false,vary:15,built:false};
+function rDefaults(){PARTS.filter(p=>p.kind!=="acc").forEach(p=>RND.dens[p.id]=Math.round(stylePart(RND.style,p.id)[0]*100))}
+function rConstraints(){for(let i=0;i<MAXSTEPS;i++){if(S.steps.D6[i]&&S.steps.D7[i])S.steps.D6[i]=0;if(S.steps.S1[i]&&S.steps.D1[i])S.steps.S1[i]=0;S.steps.AC[i]=S.steps.D1[i]&&i%4===0?1:0}}
+function rBuild(only){
+  snap();const n=nSteps(),seed=S.seed*7919+(only?only.charCodeAt(1)*31+only.charCodeAt(0):0)+RND.style.length*101,rng=mulberry(seed),rnd=a=>rng()<a,pick=a=>a[Math.floor(rng()*a.length)],c=RND.chaos/100;
+  const parts=PARTS.filter(p=>p.kind!=="acc"&&!RND.lock[p.id]&&(!only||p.id===only));parts.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});
+  const on=id=>parts.some(p=>p.id===id),dens=id=>(RND.dens[id]??0)/100,cd=b=>S.prog[b%4],isB=b=>b%4===3||b===S.bars-1;
+  const prob=(id,s)=>{const w=stylePart(RND.style,id)[1];if(!w)return 0;if(id==="D1")return w[s]?dens(id):0;return Math.min(1,((1-c)*w[s]+c*.5)*dens(id)*1.15)};
+  // Drums: Takt A, Variante B (Phrasenende) – wiederholte Struktur statt Zufall pro Takt
+  ["D1","D2","D3","D4","D5","D6","D7","D8","D9"].filter(on).forEach(id=>{
+    const A=[],B=[];for(let s=0;s<16;s++)A[s]=rnd(prob(id,s))?1:0;for(let s=0;s<16;s++)B[s]=(id!=="D1"&&rnd(.2+c*.3))?(rnd(prob(id,s))?1:0):A[s];
+    for(let b=0;b<S.bars;b++)for(let s=0;s<16;s++){let v=isB(b)?B[s]:A[s];
+      if(RND.fills&&isB(b)&&s>=12){if(id==="D3"&&rnd(.8))v=1;if(id==="D9"&&s>=14)v=1}
+      S.steps[id][b*16+s]=v}});
+  // Bass: Offbeat-Raster, folgt dem Akkordgrundton, Phrasenende Quinte
+  if(on("S1")){const A=[];for(let s=0;s<16;s++)A[s]=rnd(prob("S1",s))?1:0;
+    for(let b=0;b<S.bars;b++)for(let s=0;s<16;s++)if(A[s]){let d=cd(b);if(s===14&&b%4===3)d=4;let bn=degNote(bassBase(),d);if(bn-bassBase()>=8)bn-=12;S.steps.S1[b*16+s]=1;S.notes.S1[b*16+s]=bn}}
+  // Lead: Motiv (Rhythmus aus Stil-Gewichten, Kontur als Zufallsweg), Antwort im 4. Takt mit Auflösung auf die Tonika
+  if(on("S2")&&dens("S2")>0){let hits=[];for(let s=0;s<16;s++)if(rnd(prob("S2",s)))hits.push(s);
+    if(hits.length<3){const w=stylePart(RND.style,"S2")[1].map((v,s)=>[v+rng()*.3,s]).sort((a,b)=>b[0]-a[0]);hits=[...new Set(hits.concat(w.slice(0,3).map(x=>x[1])))].sort((a,b)=>a-b)}
+    if(hits.length>7)hits=hits.filter((_,i)=>i%2===0||i===hits.length-1);
+    const ct=o=>[0,2,4].reduce((a,x)=>Math.abs(x-o)<Math.abs(a-o)?x:a,0);let off=pick([0,2,4]);const mot=hits.map((s,j)=>{if(j)off=Math.max(-2,Math.min(6,off+pick([-2,-1,-1,0,1,1,2])));return{s,off}});
+    mot[0].off=ct(mot[0].off);mot[mot.length-1].off=ct(mot[mot.length-1].off);
+    for(let b=0;b<S.bars;b++)mot.forEach((m,j)=>{const ans=b%4===3;let d=cd(b)+(ans?mot[mot.length-1-j].off:m.off);if(ans&&j===mot.length-1)d=0;S.steps.S2[b*16+m.s]=1;S.notes.S2[b*16+m.s]=degNote(leadBase(),d)})}
+  if(on("S3")&&rnd(dens("S3")*1.5))for(let b=0;b<S.bars;b++){S.steps.S3[b*16]=1;S.notes.S3[b*16]=degNote(chordBase(),cd(b))}
+  if(on("S4"))for(let b=0;b<S.bars;b++)for(const s of [4,12])if(rnd(dens("S4")*1.5)){S.steps.S4[b*16+s]=1;S.notes.S4[b*16+s]=degNote(leadBase(),cd(b)+pick([0,2,4]))}
+  if(on("S5")){for(let b=0;b<S.bars;b++)if(rnd(dens("S5"))){S.steps.S5[b*16]=1;S.notes.S5[b*16]=leadBase()}
+    if(RND.fills&&dens("S5")>0)for(let i=Math.max(0,n-32);i<n;i+=4){S.steps.S5[i]=1;S.notes.S5[i]=leadBase()}}
+  rConstraints();
+  if(RND.tempo&&!only){const[a,b]=RSTYLES[RND.style].bpm;$("bpm").value=Math.round(a+rng()*(b-a));applyFx()}
+  buildGrid();renderMotionList();drawMotion()}
+function rVary(){
+  snap();const rng=mulberry((S.seed^0x5bd1)+Date.now()%100000),rnd=a=>rng()<a,pr=RND.vary/100,n=nSteps();
+  PARTS.filter(p=>p.kind==="drum"&&p.id!=="D1"&&!RND.lock[p.id]).forEach(p=>{const w=stylePart(RND.style,p.id)[1];if(!w)return;for(let i=0;i<n;i++)if(rnd(pr))S.steps[p.id][i]=rnd(w[i%16]*(RND.dens[p.id]/100)+.05)?1:0});
+  if(!RND.lock.S2)for(let i=0;i<n;i++)if(S.steps.S2[i]&&rnd(pr)){const v=iv7(),cur=S.notes.S2[i],cand=[];for(let m=leadBase()-2;m<=leadBase()+14;m++)if(inKey(m)&&Math.abs(m-cur)<=4&&m!==cur)cand.push(m);if(cand.length)S.notes.S2[i]=cand[Math.floor(rng()*cand.length)]}
+  rConstraints();buildGrid()}
+function buildRandom(){
+  const t=$("t-rnd");if(!RND.built){RND.built=true;rDefaults();
+    t.innerHTML=`<div class="warn">Würfelt nach Stil-Gewichten, hält aber die Regeln ein: Kick 4/4, Bass nie auf der Hauptkick, Open und Closed Hat nie gleichzeitig, alle Noten in Tonart und Akkordfolge. Takte wiederholen sich (A A A B) statt pro Takt neu zu würfeln, das klingt nach Track statt nach Zufall. Gesperrte Parts bleiben unverändert.</div>
+    <div class="card"><h3>Würfeln</h3><div class="row"><label>Stil <select id="r-style">${Object.entries(RSTYLES).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join("")}</select></label>
+    <label>Chaos <input id="r-chaos" type="range" min="0" max="100" value="${RND.chaos}"> <span id="r-chaos-v">${RND.chaos}</span></label>
+    <label><input id="r-fills" type="checkbox" checked> Fills am Phrasenende</label><label><input id="r-tempo" type="checkbox"> Tempo aus Stil würfeln</label></div>
+    <div class="row"><button id="r-go" class="on">🎲 Pattern würfeln</button><button id="r-seed">Neuer Seed + würfeln</button><label>Variation % <input id="r-vary" type="number" min="1" max="60" value="${RND.vary}" style="width:60px"></label><button id="r-var">Variieren</button><button id="r-play">▶ Anhören</button><span style="color:var(--dim)">Seed oben im Pattern-Tab, Undo mit Strg+Z</span></div></div>
+    <div class="card"><h3>Parts</h3><div id="r-parts"></div></div>
+    <div class="card"><h3>Patch-Würfel (Synth 1–5)</h3><div style="color:var(--dim)">Startwerte für die EMX-Synth-Parts, passend zur Rolle. Uhrzeit = Knopfstellung (7:00 = links, 17:00 = rechts). Parameternamen sinngemäß, am Gerät gegenhören. „In Vorschau“ überträgt Filter, Resonanz, Drive und Wellenform in die Pattern-Vorschau.</div>
+    <div class="row"><button id="p-all">Alle 5 würfeln</button><button id="p-hat">Synth-Hat-Rezept auf S5</button><button id="p-clr">Vorschau-Patches zurücksetzen</button></div><div id="p-out"></div></div>`;
+    $("r-style").onchange=e=>{RND.style=e.target.value;rDefaults();renderRParts()};
+    $("r-chaos").oninput=e=>{RND.chaos=+e.target.value;$("r-chaos-v").textContent=e.target.value};
+    $("r-fills").onchange=e=>RND.fills=e.target.checked;$("r-tempo").onchange=e=>RND.tempo=e.target.checked;
+    $("r-vary").onchange=e=>RND.vary=+e.target.value;
+    $("r-go").onclick=()=>rBuild();$("r-seed").onclick=()=>{S.seed=Math.floor(Math.random()*1e6);$("seed").value=S.seed;rBuild()};
+    $("r-var").onclick=rVary;$("r-play").onclick=()=>{if(!playing)$("play").click()};
+    $("r-parts").addEventListener("input",e=>{const d=e.target.dataset;if(d.rd){RND.dens[d.rd]=+e.target.value;$("rdv-"+d.rd).textContent=e.target.value}});
+    $("r-parts").addEventListener("change",e=>{const d=e.target.dataset;if(d.rl)RND.lock[d.rl]=e.target.checked});
+    $("r-parts").addEventListener("click",e=>{const b=e.target.closest("[data-r1]");if(b)rBuild(b.dataset.r1)});
+    $("p-all").onclick=()=>{["S1","S2","S3","S4","S5"].forEach(id=>S.patchSheet[id]=rollPatch(id));renderPatches()};
+    $("p-hat").onclick=()=>{S.patchSheet.S5=HAT_PATCH();renderPatches()};
+    $("p-clr").onclick=()=>{S.patch={};renderPatches()};
+    $("p-out").addEventListener("click",e=>{const r=e.target.closest("[data-pr]"),a=e.target.closest("[data-pa]");if(r){S.patchSheet[r.dataset.pr]=rollPatch(r.dataset.pr);renderPatches()}if(a){S.patch[a.dataset.pa]=S.patchSheet[a.dataset.pa];renderPatches()}})}
+  $("r-style").value=RND.style;renderRParts();renderPatches()}
+function renderRParts(){
+  $("r-parts").innerHTML="<table><tr><th>Part</th><th>Sperren</th><th>Dichte</th><th></th></tr>"+PARTS.filter(p=>p.kind!=="acc").map(p=>`<tr><td>${p.name}</td><td><input type="checkbox" data-rl="${p.id}" ${RND.lock[p.id]?"checked":""}></td><td><input type="range" min="0" max="100" value="${RND.dens[p.id]}" data-rd="${p.id}" style="width:140px"> <span id="rdv-${p.id}">${RND.dens[p.id]}</span></td><td><button data-r1="${p.id}">nur diesen würfeln</button></td></tr>`).join("")+"</table>"}
+/* ---- Patch-Würfel ---- */
+const PROLES={
+  S1:{n:"Bass",osc:["Saw","Square","VPM","Waveshape"],flt:["LPF"],cut:[25,60],res:[40,90],egi:[40,90],drv:[60,127],att:[0,6],dec:[20,60],lfo:[0,40],fx:"kein FX"},
+  S2:{n:"Screech / Acid",osc:["Saw","Square","VPM","Waveshape","Ring-Mod"],flt:["BPF+","BPF","LPF"],cut:[55,110],res:[80,120],egi:[50,110],drv:[60,127],att:[0,8],dec:[25,70],lfo:[0,60],fx:"FX2 (BPM Delay 3/16)"},
+  S3:{n:"Chord / Layer",osc:["Chord","Unison","Saw"],flt:["LPF"],cut:[45,90],res:[10,50],egi:[10,50],drv:[0,60],att:[0,50],dec:[70,127],lfo:[10,50],fx:"FX2 + FX3"},
+  S4:{n:"Voice / Formant",osc:["Formant","VPM","Additive"],flt:["BPF","BPF+"],cut:[50,95],res:[50,100],egi:[20,70],drv:[20,80],att:[5,40],dec:[50,110],lfo:[20,80],fx:"Talking Modulator oder FX2"},
+  S5:{n:"Noise / FX",osc:["PCM-Welle","Ring-Mod","Cross-Mod"],flt:["HPF","BPF"],cut:[40,110],res:[30,100],egi:[30,110],drv:[30,110],att:[0,60],dec:[40,127],lfo:[30,100],fx:"FX3 (Reverb / Grain)"}};
+const WAVEOF={Saw:"sawtooth",Square:"square",VPM:"square",Waveshape:"sawtooth","Ring-Mod":"square",Chord:"sawtooth",Unison:"sawtooth",Formant:"sawtooth",Additive:"triangle","PCM-Welle":"sawtooth","Cross-Mod":"square"};
+function clockOf(v){const m=Math.round((7*60+v/127*600)/15)*15;return`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`}
+function rollPatch(id){const r=PROLES[id],rng=mulberry(Math.floor(Math.random()*1e9)),R=([a,b])=>Math.round(a+rng()*(b-a)),pick=a=>a[Math.floor(rng()*a.length)],osc=pick(r.osc);
+  return{role:r.n,osc,e1:R([0,127]),e2:R([0,127]),flt:pick(r.flt),cut:R(r.cut),res:R(r.res),egi:R(r.egi),drv:R(r.drv),att:R(r.att),dec:R(r.dec),lfo:R(r.lfo),lspd:R([20,100]),fx:r.fx,wave:WAVEOF[osc]||"sawtooth"}}
+/* Hi-Hat-Rezept nach sequencer.de (Moogulator): Unison 6 Saw, Edit 1 (Detune) max, OSC2-Pitch 0, HPF, Drive und Resonanz 11 Uhr, Cutoff und EG Int 14 Uhr, EG fallend, Decay nach Geschmack */
+const HAT_PATCH=()=>({role:"Synth-Hat (Rezept sequencer.de)",osc:"Unison (6 Saw)",e1:127,e2:0,flt:"HPF",cut:89,res:51,egi:89,drv:51,att:0,dec:30,lfo:0,lspd:0,fx:"FX1 (Short Delay)",wave:"sawtooth",uni:true,note:"EG auf fallende Kurve (nicht Gate), Decay nach Geschmack. OSC2-Pitch auf 0."});
+function renderPatches(){
+  const rows=[["Oszillator","osc"],["Edit 1","e1"],["Edit 2","e2"],["Filter","flt"],["Cutoff","cut"],["Resonanz","res"],["EG Int","egi"],["Drive","drv"],["Attack","att"],["Decay","dec"],["LFO-Tiefe","lfo"],["LFO-Speed","lspd"],["FX","fx"]];
+  $("p-out").innerHTML='<div class="row" style="align-items:flex-start">'+["S1","S2","S3","S4","S5"].map(id=>{const P=S.patchSheet[id];const act=S.patch[id]===P&&P;
+    return`<div class="card" style="flex:1;min-width:210px;margin:4px 0"><h3>${id} · ${P?P.role:PROLES[id].n}</h3>${P?"<table>"+rows.map(([n,k])=>`<tr><td>${n}</td><td>${typeof P[k]==="number"?`${P[k]} <span style="color:var(--dim)">(${clockOf(P[k])})</span>`:P[k]}</td></tr>`).join("")+"</table>"+(P.note?`<div style="color:var(--dim);font-size:12px">${P.note}</div>`:""):'<span style="color:var(--dim)">noch nicht gewürfelt</span>'}
+    <div class="row"><button data-pr="${id}">🎲</button>${P?`<button data-pa="${id}" class="${act?"on":""}">${act?"✓ in Vorschau":"In Vorschau"}</button>`:""}</div></div>`}).join("")+"</div>"}
+
+/* ============ Sample-Editor (Transienten, Schnitt, Fades) ============ */
+const ED={it:null,start:0,end:0,fin:0.5,fout:10,curve:"exp",att:0,punch:0,click:0,semi:0,rev:false,norm:true,zc:true,drag:null};
+function edMono(it){const ab=it.buf,L=ab.length,nc=ab.numberOfChannels,m=new Float32Array(L);for(let c=0;c<nc;c++){const d=ab.getChannelData(c);for(let i=0;i<L;i++)m[i]+=d[i]/nc}return{m,sr:ab.sampleRate}}
+function zcSnap(x,i,w){for(let d=0;d<w;d++){const a=i+d,b=i-d;if(a>0&&a<x.length&&x[a-1]<=0&&x[a]>0)return a;if(b>0&&b<x.length&&x[b-1]<=0&&x[b]>0)return b}return i}
+function edProcess(it,P){
+  const{m,sr}=edMono(it),rate=Math.pow(2,P.semi/12),step=rate*sr/SR,n0=Math.max(2,Math.floor((m.length-1)/step)),x=new Float32Array(n0);
+  for(let i=0;i<n0;i++){const p=i*step,j=Math.floor(p),f=p-j;x[i]=m[j]*(1-f)+(m[j+1]||0)*f}
+  let s=Math.max(0,Math.min(n0-2,Math.round(P.start/1000*SR))),e=Math.max(s+2,Math.min(n0,Math.round(P.end/1000*SR*1)));
+  if(P.zc){s=zcSnap(x,s,Math.floor(.005*SR));e=Math.max(s+2,zcSnap(x,e,Math.floor(.005*SR)))}
+  let y=x.slice(s,e);if(P.rev)y.reverse();const N=y.length;
+  const ga=Math.pow(10,P.att/20),gp=Math.pow(10,P.punch/20);let prev=0;
+  for(let i=0;i<N;i++){const t=i/SR;let g=1+(ga-1)*Math.exp(-t/0.004);
+    if(t>=.015&&t<=.07){const u=(t-.015)/.055;g*=1+(gp-1)*0.5*(1-Math.cos(2*Math.PI*u))}
+    const d=y[i]-prev;prev=y[i];y[i]=y[i]*g+(t<.008?P.click*4*d*Math.exp(-t/.002):0)}
+  const fi=Math.min(N,Math.round(P.fin/1000*SR)),fo=Math.min(N,Math.round(P.fout/1000*SR)),cv=u=>P.curve==="exp"?u*u:u;
+  for(let i=0;i<fi;i++)y[i]*=cv(i/fi);for(let i=0;i<fo;i++)y[N-1-i]*=cv(i/fo);
+  let pk=0;for(const v of y)pk=Math.max(pk,Math.abs(v));const g=P.norm?Math.pow(10,-1/20)/(pk||1):(pk>1?1/pk:1);for(let i=0;i<N;i++)y[i]*=g;return y}
+function edBuf(f){const b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);return b}
+function edOpen(it){initAudio();Object.assign(ED,{it,start:0,end:Math.round(it.buf.duration*1000),fin:.5,fout:10,att:0,punch:0,click:0,semi:0,rev:false});renderEd();$("ed-card").scrollIntoView({block:"nearest"})}
+function renderEd(){
+  const c=$("ed-card");if(!ED.it){c.hidden=true;return}c.hidden=false;
+  const inp=(k,l,a,b,st)=>`<label>${l} <input type="number" data-ek="${k}" min="${a}" max="${b}" step="${st}" value="${ED[k]}" style="width:78px"></label>`;
+  c.innerHTML=`<h3>Sample-Editor · ${ED.it.name} <span class="tag">${ED.it.cls}</span>${pcmNo(ED.it)?` <span class="tag">EMX-PCM ${pcmNo(ED.it)}?</span>`:""}</h3>
+  <canvas id="ed-cv" width="1100" height="150" style="height:150px"></canvas><div style="color:var(--dim);font-size:12px">Ziehen: Start- oder End-Marker verschieben. Grau = Original, rot = bearbeitet.</div>
+  <div class="row"><b style="color:var(--hot)">Schnitt</b>${inp("start","Start ms",0,99999,1)}${inp("end","Ende ms",1,99999,1)}<label><input type="checkbox" data-ec="zc" ${ED.zc?"checked":""}> Nulldurchgang</label><label><input type="checkbox" data-ec="rev" ${ED.rev?"checked":""}> Reverse</label></div>
+  <div class="row"><b style="color:var(--hot)">Fades</b>${inp("fin","Fade-In ms",0,500,.1)}${inp("fout","Fade-Out ms",0,2000,1)}<label>Kurve <select data-es="curve"><option value="exp" ${ED.curve==="exp"?"selected":""}>exponentiell</option><option value="lin" ${ED.curve==="lin"?"selected":""}>linear</option></select></label></div>
+  <div class="row"><b style="color:var(--hot)">Transienten</b>${inp("att","Attack +dB",-12,12,.5)}${inp("punch","Punch +dB",-12,12,.5)}${inp("click","Klick",0,2,.05)}${inp("semi","Pitch HT",-12,12,1)}<label><input type="checkbox" data-ec="norm" ${ED.norm?"checked":""}> Normalisieren −1 dBFS</label></div>
+  <div class="row"><button id="ed-po">▶ Original</button><button id="ed-pe">▶ Bearbeitet</button><button id="ed-save">Als neues Sample in die Bibliothek</button><button id="ed-wav">⬇ WAV</button><button id="ed-x">Schließen</button><span id="ed-info" style="color:var(--dim)"></span></div>`;
+  c.querySelectorAll("[data-ek]").forEach(e=>e.onchange=()=>{ED[e.dataset.ek]=+e.value;edDraw()});
+  c.querySelectorAll("[data-ec]").forEach(e=>e.onchange=()=>{ED[e.dataset.ec]=e.checked;edDraw()});
+  c.querySelectorAll("[data-es]").forEach(e=>e.onchange=()=>{ED[e.dataset.es]=e.value;edDraw()});
+  $("ed-po").onclick=()=>{ac.resume();const s=ac.createBufferSource();s.buffer=ED.it.buf;s.connect(master);s.start()};
+  $("ed-pe").onclick=()=>{ac.resume();const s=ac.createBufferSource();s.buffer=edBuf(edProcess(ED.it,ED));s.connect(master);s.start()};
+  $("ed-wav").onclick=()=>dl((ED.it.name+"_ED").slice(0,8).toUpperCase()+".WAV",wavBytes(edProcess(ED.it,ED)),"audio/wav");
+  $("ed-x").onclick=()=>{ED.it=null;renderEd()};
+  $("ed-save").onclick=()=>{const f=edProcess(ED.it,ED),b=edBuf(f),a=analyzeBuf(b),k=LAB.items.filter(i=>i.name.startsWith(ED.it.name+"-ed")).length+1;LAB.items.push({id:LAB.items.length,name:ED.it.name+"-ed"+k,buf:b,...a});$("ed-info").textContent=`Gespeichert als ${ED.it.name}-ed${k} (${Math.round(f.length/SR*1000)} ms, ${a.cls}${a.hz?", "+a.hz.toFixed(1)+" Hz":""})`;renderLab()};
+  const cv=$("ed-cv");cv.onpointerdown=ev=>{const r=cv.getBoundingClientRect(),ms=(ev.clientX-r.left)/r.width*ED.it.buf.duration*1000;ED.drag=Math.abs(ms-ED.start)<Math.abs(ms-ED.end)?"start":"end";cv.setPointerCapture(ev.pointerId);edMove(ev)};
+  cv.onpointermove=ev=>{if(ED.drag)edMove(ev)};cv.onpointerup=()=>{ED.drag=null;edDraw()};
+  edDraw()}
+function edMove(ev){const cv=$("ed-cv"),r=cv.getBoundingClientRect(),D=ED.it.buf.duration*1000;let ms=Math.round(Math.max(0,Math.min(D,(ev.clientX-r.left)/r.width*D)));
+  if(ED.drag==="start")ED.start=Math.min(ms,ED.end-1);else ED.end=Math.max(ms,ED.start+1);document.querySelector('[data-ek="start"]').value=ED.start;document.querySelector('[data-ek="end"]').value=ED.end;edDraw(true)}
+function edDraw(fast){
+  const cv=$("ed-cv");if(!cv)return;const c=cv.getContext("2d"),W=cv.width,H=cv.height,{m}=edMono(ED.it),D=ED.it.buf.duration*1000;c.fillStyle="#0e0e10";c.fillRect(0,0,W,H);
+  const wave=(x,col,x0,x1)=>{c.strokeStyle=col;c.beginPath();for(let px=x0;px<x1;px++){const i0=Math.floor((px-x0)/(x1-x0)*x.length),i1=Math.max(i0+1,Math.floor((px-x0+1)/(x1-x0)*x.length));let mn=1,mx=-1;for(let i=i0;i<i1&&i<x.length;i++){mn=Math.min(mn,x[i]);mx=Math.max(mx,x[i])}c.moveTo(px,H/2-mx*H/2.2);c.lineTo(px,H/2-mn*H/2.2)}c.stroke()};
+  wave(m,"#3a3a40",0,W);const xs=ED.start/D*W,xe=ED.end/D*W;c.fillStyle="rgba(0,0,0,.55)";c.fillRect(0,0,xs,H);c.fillRect(xe,0,W-xe,H);
+  if(!fast){const y=edProcess(ED.it,ED),len=y.length/SR*1000;wave(y,"#ff3b4e",xs,Math.min(W,xs+len/D*W));$("ed-info").textContent=`Ergebnis: ${Math.round(len)} ms, mono, 44,1 kHz`}
+  c.fillStyle="#e8e6e1";c.fillRect(xs-1,0,2,H);c.fillRect(xe-1,0,2,H);c.font="11px monospace";c.fillText("START",xs+4,12);c.fillText("ENDE",Math.max(0,xe-36),12)}
+/* EMX-PCM-Zuordnung: Pack mit genau 207 nummerierten Dateien = vermutlich die 207 PCM-Sounds der EMX in Gerätereihenfolge */
+function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length;return k===207?+it.name:null}
 
 /* ============ Musik-Check ============ */
 let kmemo=null;
