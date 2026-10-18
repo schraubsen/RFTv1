@@ -399,7 +399,7 @@ function buildSound(){
   <li><b>Alles in einer Tonart:</b> Grundton + Skala (Moll, Phrygisch, Harmonisch Moll …) oben wählbar. Kick wird auf den Grundton gestimmt, Bass folgt der Akkordfolge, Lead ist ein Motiv auf Akkordtönen. Der Musik-Check unter dem Raster prüft das.</li>
   <li><b>Accent hebt an, ducked nicht.</b> Pumpen = FX-Kompressor oder Level-Motion.</li>
   <li><b>Tube Gain ≠ Lautstärke.</b> Gain-Staging: Part-Level 85–110 → Tube Gain → Master → Mixer 0 dB.</li>
-  <li><b>EMX-Filtertypen:</b> LPF, HPF, BPF, BPF+. Comb gibt es nur als Oszillatortyp (Audio In + Comb).</li>
+  <li><b>EMX-Filtertypen:</b> LPF, HPF, BPF, BPF+. Comb ist kein Filter, sondern ein Oszillatortyp (Comb, PCM+Comb, Audio In+Comb).</li>
   <li><b>Tempo Lock an</b>, bevor Pattern gewechselt wird.</li></ul></div>`;
   t.innerHTML=h;
   t.querySelectorAll("[data-lv]").forEach(e=>e.oninput=()=>{const p=PARTS.find(x=>x.id===e.dataset.lv);p.lvl=+e.value;$("lvv-"+p.id).textContent=e.value;if(partGain[p.id])partGain[p.id].gain.value=p.lvl/127});
@@ -654,7 +654,7 @@ $("t-research").innerHTML=`
 <li><b>Melodik:</b> Moll, wenige Töne, Screech-Lead mit offenem Filter, Cutoff live gefahren.</li></ul></div>
 <div class="card"><h3>EMX-1: belegte Fakten</h3><ul>
 <li>MMT-Synthese mit 16 Oszillator-Algorithmen (Analog-Modelle, Additiv, PCM, Chord, Unison, Waveshaping, Formant, VPM, Cross-Mod, Ring-Mod) – <a href="https://www.vintagesynth.com/korg/electribe-mx-emx-1" style="color:var(--hot)">vintagesynth</a>, <a href="https://www.elektronauts.com/t/korg-electribe-emx-1-sample-pack-by-lostlvls/257356" style="color:var(--hot)">Elektronauts</a></li>
-<li>Filter LPF/HPF/BPF/BPF+, Comb nur als Osz-Typ für Audio In – <a href="https://reverb.com/item/100015572-korg-electribe-mx-emx-1-sd-music-production-station-w-power-supply" style="color:var(--hot)">Reverb-Listing</a></li>
+<li>Filter LPF/HPF/BPF/BPF+, Comb als Osz-Typ (Comb, PCM+Comb, Audio In+Comb), nicht als Filter – <a href="https://reverb.com/item/100015572-korg-electribe-mx-emx-1-sd-music-production-station-w-power-supply" style="color:var(--hot)">Reverb-Listing</a></li>
 <li>5 Synth-, 9 Drum-Parts, bis zu 24 Motion Sequences je Pattern, 3 FX parallel oder seriell – <a href="https://www.zzounds.com/item--KOREMX1" style="color:var(--hot)">zzounds</a></li>
 <li><b>Kein User-Sampling</b> am EMX. Samples/Stimmen müssen von außen kommen (Audio In) oder aus den Werks-PCMs.</li></ul></div>
 <div class="card"><h3>Stimmen – wie wir sie am besten hinbekommen</h3>
@@ -923,9 +923,17 @@ async function loadFiles(list){
     else if(/\.(wav|flac|mp3|ogg|aif|aiff)$/i.test(f.name))files.push({name:f.name,data:new Uint8Array(await f.arrayBuffer())})}
   let ok=0,bad=0;
   for(let i=0;i<files.length;i++){st.textContent=`Analysiere ${i+1}/${files.length} …`;
-    try{const ab=await ac.decodeAudioData(files[i].data.slice().buffer);const a=analyzeBuf(ab);LAB.items.push({id:LAB.items.length,name:files[i].name.replace(/\.[^.]+$/,""),buf:ab,...a});ok++}catch(e){bad++}
+    try{const ab=await ac.decodeAudioData(files[i].data.slice().buffer);const a=analyzeBuf(ab),nm=files[i].name.replace(/\.[^.]+$/,""),tg=nameTag(nm);if(tg){a.clsMeas=a.cls;if(tg.cls)a.cls=tg.cls;a.tag=tg}LAB.items.push({id:LAB.items.length,name:nm,buf:ab,...a});ok++}catch(e){bad++}
     if(i%8===7)await new Promise(r=>setTimeout(r,0))}
   st.textContent=`${ok} Samples geladen${bad?`, ${bad} nicht lesbar`:""}.`;renderLab()}
+const NAME_CLS={BD:"Kick",KCK:"Kick",KICK:"Kick",SD:"Snare/Clap/Perc",SNR:"Snare/Clap/Perc",CP:"Snare/Clap/Perc",CLP:"Snare/Clap/Perc",RS:"Snare/Clap/Perc",RIM:"Snare/Clap/Perc",PC:"Snare/Clap/Perc",PRC:"Snare/Clap/Perc",
+  CH:"Hat",HH:"Hat",OH:"Open-Hat",CY:"Open-Hat",CYM:"Open-Hat",RD:"Open-Hat",RDE:"Open-Hat",CR:"Open-Hat",CRS:"Open-Hat",TM:"Bass/Tom",TOM:"Bass/Tom",SY:"Sonstiges",SYN:"Sonstiges"};
+const NAME_ABBR={Bng:"Bongo",Cng:"Conga",Timb:"Timbale",Clave:"Clave",Clv:"Clave"};
+/* Erkennt Benennungen aus der Szene: „PRC - EMX-1 ([138] Bng-…)“ (Slope ReFill) und „EMX-1 BD-25“ (Vykker). Liefert Kategorie, Quelle und ggf. PCM-Nummer. */
+function nameTag(n){const r={};let m=n.match(/^\s*([A-Za-z]{2,4})\s*-\s*EMX-?1\b/i);if(m&&NAME_CLS[m[1].toUpperCase()]){r.cls=NAME_CLS[m[1].toUpperCase()];r.src="Slope ReFill"}
+  m=n.match(/\[(\d{1,3})\]\s*([A-Za-z]+)?/);if(m){r.pcm=+m[1];if(m[2])r.pcmName=NAME_ABBR[m[2]]||m[2];r.src=r.src||"PCM-Nummer im Namen"}
+  m=n.match(/EMX-?1[\s_-]+([A-Za-z]{2,3})[\s_-]*(\d{1,3})\b/i);if(m&&NAME_CLS[m[1].toUpperCase()]&&!r.cls){r.cls=NAME_CLS[m[1].toUpperCase()];r.src=r.src||"EMX-1-Namensschema"}
+  return r.cls||r.pcm?r:null}
 function partOptions(sel){return'<option value="">–</option>'+PARTS.filter(p=>p.kind!=="acc").map(p=>`<option value="${p.id}" ${sel===p.id?"selected":""}>${p.id}</option>`).join("")}
 function itemPart(it){return Object.keys(sampAssign).find(k=>sampAssign[k]===it)||""}
 function rftScore(it){
@@ -999,7 +1007,7 @@ function renderLab(){
   const v=visibleItems(),tg=kickTarget().hz;
   $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Attack</th><th>Klick</th><th>RFT</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
     const c=(it.cls==="Kick"||it.cls==="Sub")?centsToKick(it):null,okc=c!==null&&Math.abs(c)<=35,conf=it.pr>=.6?"":' <span class="tag u">unsicher</span>';
-    return`<tr><td><button data-pl="${it.id}">▶</button> <button data-ed="${it.id}" title="Im Sample-Editor öffnen">✎</button></td><td>${it.name}${pcmNo(it)?` <span class="tag">PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${it.att?it.att.toFixed(1)+" ms":"–"}${it.clip?` <span class="tag u">Clip ${it.clip}</span>`:""}</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
+    return`<tr><td><button data-pl="${it.id}">▶</button> <button data-ed="${it.id}" title="Im Sample-Editor öffnen">✎</button></td><td>${it.name}${pcmNo(it)?` <span class="tag">PCM ${pcmNo(it)}?</span>`:""}</td><td>${it.cls}${it.tag&&it.tag.cls?` <span class="tag v" title="Kategorie aus dem Dateinamen (${it.tag.src}), Messung sagt: ${it.clsMeas}">Name</span>`:""}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${it.att?it.att.toFixed(1)+" ms":"–"}${it.clip?` <span class="tag u">Clip ${it.clip}</span>`:""}</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
 function playSample(p,sa,i,t,out){
   const s=ac.createBufferSource();s.buffer=sa.buf;let rate=1;
   if(p.id==="D1")rate=tuneRate("D1",sa);else if(p.kind==="syn"&&sa.hz&&sa.pr>=.5){rate=Math.pow(2,(S.notes[p.id][i]-sa.midi)/12);if(rate<.25||rate>4)rate=1}
@@ -1324,7 +1332,7 @@ function edDraw(fast){
 const PCM_NAMES={1:"BD-Dark",4:"BD-Syn1",11:"BD-Syn8",155:"Clave"};
 /* Kategorien laut Dateinamen in Slopes EMX-1-ReFill: [138]–[141] Bongo, [142]–[149] Conga, [150]–[154] Timbale, [155] Clave */
 [138,139,140,141].forEach(n=>PCM_NAMES[n]="Bongo");for(let n=142;n<=149;n++)PCM_NAMES[n]="Conga";for(let n=150;n<=154;n++)PCM_NAMES[n]="Timbale";
-function pcmNo(it){if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length,n=+it.name;return k===207?(PCM_NAMES[n]?n+" "+PCM_NAMES[n]:String(n)):null}
+function pcmNo(it){if(it.tag&&it.tag.pcm)return it.tag.pcm+" "+(PCM_NAMES[it.tag.pcm]||it.tag.pcmName||"");if(!/^\d{1,3}$/.test(it.name))return null;const k=LAB.items.filter(i=>/^\d{1,3}$/.test(i.name)).length,n=+it.name;return k===207?(PCM_NAMES[n]?n+" "+PCM_NAMES[n]:String(n)):null}
 
 
 /* ============ Evolution (Patterns züchten) & Call/Response ============ */
@@ -1577,7 +1585,7 @@ function lowEndLive(){
     const ok=a===20?pd>=65:a===60?pd>=30&&pd<=80:true;return`<tr><td>${n}</td><td>${pd.toFixed(0)} %</td><td>${(100-pd).toFixed(0)} %</td><td><div style="display:flex;height:10px"><div style="width:${pd}%;background:var(--red)"></div><div style="width:${100-pd}%;background:#7fd6ff"></div></div> ${ok?"":'<span class="tag u">'+(a===20?"Sub sollte der Kick gehören":"Bass und Kick unausgewogen")+"</span>"}</td></tr>`}).join("")+"</table>"}
 
 /* ============ EMX-Synth-Emulation (Chaos / Psycho) ============ */
-const OSC_T=["Saw","Square","Triangle","Sine","Wave Form","Dual Osc","Osc Sync","Ring Mod","Cross Mod","VPM","Waveshaper","Unison","Chord","Additive","Formant","Comb","Noise"];
+const OSC_T=["Saw","Square","Triangle","Sine","Wave Form","Dual Osc","Osc Sync","Ring Mod","Cross Mod","VPM","Waveshaper","Unison","Chord","Additive","Formant","Comb","Noise","PCM+Comb","PCM+WS","Audio In+Comb"];
 const CHORDS=[[0,4,7],[0,3,7],[0,5,7],[0,4,7,11],[0,3,7,10],[0,7,12],[0,3,6],[0,4,8]];
 const XS={osc:"VPM",e1:70,e2:40,note:56,flt:"BPF+",cut:80,res:95,egi:60,drv:70,att:2,dec:60,lfoW:"tri",lfoSp:40,lfoD:20,lfoT:"cutoff",len:2,chaos:40,psycho:false,seq:true,built:false};
 const XPRE={"Psycho-Screech":{osc:"VPM",e1:90,e2:55,flt:"BPF+",cut:85,res:110,egi:70,drv:90,att:1,dec:45,lfoW:"sh",lfoSp:70,lfoD:35,lfoT:"cutoff",chaos:55,psycho:false,seq:true},
@@ -1617,9 +1625,12 @@ function xsRender(P){
       case "Chord":{const ch=CHORDS[Math.min(CHORDS.length-1,Math.floor(E1*CHORDS.length))];ch.forEach((iv,k)=>{ph[k]=(ph[k]+dt*Math.pow(2,iv/12))%1;s+=2*ph[k]-1});s/=ch.length*.7;break}
       case "Additive":{ph[0]=(ph[0]+dt)%1;for(let h=1;h<=8;h++){const w=Math.pow(E1*.9+.05,h-1)*(h%2===0?(1-Math.max(0,e2)):1+Math.min(0,e2)*0);s+=w*Math.sin(2*Math.PI*ph[0]*h)}s*=.6;break}
       case "Formant":{ph[0]=(ph[0]+dt)%1;s=2*ph[0]-1;const fr=[300+E1*600,900+E1*1500];const ff=2*Math.sin(Math.PI*Math.min(.45,fr[0]/SR));fl+=ff*fb;const hp=s-fl-fb/3;fb+=ff*hp;s=fb*1.5;break}
-      case "Comb":{ // Rausch-Impuls pro Step in eine gestimmte Kammfilter-Schleife (Karplus-artig), Edit 1 = Rückkopplung, Edit 2 = Dämpfung
-        const dl=Math.max(2,Math.min(cbuf.length-1,Math.round(SR/f))),ex=stepT<SR*.006?(rnd()*2-1):0,rd=(cpos-dl+cbuf.length)%cbuf.length,fbk=.6+E1*.39;
+      case "Comb":case "PCM+Comb":case "Audio In+Comb":{ // Anregung in eine gestimmte Kammfilter-Schleife (Karplus-artig), Edit 1 = Rückkopplung, Edit 2 = Dämpfung
+        // Comb: kurzer Rausch-Impuls · PCM+Comb: Perkussions-Burst als PCM-Ersatz · Audio In+Comb: Dauerrauschen als Ersatz für den Audio-Eingang
+        const dl=Math.max(2,Math.min(cbuf.length-1,Math.round(SR/f))),ex=P.osc==="Comb"?(stepT<SR*.006?(rnd()*2-1):0):P.osc==="PCM+Comb"?(stepT<SR*.05?((rnd()*2-1)*.7+Math.sin(2*Math.PI*180*stepT/SR)*.5)*Math.exp(-stepT/(SR*.012)):0):(rnd()*2-1)*.12,rd=(cpos-dl+cbuf.length)%cbuf.length,fbk=.6+E1*.39;
         clp+=(0.25+(e2+1)*.35)*(cbuf[rd]-clp);const v=ex+clp*fbk;cbuf[cpos]=v;cpos=(cpos+1)%cbuf.length;s=v;break}
+      case "PCM+WS":{ // PCM-Ersatz (Burst + Grundton) durch den Waveshaper, Edit 1 = Formung
+        ph[0]=(ph[0]+dt)%1;const src=(rnd()*2-1)*.6*Math.exp(-stepT/(SR*.03))+.7*Math.sin(2*Math.PI*ph[0]);s=Math.sin(src*(1+E1*6))*.9;break}
       case "Noise":{nz+=(1-E1*.95)*((rnd()*2-1)-nz);s=nz*2;break}}
     // Filter (SVF, BPF+ = zwei Bandpässe in Serie)
     const egEnv=Math.exp(-(stepT/SR)/Math.max(.005,P.dec/127*0.6)),cutHz=Math.min(18000,cut0*Math.pow(2,P.egi/127*5*egEnv+cutOff+(P.lfoT==="cutoff"?lfo*ld*3:0)));
@@ -1631,7 +1642,7 @@ function xsRender(P){
     const at=Math.max(.0005,P.att/127*0.8),dc=Math.max(.01,P.dec/127*(P.seq?0.5:3)),tt=P.seq?stepT/SR:t;amp=tt<at?tt/at:Math.exp(-(tt-at)/dc);
     y[i]=o*amp*(P.lfoT==="amp"?1-ld*(lfo*.5+.5):1)}
   return genFinish(y)}
-const OSC_LBL={Saw:"Wave Form → Saw",Square:"Wave Form → Square (Edit 1 = Pulsbreite)",Triangle:"Wave Form → Triangle",Sine:"Wave Form → Sine","Wave Form":"Wave Form","Dual Osc":"Dual Osc","Osc Sync":"Osc Sync","Ring Mod":"Ring Mod","Cross Mod":"Cross Mod",VPM:"VPM",Waveshaper:"WS (Waveshaper)",Comb:"Comb",Unison:"Unison",Chord:"Chord",Additive:"Additive",Formant:"Formant",Noise:"Noise / PCM"};
+const OSC_LBL={"PCM+Comb":"PCM+Comb (Vorschau: Perkussions-Burst statt PCM-Welle)","PCM+WS":"PCM+WS (Vorschau: Burst + Grundton statt PCM-Welle)","Audio In+Comb":"Audio In+Comb (Vorschau: Rauschen statt Audio-Eingang)",Saw:"Wave Form → Saw",Square:"Wave Form → Square (Edit 1 = Pulsbreite)",Triangle:"Wave Form → Triangle",Sine:"Wave Form → Sine","Wave Form":"Wave Form","Dual Osc":"Dual Osc","Osc Sync":"Osc Sync","Ring Mod":"Ring Mod","Cross Mod":"Cross Mod",VPM:"VPM",Waveshaper:"WS (Waveshaper)",Comb:"Comb",Unison:"Unison",Chord:"Chord",Additive:"Additive",Formant:"Formant",Noise:"Noise / PCM"};
 function xsSheet(P){const R=[["Oszillator",OSC_LBL[P.osc]||P.osc],["Osc Edit 1",P.e1],["Osc Edit 2",P.e2],["Filter",P.flt],["Cutoff",P.cut],["Resonanz",P.res],["EG Int",P.egi],["Drive",P.drv],["Attack",P.att],["Decay",P.dec],["LFO",`${{tri:"Dreieck",saw:"Säge",sq:"Rechteck",sh:"Zufall (S&H)"}[P.lfoW]} → ${{pitch:"Pitch",cutoff:"Cutoff",amp:"Amp",edit1:"Osc Edit 1"}[P.lfoT]}`],["LFO-Speed",P.lfoSp],["LFO-Tiefe",P.lfoD]];
   return"<table><tr><th>Am EMX einstellen</th><th>Wert</th><th>Knopf</th></tr>"+R.map(([n,v])=>`<tr><td>${n}</td><td>${v}</td><td>${typeof v==="number"?clockOf(v):""}</td></tr>`).join("")+`</table><div style="color:var(--dim);font-size:12px">Chaos ${P.chaos}${P.psycho?" (frei, mikrotonal)":" (in Tonart)"}: am Gerät per Motion Sequence auf Pitch, Osc Edit 1 und Cutoff einspielen. Die Emulation nähert die EMX-Algorithmen an, sie ist kein Klon.</div>`}
 function buildXS(){
@@ -1795,7 +1806,7 @@ const PN={part:"D1",page:0,follow:false,fxSel:0,msg:"",msgT:0,taps:[],built:fals
 const P_OSC=["Waveform","Dual Osc","Chord","Unison","Ring Mod","Osc Sync","Cross Mod","VPM","WS","Additive","Comb","Formant","Noise","PCM+Comb","PCM+WS","Audio In+Comb"];
 const P_WAVE={"Dual Osc":"sawtooth",Chord:"sawtooth",Unison:"sawtooth","Ring Mod":"square","Osc Sync":"sawtooth","Cross Mod":"square",VPM:"square",WS:"sawtooth",Additive:"triangle",Comb:"sawtooth",Formant:"sawtooth",Noise:"sawtooth","PCM+Comb":"sawtooth","PCM+WS":"sawtooth","Audio In+Comb":"sawtooth"};
 const P_FLT=["LPF","HPF","BPF","BPF+"];
-const P_DEF={S1:{osc:"Waveform",flt:"LPF",cut:45,res:65,egi:65,drv:95,att:3,dec:40},S2:{osc:"VPM",flt:"BPF+",cut:85,res:100,egi:80,drv:95,att:4,dec:45},S3:{osc:"Chord",flt:"LPF",cut:65,res:30,egi:30,drv:30,att:25,dec:100},S4:{osc:"Formant",flt:"BPF",cut:70,res:75,egi:45,drv:50,att:20,dec:80},S5:{osc:"Noise",flt:"HPF",cut:75,res:65,egi:70,drv:70,att:30,dec:85}};
+const P_DEF={S1:{osc:"Waveform",e1:10,flt:"LPF",cut:45,res:65,egi:65,drv:95,att:3,dec:40},S2:{osc:"VPM",flt:"BPF+",cut:85,res:100,egi:80,drv:95,att:4,dec:45},S3:{osc:"Chord",flt:"LPF",cut:65,res:30,egi:30,drv:30,att:25,dec:100},S4:{osc:"Formant",flt:"BPF",cut:70,res:75,egi:45,drv:50,att:20,dec:80},S5:{osc:"Noise",flt:"HPF",cut:75,res:65,egi:70,drv:70,att:30,dec:85}};
 const P_KEY={D1:"1",D2:"2",D3:"3",D4:"4",D5:"5",D6:"6A",D7:"6B",D8:"7A",D9:"7B",AC:"ACC",S1:"1",S2:"2",S3:"3",S4:"4",S5:"5"};
 const P_PREV_FX=["Short Delay","BPM Delay 3/16","Reverb"];
 const pPart=()=>PARTS.find(p=>p.id===PN.part);
@@ -1803,7 +1814,7 @@ const fxNames=()=>Object.keys(FXTYPES);
 const fxLbl=k=>k==="BPM Delay 3/16"?"BPM Sync Delay":k;
 function pOscApply(P){P.uni=P.osc==="Unison";P.wave=P.osc==="Waveform"?["sawtooth","square","triangle","sine"][Math.min(3,P.e1>>5)]:(P_WAVE[P.osc]||"sawtooth")}
 function pPatch(create){const id=PN.part;if(id[0]!=="S")return null;let P=S.patch[id];
-  if(!P&&create){const d=P_DEF[id];P=S.patch[id]=S.patchSheet[id]={role:PROLES[id].n,osc:d.osc,e1:64,e2:64,flt:d.flt,cut:d.cut,res:d.res,egi:d.egi,drv:d.drv,att:d.att,dec:d.dec,lfo:0,lspd:0,fx:"–",wave:"sawtooth"};pOscApply(P)}
+  if(!P&&create){const d=P_DEF[id];P=S.patch[id]=S.patchSheet[id]={role:PROLES[id].n,osc:d.osc,e1:d.e1!=null?d.e1:64,e2:64,flt:d.flt,cut:d.cut,res:d.res,egi:d.egi,drv:d.drv,att:d.att,dec:d.dec,lfo:0,lspd:0,fx:"–",wave:"sawtooth"};pOscApply(P)}
   return P||null}
 const pv=k=>{const id=PN.part,P=S.patch[id];if(P&&P[k]!=null)return P[k];const d=P_DEF[id];return d&&d[k]!=null?d[k]:64};
 function lcdMsg(t){PN.msg=t;PN.msgT=performance.now()+1500;pLcd()}
@@ -1812,7 +1823,7 @@ function knob(o){
   el.innerHTML='<div class="kc"><b class="kp"><i></i></b></div><span class="kl"></span><span class="kv"></span>';el.querySelector(".kl").textContent=o.label;
   const mn=o.min==null?0:o.min,mx=o.max==null?127:o.max,st=o.step||1;
   const paint=()=>{const v=o.get(),f=(v-mn)/(mx-mn);el.querySelector(".kc").style.setProperty("--a",(-135+270*f)+"deg");el.querySelector(".kv").textContent=o.fmt?o.fmt(v):v;el.setAttribute("aria-valuemin",mn);el.setAttribute("aria-valuemax",mx);el.setAttribute("aria-valuenow",v)};
-  const put=v=>{v=Math.max(mn,Math.min(mx,Math.round(v/st)*st));if(v===o.get())return;o.set(v);paint();lcdMsg(o.label+"  "+(o.fmt?o.fmt(v):v))};
+  const put=v=>{v=Math.max(mn,Math.min(mx,Math.round(v/st)*st));if(v===o.get())return;o.set(v);paint();if(o.mot)pMotRec(o.mot,v);lcdMsg(o.label+"  "+(o.fmt?o.fmt(v):v))};
   let y0=null,v0=0;
   el.onpointerdown=e=>{y0=e.clientY;v0=o.get();try{el.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault();el.focus({preventScroll:true})};
   el.onpointermove=e=>{if(y0==null)return;put(v0+(y0-e.clientY)/(e.shiftKey?520:170)*(mx-mn))};
@@ -1821,6 +1832,8 @@ function knob(o){
   el.onkeydown=e=>{const d={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[e.key];if(d){put(o.get()+d*st*(e.shiftKey?10:1));e.preventDefault()}};
   el.ondblclick=()=>{if(o.def!=null)put(o.def)};
   el.paint=paint;paint();PN.knobs.push(el);return el}
+function pMotRec(param,v){if(!PN.mrec||!playing||PN.ph<0)return;let l=S.motion.find(x=>x.part===PN.part&&x.param===param);
+  if(!l){l={part:PN.part,param,vals:new Array(MAXSTEPS).fill(null)};S.motion.push(l)}l.vals[PN.ph]=v;PN.motDirty=true}
 function tgl(label,get,set,cls){const b=document.createElement("button");b.className="pt "+(cls||"");b.textContent=label;const paint=()=>b.classList.toggle("on",!!get());b.onclick=()=>{set(!get());paint();pRefresh()};b.paint=paint;paint();PN.knobs.push(b);return b}
 function pAudio(){try{initAudio();ac.resume()}catch(e){}}
 function syncGridMS(p){const i=PARTS.indexOf(p),r=$("grid").children[i+1];if(!r)return;const b=r.querySelectorAll(".pname button");if(b[0])b[0].classList.toggle("on",!!S.mute[p.id]);if(b[1])b[1].classList.toggle("on",!!S.solo[p.id])}
@@ -1837,7 +1850,7 @@ function pLcd(){
   L[0].textContent=`${($("tpl").value||"").toUpperCase().slice(0,10).padEnd(10)} ♩${$("bpm").value} SW${S.swing}% ${key}`;
   L[1].textContent=(p.kind==="syn"?"SYNTH ":p.kind==="acc"?"":"DRUM ")+p.name.replace(/^(Drum|Synth) /,"").toUpperCase();
   if(now<PN.msgT)L[2].textContent=PN.msg;
-  else{const P=S.patch[p.id];L[2].textContent=`T${PN.page+1}/${S.bars}`+(p.kind==="syn"?` · ${P?P.osc:P_DEF[p.id].osc} · ${P?P.flt:P_DEF[p.id].flt}`:` · FX ${p.fx.map((x,i)=>x?i+1:"").join("")||"–"}`)+(S.mute[p.id]?" · MUTE":"")+(S.solo[p.id]?" · SOLO":"")}
+  else{const P=S.patch[p.id];L[2].textContent=`T${PN.page+1}/${S.bars}`+(p.kind==="syn"?` · ${P?P.osc:P_DEF[p.id].osc} · ${P?P.flt:P_DEF[p.id].flt}`:` · FX ${p.fx.map((x,i)=>x?i+1:"").join("")||"–"}`)+(S.mute[p.id]?" · MUTE":"")+(S.solo[p.id]?" · SOLO":"")+(S.motion.some(l=>l.part===p.id)?" · MOT":"")+(PN.mrec?" · ●REC":"")}
   const v=$("pn-valve");if(v)v.style.setProperty("--g",(S.tube/127*20).toFixed(1)+"px")}
 function pRefresh(){
   if(!PN.built)return;const nb=Math.max(1,Math.ceil(nSteps()/16));if(PN.page>=nb)PN.page=nb-1;
@@ -1891,6 +1904,8 @@ function buildPanel(){
   mkb("pn-tap","TAP",()=>{const n=performance.now();PN.taps=PN.taps.filter(x=>n-x<2500);PN.taps.push(n);if(PN.taps.length>=2){const d=(PN.taps[PN.taps.length-1]-PN.taps[0])/(PN.taps.length-1),b=Math.round(60000/d);if(b>=100&&b<=220){$("bpm").value=b;applyFx();lcdMsg("Tempo  "+b);PN.knobs.forEach(k=>k.paint())}}});
   mkb("pn-mute","Part Mute",()=>{const p=pPart();S.mute[p.id]=!S.mute[p.id];syncGridMS(p);pRefresh()});
   mkb("pn-solo","Solo",()=>{const p=pPart();S.solo[p.id]=!S.solo[p.id];syncGridMS(p);pRefresh()});
+  mkb("pn-mrec","Motion Rec",()=>{PN.mrec=!PN.mrec;$("pn-mrec").classList.toggle("on",PN.mrec);lcdMsg(PN.mrec?"Motion Rec an: Cutoff/Level drehen":"Motion Rec aus")});
+  mkb("pn-mclr","Clear Motion",()=>{const n=S.motion.length;S.motion=S.motion.filter(l=>l.part!==PN.part);cutoffNow[PN.part]=.6;const p=pPart();if(partGain[p.id])partGain[p.id].gain.value=p.lvl/127;PN.motDirty=true;lcdMsg((n-S.motion.length)+" Motion-Spur(en) gelöscht")});
   // Part-Tasten
   PARTS.filter(p=>p.kind==="drum"||p.kind==="acc").forEach(p=>{$("pk-d").appendChild(partKey(p))});
   PARTS.filter(p=>p.kind==="syn").forEach(p=>{$("pk-s").appendChild(partKey(p))});
@@ -1908,7 +1923,7 @@ function buildPanel(){
   const ov=$("pn-ov");PARTS.forEach(p=>{const r=document.createElement("div");r.className="ovr";r.dataset.p=p.id;r.innerHTML=`<em>${p.id}</em>`+Array.from({length:16},(_,k)=>`<i data-k="${k}"${p.kind==="syn"?' class="sy"':""}></i>`).join("");r.onclick=()=>pSelect(p.id);ov.appendChild(r)});
   // Part Common
   const pc=$("pn-part");
-  pc.append(knob({label:"Level",def:100,get:()=>pPart().lvl,set:v=>{const p=pPart();p.lvl=v;if(partGain[p.id])partGain[p.id].gain.value=v/127}}),
+  pc.append(knob({label:"Level",def:100,mot:"level",get:()=>pPart().lvl,set:v=>{const p=pPart();p.lvl=v;if(partGain[p.id])partGain[p.id].gain.value=v/127}}),
     tgl("FX1",()=>pPart().fx[0],v=>{pPart().fx[0]=v?1:0}),tgl("FX2",()=>pPart().fx[1],v=>{pPart().fx[1]=v?1:0}),tgl("FX3",()=>pPart().fx[2],v=>{pPart().fx[2]=v?1:0}),
     tgl("Swing SW",()=>S.swsw[PN.part]!==false,v=>{S.swsw[PN.part]=v}));
   // Osc
@@ -1916,10 +1931,17 @@ function buildPanel(){
   po.append(knob({label:"Osc Type",min:0,max:15,get:()=>Math.max(0,P_OSC.indexOf(pv("osc"))),set:v=>{const P=pPatch(true);if(P){P.osc=P_OSC[v];pOscApply(P)}},fmt:v=>P_OSC[v]}),
     knob({label:"Osc Edit 1",def:64,get:()=>pv("e1"),set:setP("e1"),fmt:v=>(pv("osc")==="Waveform"?["Saw","Square","Tri","Sine"][Math.min(3,v>>5)]+" ":"")+v}),
     knob({label:"Osc Edit 2",def:64,get:()=>pv("e2"),set:setP("e2")}));
+  // Echte EMX-Synth-Emulation (Klang-Labor-Engine) für den aktuellen Patch anhören
+  const OSC2XS={WS:"Waveshaper"},em=document.createElement("button");em.className="pt";em.textContent="▶ Emulation";em.title="Patch mit der Klang-Labor-Emulation anhören (genauer als die Vorschau)";
+  em.onclick=()=>{pAudio();const id=PN.part;if(id[0]!=="S")return;const o=pv("osc"),e1=pv("e1");
+    const osc=o==="Waveform"?["Saw","Square","Triangle","Sine"][Math.min(3,e1>>5)]:(OSC2XS[o]||o);
+    const P=Object.assign({},XS,{osc,e1,e2:pv("e2"),flt:pv("flt"),cut:pv("cut"),res:pv("res"),egi:pv("egi"),drv:pv("drv"),att:pv("att"),dec:pv("dec"),note:S.brush,len:2,chaos:0,psycho:false,seq:true});
+    const y=xsRender(P),b=ac.createBuffer(1,y.length,SR);b.copyToChannel(y,0);const src=ac.createBufferSource(),g=ac.createGain();g.gain.value=.7;src.buffer=b;src.connect(g);g.connect(master);src.start();lcdMsg("Emulation  "+osc)};
+  po.appendChild(em);
   // Filter
   const pf=$("pn-flt");
   const ft=document.createElement("button");ft.className="pt";ft.title="Filter-Typ";const ftp=()=>{const v=pv("flt");ft.textContent="Type: "+(typeof v==="string"?v:"–")};ft.onclick=()=>{const P=pPatch(true);if(!P)return;P.flt=P_FLT[(P_FLT.indexOf(P.flt)+1)%4];ftp();lcdMsg("Filter  "+P.flt)};ft.paint=ftp;ftp();PN.knobs.push(ft);
-  pf.append(ft,knob({label:"Cutoff",def:80,get:()=>pv("cut"),set:setP("cut")}),knob({label:"Resonance",def:64,get:()=>pv("res"),set:setP("res")}),knob({label:"EG Int",def:64,get:()=>pv("egi"),set:setP("egi")}),
+  pf.append(ft,knob({label:"Cutoff",def:80,get:()=>pv("cut"),set:setP("cut"),mot:"cutoff"}),knob({label:"Resonance",def:64,get:()=>pv("res"),set:setP("res")}),knob({label:"EG Int",def:64,get:()=>pv("egi"),set:setP("egi")}),
     knob({label:"Drive",def:64,get:()=>pv("drv"),set:setP("drv")}),knob({label:"Attack",def:0,get:()=>pv("att"),set:setP("att")}),knob({label:"EG Time",def:60,get:()=>pv("dec"),set:setP("dec")}));
   // FX
   const fs=$("pn-fxsel");[0,1,2].forEach(i=>{const b=document.createElement("button");b.className="pt";b.textContent="FX "+(i+1);b.onclick=()=>{PN.fxSel=i;pRefresh();fxNote()};fs.appendChild(b)});
@@ -1935,7 +1957,7 @@ function buildPanel(){
   $("pn-root").innerHTML=$("root").innerHTML;$("pn-root").onchange=e=>{$("root").value=e.target.value;$("root").onchange();pRefresh()};
   $("pn-scale").innerHTML=$("scale").innerHTML;$("pn-scale").onchange=e=>{$("scale").value=e.target.value;$("scale").onchange();pRefresh()};
   $("pn-bars").onchange=e=>{$("bars").value=e.target.value;$("bars").onchange();pRefresh()};
-  setInterval(()=>{if($("t-panel").classList.contains("act")){pLcd();pLed();if(!playing)document.querySelectorAll("#pn-sk .pled.play,#pn-ov .ph").forEach(e=>e.classList.remove("play","ph"))}},200);
+  setInterval(()=>{if(PN.motDirty){PN.motDirty=false;try{renderMotionList();drawMotion()}catch(e){}}if($("t-panel").classList.contains("act")){pLcd();pLed();if(!playing)document.querySelectorAll("#pn-sk .pled.play,#pn-ov .ph").forEach(e=>e.classList.remove("play","ph"))}},200);
   pRefresh()}
 
 /* ---- Zoom (Handy: Standard 80 %) ---- */
