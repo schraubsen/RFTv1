@@ -67,6 +67,18 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
     <label>Skala <select id="root"></select></label>
     <span style="color:var(--dim)">Klick = Step an/aus · Synth-Steps tragen die Pinsel-Note · M = Mute · S = Solo</span>
   </div>
+  <div class="row" id="tools">
+    <label>Part <select id="tl-part"></select></label>
+    <label>Hits <input id="tl-k" type="number" min="1" max="16" value="5"></label>
+    <label>Rotation <input id="tl-r" type="number" min="0" max="15" value="0"></label>
+    <button id="tl-euc">Euclid</button>
+    <label>Mutation % <input id="tl-m" type="number" min="1" max="60" value="12"></label>
+    <button id="tl-mut">Mutieren</button>
+    <button id="tl-l">◀ Shift</button><button id="tl-r1">Shift ▶</button>
+    <button id="tl-cp">Takt 1 → alle</button>
+    <button id="tl-clr">Part leeren</button>
+    <button id="tl-un">↶ Undo</button><button id="tl-re">↷ Redo</button>
+  </div>
   <div class="grid" id="grid"></div>
 </section>
 
@@ -78,7 +90,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
   <div class="row">
     <label>Part <select id="m-part"></select></label>
     <label>Parameter <select id="m-param"></select></label>
-    <label>Form <select id="m-shape"><option value="rise">Anstieg (Build)</option><option value="fall">Abfall</option><option value="saw">Sägezahn pro Takt</option><option value="tri">Dreieck 2 Takte</option><option value="rand">Zufall</option><option value="flat">Flach 64</option></select></label>
+    <label>Form <select id="m-shape"><option value="rise">Anstieg (Build)</option><option value="fall">Abfall</option><option value="saw">Sägezahn pro Takt</option><option value="tri">Dreieck 2 Takte</option><option value="rand">Zufall</option><option value="vowel">Vokal a-e-i-o-u (Formant)</option><option value="flat">Flach 64</option></select></label>
     <button id="m-apply">Form anwenden</button>
     <button id="m-clear">Lane löschen</button>
   </div>
@@ -87,6 +99,8 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
   <div id="m-list"></div>
 </section>
 
+<section id="t-kick"></section>
+<section id="t-set"></section>
 <section id="t-export"></section>
 <section id="t-research"></section>
 
@@ -121,7 +135,7 @@ const PARTS=[
 const S={ // Zustand
  bars:8, root:8 /*G#*/, brush:56, mute:{}, solo:{}, steps:{}, notes:{}, motion:[],
  fxType:["Short Delay","BPM Delay 3/16","Reverb"], fxAmt:[0.35,0.4,0.3],
- ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
+ slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
 };
 PARTS.forEach(p=>{S.steps[p.id]=new Array(MAXSTEPS).fill(0);S.notes[p.id]=new Array(MAXSTEPS).fill(0);if(p.note)S.midiNotes[p.id]=p.note;S.mute[p.id]=false;S.solo[p.id]=false;});
 const $=id=>document.getElementById(id);
@@ -165,9 +179,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n+"-Moll";if(i===8)o.selected=true;$("root").appendChild(o);});
 function fillBrush(){const b=$("brush");b.innerHTML="";const r=S.root;for(let oct=1;oct<=5;oct++)MINOR.forEach(d=>{const m=12*(oct+1)+r+d-(r>=6?12:0);if(m<24||m>84)return;const o=document.createElement("option");o.value=m;o.textContent=nn(m);b.appendChild(o);});b.value=String(28+r<0?28:(24+r+12));if(!b.value)b.selectedIndex=0;S.brush=+b.value;}
@@ -191,7 +205,7 @@ function buildGrid(){
     for(let i=0;i<n;i++){
       const c=document.createElement("div");c.className="cell "+(p.kind==="syn"?"syn":p.kind==="acc"?"acc":"")+(i%4===0?" b4":"")+(i%16===0?" bar":"");
       c.dataset.p=p.id;c.dataset.i=i;paintCell(c,p,i);
-      c.onmousedown=e=>{e.preventDefault();dragVal=S.steps[p.id][i]?0:1;setStep(p,i,dragVal,c)};
+      c.onmousedown=e=>{e.preventDefault();snap();dragVal=S.steps[p.id][i]?0:1;setStep(p,i,dragVal,c)};
       c.onmouseenter=e=>{if(e.buttons&1&&dragVal!==null)setStep(p,i,dragVal,c)};
       row.appendChild(c);
     }
@@ -203,7 +217,7 @@ function paintCell(c,p,i){const on=S.steps[p.id][i];c.classList.toggle("on",!!on
 function setStep(p,i,v,c){S.steps[p.id][i]=v;if(p.kind==="syn"&&v)S.notes[p.id][i]=S.brush;paintCell(c,p,i);if(v&&audioReady&&!playing)trig(p,i,ac.currentTime);}
 
 /* ============ Generator ============ */
-function clearAll(){PARTS.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});S.motion=[];}
+function clearAll(){snap();PARTS.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});S.motion=[];}
 function put(id,i,note){S.steps[id][i]=1;if(note)S.notes[id][i]=note;}
 function gen(kind){
   const t=TPL[kind],n=nSteps(),r=S.root;
@@ -241,7 +255,7 @@ function shapeVals(shape){const n=nSteps(),a=new Array(MAXSTEPS).fill(null);
     if(shape==="rise")v=20+107*f;else if(shape==="fall")v=127-107*f;
     else if(shape==="saw")v=((i%16)/15)*107+20;
     else if(shape==="tri"){const q=(i%32)/32;v=20+107*(q<.5?q*2:2-q*2)}
-    else if(shape==="rand")v=20+Math.random()*107;else v=64;
+    else if(shape==="vowel")v=[12,38,64,89,115][Math.floor(i/4)%5];else if(shape==="rand")v=20+Math.random()*107;else v=64;
     a[i]=Math.round(v);}
   return a;}
 function mkLane(part,param,shape){return{part,param,vals:shapeVals(shape)}}
@@ -292,8 +306,8 @@ function buildMotionUi(){
 function curLane(){return S.motion.find(l=>l.part===$("m-part").value&&l.param===$("m-param").value)}
 function ensureLane(){let l=curLane();if(!l){l={part:$("m-part").value,param:$("m-param").value,vals:new Array(MAXSTEPS).fill(null)};S.motion.push(l);}return l}
 $("m-part").onchange=$("m-param").onchange=()=>drawMotion();
-$("m-apply").onclick=()=>{const l=ensureLane();l.vals=shapeVals($("m-shape").value);drawMotion();renderMotionList()};
-$("m-clear").onclick=()=>{S.motion=S.motion.filter(l=>l!==curLane());drawMotion();renderMotionList()};
+$("m-apply").onclick=()=>{snap();const l=ensureLane();l.vals=shapeVals($("m-shape").value);drawMotion();renderMotionList()};
+$("m-clear").onclick=()=>{snap();S.motion=S.motion.filter(l=>l!==curLane());drawMotion();renderMotionList()};
 const mc=$("mc"),mx=mc.getContext("2d");
 function drawMotion(){
   const W=mc.width,H=mc.height,n=nSteps(),w=W/n;mx.clearRect(0,0,W,H);
@@ -348,6 +362,7 @@ function trig(p,i,t){
   const g=ac.createGain();g.connect(out);
   switch(p.id){
    case "D1":case "D2":case "D3":{
+     if(p.id==="D1"&&kickBuf){const b=ac.createBufferSource();b.buffer=kickBuf;b.connect(out);b.start(t);break;}
      const base=51.9,o=ac.createOscillator();o.type="sine";
      const tail=p.id==="D1"?0.32:p.id==="D2"?0.2:0.11;
      o.frequency.setValueAtTime(p.id==="D2"?260:200,t);o.frequency.exponentialRampToValueAtTime(p.id==="D2"?base*1.12:base,t+0.06);
@@ -392,7 +407,7 @@ function formantVoice(p,i,t,dur,out,g){
 let playing=false,stepI=0,nextT=0,timer=null;
 function stepDur(){return 60/(+$("bpm").value)/4}
 function tick(){
-  const n=nSteps(),anySolo=Object.values(S.solo).some(Boolean);
+  let n=nSteps();const anySolo=Object.values(S.solo).some(Boolean);
   while(nextT<ac.currentTime+0.12){
     // Motion
     S.motion.forEach(l=>{const v=l.vals[stepI];if(v==null)return;const x=v/127;
@@ -405,7 +420,7 @@ function tick(){
       trig(p,stepI,nextT);
     });
     const si=stepI;setTimeout(()=>highlight(si),Math.max(0,(nextT-ac.currentTime)*1000));
-    nextT+=stepDur();stepI=(stepI+1)%n;
+    nextT+=stepDur();stepI=(stepI+1)%n;if(stepI===0&&setPlaying){advanceSet();n=nSteps();}
   }
 }
 let lastH=-1;
@@ -413,7 +428,7 @@ function highlight(i){document.querySelectorAll(".cell.play").forEach(c=>c.class
 $("play").onclick=()=>{
   initAudio();ac.resume();
   if(!playing){playing=true;stepI=0;nextT=ac.currentTime+0.05;timer=setInterval(tick,25);$("play").textContent="■ Stop";$("play").classList.add("on")}
-  else{playing=false;clearInterval(timer);$("play").textContent="▶ Play";$("play").classList.remove("on");document.querySelectorAll(".cell.play").forEach(c=>c.classList.remove("play"))}
+  else{playing=false;setPlaying=false;clearInterval(timer);$("play").textContent="▶ Play";$("play").classList.remove("on");document.querySelectorAll(".cell.play").forEach(c=>c.classList.remove("play"))}
 };
 $("bars").onchange=()=>{S.bars=+$("bars").value;buildGrid();drawMotion();};
 $("gen").onclick=()=>gen($("tpl").value);
@@ -504,6 +519,126 @@ $("t-research").innerHTML=`
 <li>EMX MIDI-Implementation (Noten pro Drum-Part, CC-Nummern der Motion-Parameter) aus Korgs offizieller Datei übernehmen → Export-Tab.</li>
 <li>Pattern-Format (.emx) nicht direkt schreiben, bis Offsets per Diff am Gerät verifiziert sind (Schema-Datei, kein Hardcoding).</li>
 <li>Exakte Osz-Parameternamen am Gerät eintragen, sobald gegengehört.</li></ul></div>`;
+
+
+/* ============ Undo / Redo ============ */
+const undoS=[],redoS=[];
+const snapJ=()=>JSON.stringify({steps:S.steps,notes:S.notes,motion:S.motion,bars:S.bars});
+function snap(){undoS.push(snapJ());if(undoS.length>40)undoS.shift();redoS.length=0}
+function restore(j){const o=JSON.parse(j);S.steps=o.steps;S.notes=o.notes;S.motion=o.motion;S.bars=o.bars;$("bars").value=S.bars;buildGrid();renderMotionList();drawMotion()}
+function undo(){if(!undoS.length)return;redoS.push(snapJ());restore(undoS.pop())}
+function redo(){if(!redoS.length)return;undoS.push(snapJ());restore(redoS.pop())}
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="z"){e.preventDefault();e.shiftKey?redo():undo()}if((e.ctrlKey||e.metaKey)&&e.key==="y"){e.preventDefault();redo()}});
+
+/* ============ Pattern-Werkzeuge ============ */
+PARTS.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;$("tl-part").appendChild(o)});
+const tp=()=>PARTS.find(p=>p.id===$("tl-part").value);
+function euclid(k,n,r){const a=new Array(n).fill(0);for(let i=0;i<k;i++)a[Math.floor(i*n/k)]=1;return a.map((_,i)=>a[(i-r+n*4)%n])}
+function noteFor(p,i){return p.kind==="syn"?(S.notes[p.id].find(x=>x)||S.brush):0}
+$("tl-euc").onclick=()=>{snap();const p=tp(),e=euclid(+$("tl-k").value,16,+$("tl-r").value);
+  for(let i=0;i<nSteps();i++){S.steps[p.id][i]=e[i%16];if(p.kind==="syn"&&e[i%16])S.notes[p.id][i]=S.notes[p.id][i]||S.brush}buildGrid()};
+$("tl-mut").onclick=()=>{snap();const p=tp(),pr=+$("tl-m").value/100;
+  for(let i=0;i<nSteps();i++){if(p.id==="D1"&&i%4===0)continue;if(Math.random()<pr){S.steps[p.id][i]^=1;if(p.kind==="syn"&&S.steps[p.id][i])S.notes[p.id][i]=S.brush}}buildGrid()};
+function shiftPart(d){snap();const p=tp(),n=nSteps(),a=S.steps[p.id].slice(0,n),b=S.notes[p.id].slice(0,n);
+  for(let i=0;i<n;i++){S.steps[p.id][i]=a[(i-d+n)%n];S.notes[p.id][i]=b[(i-d+n)%n]}buildGrid()}
+$("tl-l").onclick=()=>shiftPart(-1);$("tl-r1").onclick=()=>shiftPart(1);
+$("tl-cp").onclick=()=>{snap();PARTS.forEach(p=>{for(let i=16;i<nSteps();i++){S.steps[p.id][i]=S.steps[p.id][i%16];S.notes[p.id][i]=S.notes[p.id][i%16]}});buildGrid()};
+$("tl-clr").onclick=()=>{snap();const p=tp();S.steps[p.id].fill(0);S.notes[p.id].fill(0);buildGrid()};
+$("tl-un").onclick=undo;$("tl-re").onclick=redo;
+
+/* ============ Kick-Designer ============ */
+const SR=44100;let kickBuf=null;
+const KZ={base:[30,70,"Hz"],start:[80,400,"Hz"],sweep:[10,150,"ms"],tail:[80,500,"ms"],drive:[0,8,"x"],click:[0,0.6,""],sub:[0,0.6,"Sub-Oberwelle"]};
+function renderKick(k){
+  const n=Math.floor(SR*(k.tail/1000*2.2+0.06)),o=new Float32Array(n);let ph=0,hp=0,prev=0;
+  const tau=k.sweep/1000/3,dec=k.tail/1000/Math.log(10);let seed=12345;
+  for(let i=0;i<n;i++){const t=i/SR,f=k.base+(k.start-k.base)*Math.exp(-t/tau);ph+=2*Math.PI*f/SR;
+    let x=Math.sin(ph)+k.sub*Math.sin(2*ph);
+    x*=Math.exp(-t/dec);
+    seed=(seed*1664525+1013904223)>>>0;const nz=(seed/4294967296)*2-1;const hpv=nz-prev;prev=nz;hp=hpv;
+    x+=k.click*hp*Math.exp(-t/0.003);
+    x=Math.tanh(k.drive*x)/Math.tanh(Math.max(k.drive,0.01));
+    o[i]=x}
+  // kein Leading Silence, 5-ms-Fade, Normalisierung -1 dBFS
+  let pk=0;for(const v of o)pk=Math.max(pk,Math.abs(v));const g=Math.pow(10,-1/20)/(pk||1);
+  const fl=Math.floor(SR*0.005);for(let i=0;i<n;i++){let a=g;if(i>n-fl)a*=(n-i)/fl;o[i]*=a}
+  return o}
+function measureKick(o){
+  const w0=Math.floor(SR*0.035),w1=Math.floor(SR*0.2);let best=0,bl=0;
+  for(let lag=Math.floor(SR/80);lag<=Math.floor(SR/30);lag++){let s=0;for(let i=w0;i<w1-lag;i++)s+=o[i]*o[i+lag];if(s>best){best=s;bl=lag}}
+  const hz=bl?SR/bl:0,midi=hz?Math.round(69+12*Math.log2(hz/440)):0;
+  const win=Math.floor(SR*0.005);let pk=0;const env=[];
+  for(let i=0;i+win<o.length;i+=win){let s=0;for(let j=0;j<win;j++)s+=o[i+j]*o[i+j];const r=Math.sqrt(s/win);env.push(r);pk=Math.max(pk,r)}
+  let tail=0;for(let i=env.length-1;i>=0;i--){if(env[i]>pk*0.1){tail=(i+1)*5;break}}
+  // Energieanteil <120 Hz via 1-Pol-Tiefpass (grob)
+  let lo=0,el=0,et=0;const a=1-Math.exp(-2*Math.PI*120/SR);for(const v of o){lo+=a*(v-lo);el+=lo*lo;et+=v*v}
+  return{hz,note:hz?nn(midi):"–",tail,low:Math.round(el/et*100)}}
+function wavBytes(f){const n=f.length,b=new DataView(new ArrayBuffer(44+n*2));const w=(o,s)=>[...s].forEach((c,i)=>b.setUint8(o+i,c.charCodeAt(0)));
+  w(0,"RIFF");b.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);b.setUint32(24,SR,true);b.setUint32(28,SR*2,true);b.setUint16(32,2,true);b.setUint16(34,16,true);w(36,"data");b.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++)b.setInt16(44+i*2,Math.max(-32768,Math.min(32767,Math.round(f[i]*32767))),true);return b.buffer}
+function calibrate(k,hz,tail){
+  for(let it=0;it<25;it++){const m=measureKick(renderKick(k));
+    if(Math.abs(m.hz-hz)<0.4&&Math.abs(m.tail-tail)<8)break;
+    k.base=Math.max(30,Math.min(70,k.base+(hz-m.hz)*0.8));
+    if(m.tail>0)k.tail=Math.max(80,Math.min(500,k.tail*Math.pow(tail/m.tail,0.9)))}
+  return k}
+function buildKick(){
+  const t=$("t-kick"),k=S.kick;
+  t.innerHTML=`<div class="warn">Zielfenster aus 8 Szene-Tracks: Grundton 41–58 Hz (Median ≈ 51 Hz = G#1), Tail bis −20 dB 147–388 ms (~200 ms). Das Tool misst die <b>synthetisierte</b> Kick selbst (Autokorrelation 35–200 ms nach dem Transienten) – Charakter und Sättigung musst du am Ende hören.</div>
+  <div class="card"><h3>Kick-Synthese</h3><div id="kk"></div>
+  <div class="row"><button id="k-play">▶ Anhören</button><button id="k-use">Als Drum 1 in Vorschau</button><button id="k-wav">⬇ WAV (KCKMN1.WAV)</button>
+  <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
+  <div id="k-meas" class="ok"></div><canvas id="k-cv" width="1100" height="160"></canvas></div>`;
+  $("kk").innerHTML=Object.entries(KZ).map(([n,[a,b,u]])=>`<div class="row"><label style="width:130px">${n}</label><input type="range" data-k="${n}" min="${a}" max="${b}" step="${(b-a)/200}" value="${k[n]}"><span id="kv-${n}">${(+k[n]).toFixed(2)} ${u}</span></div>`).join("");
+  t.querySelectorAll("[data-k]").forEach(e=>e.oninput=()=>{k[e.dataset.k]=+e.value;kickUpdate()});
+  $("k-cal").onclick=()=>{calibrate(S.kick,+$("k-th").value,+$("k-tt").value);buildKick();$("k-th").value=$("k-th").value};
+  $("k-pre").onchange=e=>{const P={g:[{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:.25,sub:0},51.9,200],l:[{base:51.9,start:190,sweep:70,tail:320,drive:3.8,click:.2,sub:.1},51.9,320],s:[{base:55,start:230,sweep:40,tail:150,drive:3,click:.3,sub:0},55,150],d:[{base:41,start:180,sweep:80,tail:310,drive:3.5,click:.15,sub:.15},41.5,310]}[e.target.value];if(P){Object.assign(S.kick,calibrate(P[0],P[1],P[2]));buildKick()}};
+  $("k-play").onclick=()=>{initAudio();ac.resume();const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);const s=ac.createBufferSource();s.buffer=b;s.connect(master);s.start()};
+  $("k-use").onclick=()=>{initAudio();const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);kickBuf=b;$("k-use").textContent="✓ aktiv"};
+  $("k-wav").onclick=()=>dl("KCKMN1.WAV",wavBytes(renderKick(S.kick)),"audio/wav");
+  kickUpdate()}
+function kickUpdate(){
+  const k=S.kick;Object.entries(KZ).forEach(([n,[a,b,u]])=>{const e=$("kv-"+n);if(e)e.textContent=(+k[n]).toFixed(2)+" "+u});
+  const f=renderKick(k),m=measureKick(f);
+  const okH=m.hz>=41&&m.hz<=58,okT=m.tail>=147&&m.tail<=388;
+  $("k-meas").className=(okH&&okT)?"ok":"warn";
+  $("k-meas").innerHTML=`Grundton <b>${m.hz.toFixed(1)} Hz (${m.note})</b> ${okH?"✓":"✗ außerhalb 41–58 Hz"} · Tail <b>${m.tail} ms</b> ${okT?"✓":"✗ außerhalb 147–388 ms"} · ${m.low} % der Energie unter 120 Hz · Länge ${Math.round(f.length/SR*1000)} ms · Peak −1 dBFS`;
+  const c=$("k-cv").getContext("2d"),W=1100,H=160;c.clearRect(0,0,W,H);c.strokeStyle="#d3122a";c.beginPath();
+  for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.floor((x+1)/W*f.length);let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2);c.lineTo(x,H/2-mn*H/2)}c.stroke()}
+
+/* ============ Set / Song ============ */
+let setPlaying=false,chainPos=0,chainRep=0;
+function slotSave(i){S.slots[i]={name:S.slots[i]?.name||("Slot "+(i+1)),bars:S.bars,bpm:+$("bpm").value,steps:JSON.parse(JSON.stringify(S.steps)),notes:JSON.parse(JSON.stringify(S.notes)),motion:JSON.parse(JSON.stringify(S.motion))}}
+function slotLoad(i,keepSnap){const o=S.slots[i];if(!o)return false;if(!keepSnap)snap();S.bars=o.bars;S.steps=JSON.parse(JSON.stringify(o.steps));S.notes=JSON.parse(JSON.stringify(o.notes));S.motion=JSON.parse(JSON.stringify(o.motion));$("bars").value=S.bars;$("bpm").value=o.bpm;applyFx();buildGrid();renderMotionList();return true}
+function advanceSet(){
+  chainRep++;const c=S.chain[chainPos];
+  if(!c||chainRep>=c[1]){chainRep=0;chainPos=(chainPos+1)%S.chain.length;const nx=S.chain[chainPos];if(nx&&S.slots[nx[0]])slotLoad(nx[0],true);}
+  const e=$("set-pos");if(e)e.textContent="Schritt "+(chainPos+1)+"/"+S.chain.length+" · Durchlauf "+(chainRep+1);
+}
+function setSeconds(){return S.chain.reduce((a,[s,r])=>{const sl=S.slots[s];return a+(sl?sl.bars*16*(60/sl.bpm/4)*r:0)},0)}
+function buildSet(){
+  const t=$("t-set");
+  t.innerHTML=`<div class="warn">Pattern-Slots entsprechen den 8 Pattern-Set-Tasten am Gerät (Tempo Lock an!). Mute/Solo im Pattern-Tab ist dein eigentliches Arrangement – die Kette gibt das Gerüst.</div>
+  <div class="card"><h3>Slots</h3><div class="row"><button id="s-all">Alle 8 Templates erzeugen</button></div>
+  <table><tr><th>#</th><th>Name</th><th>Takte/BPM</th><th></th></tr>${S.slots.map((s,i)=>`<tr><td>${i+1}</td><td><input data-sn="${i}" value="${s?s.name:""}" placeholder="leer"></td><td>${s?s.bars+" / "+s.bpm:"–"}</td><td><button data-ss="${i}">Aktuelles → Slot</button> <button data-sl="${i}" ${s?"":"disabled"}>Laden</button></td></tr>`).join("")}</table></div>
+  <div class="card"><h3>Set-Kette</h3><div id="chain"></div><div class="row"><button id="c-add">+ Schritt</button><button id="c-play">▶ Set spielen</button><span id="set-pos" style="color:var(--dim)"></span></div>
+  <div class="ok">Gesamtdauer: <b id="set-dur"></b></div></div>`;
+  const rc=()=>{$("chain").innerHTML=S.chain.map((c,i)=>`<div class="row"><span>${i+1}.</span><select data-cs="${i}">${S.slots.map((s,j)=>`<option value="${j}" ${c[0]===j?"selected":""}>${j+1} ${s?s.name:"(leer)"}</option>`).join("")}</select><label>× <input type="number" min="1" max="16" value="${c[1]}" data-cr="${i}" style="width:55px"></label><button data-cd="${i}">✕</button></div>`).join("");
+    $("chain").querySelectorAll("[data-cs]").forEach(e=>e.onchange=()=>{S.chain[+e.dataset.cs][0]=+e.value;dur()});
+    $("chain").querySelectorAll("[data-cr]").forEach(e=>e.onchange=()=>{S.chain[+e.dataset.cr][1]=+e.value;dur()});
+    $("chain").querySelectorAll("[data-cd]").forEach(e=>e.onclick=()=>{S.chain.splice(+e.dataset.cd,1);rc();dur()});dur()};
+  const dur=()=>{const s=Math.round(setSeconds());$("set-dur").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+" min"};
+  rc();
+  t.querySelectorAll("[data-ss]").forEach(e=>e.onclick=()=>{slotSave(+e.dataset.ss);buildSet()});
+  t.querySelectorAll("[data-sl]").forEach(e=>e.onclick=()=>slotLoad(+e.dataset.sl));
+  t.querySelectorAll("[data-sn]").forEach(e=>e.onchange=()=>{if(S.slots[+e.dataset.sn])S.slots[+e.dataset.sn].name=e.value;rc()});
+  $("s-all").onclick=()=>{const keys=Object.keys(TPL),bp={"Rolls 190":190},keep=+$("bpm").value;keys.forEach((k,i)=>{$("tpl").value=k;if(bp[k])$("bpm").value=bp[k];else $("bpm").value=keep;gen(k);slotSave(i);S.slots[i].name=k});$("bpm").value=keep;$("tpl").value="Groove";slotLoad(0,true);buildSet()};
+  $("c-add").onclick=()=>{S.chain.push([0,1]);rc()};
+  $("c-play").onclick=()=>{
+    if(!setPlaying){if(!S.chain.length||!S.slots[S.chain[0][0]]){alert("Slots belegen: „Alle 8 Templates erzeugen“ oder eigene Patterns speichern.");return}
+      setPlaying=true;chainPos=0;chainRep=0;slotLoad(S.chain[0][0],true);$("c-play").textContent="■ Set stoppen";if(!playing)$("play").click();}
+    else{setPlaying=false;$("c-play").textContent="▶ Set spielen"}};
+}
 
 /* ============ Init ============ */
 buildMotionUi();buildSound();buildFx();$("tpl").value="Groove";gen("Groove");
