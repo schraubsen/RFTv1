@@ -64,7 +64,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
 <section id="t-pattern" class="act">
   <div class="row">
     <label>Pinsel-Note (Synth) <select id="brush"></select></label>
-    <label>Skala <select id="root"></select></label>
+    <label>Grundton <select id="root"></select></label><label>Skala <select id="scale"></select></label><label>Seed <input id="seed" type="number" value="1337" style="width:90px"></label><button id="dice">🎲 Würfeln</button><button id="mchk">Musik-Check</button><button id="mfix">Auto-Fix Tonart</button>
     <span style="color:var(--dim)">Klick = Step an/aus · Synth-Steps tragen die Pinsel-Note · M = Mute · S = Solo</span>
   </div>
   <div class="row" id="tools">
@@ -79,7 +79,9 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
     <button id="tl-clr">Part leeren</button>
     <button id="tl-un">↶ Undo</button><button id="tl-re">↷ Redo</button>
   </div>
+  <div id="chords" style="color:var(--hot);margin:6px 0"></div>
   <div class="grid" id="grid"></div>
+  <div id="mcheck"></div>
 </section>
 
 <section id="t-sound"></section>
@@ -135,11 +137,30 @@ const PARTS=[
 const S={ // Zustand
  bars:8, root:8 /*G#*/, brush:56, mute:{}, solo:{}, steps:{}, notes:{}, motion:[],
  fxType:["Short Delay","BPM Delay 3/16","Reverb"], fxAmt:[0.35,0.4,0.3],
- slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
+ slots:new Array(8).fill(null),chain:[[0,2],[1,4],[2,1],[3,4],[4,2],[2,1],[5,4],[1,2],[6,2],[7,2]],kick:{base:51.9,start:210,sweep:55,tail:200,drive:3.2,click:0.25,sub:0.0},scale:"minor",seed:1337,prog:[0,0,5,6],ccMap:{cutoff:74,level:7,reso:71,start:0}, midiNotes:{}, tube:70
 };
 PARTS.forEach(p=>{S.steps[p.id]=new Array(MAXSTEPS).fill(0);S.notes[p.id]=new Array(MAXSTEPS).fill(0);if(p.note)S.midiNotes[p.id]=p.note;S.mute[p.id]=false;S.solo[p.id]=false;});
 const $=id=>document.getElementById(id);
 const nSteps=()=>S.bars*16;
+/* ---- Musiktheorie ---- */
+const SCALES={
+ minor:{n:"Moll (Aeolisch)",iv:[0,2,3,5,7,8,10]},
+ phryg:{n:"Phrygisch (b2) – Hardtekk-Klassiker",iv:[0,1,3,5,7,8,10]},
+ harm:{n:"Harmonisch Moll",iv:[0,2,3,5,7,8,11]},
+ phdom:{n:"Phrygisch Dominant",iv:[0,1,4,5,7,8,10]}};
+const iv=()=>SCALES[S.scale].iv;
+const iv7=()=>SCALES[S.scale].iv; // 7-stufige Skalen: Akkorde, Bass und Lead teilen dieselbe Tonleiter
+const pcOf=m=>((m-S.root)%12+12)%12;
+const inKey=m=>iv().includes(pcOf(m));
+function degNote(base,d,v){v=v||iv7();const L=v.length;return base+v[((d%L)+L)%L]+12*Math.floor(d/L)}
+function snapKey(m){if(inKey(m))return m;for(let d=1;d<7;d++){if(inKey(m-d))return m-d;if(inKey(m+d))return m+d}return m}
+const bassBase=()=>36+S.root, chordBase=()=>48+S.root, leadBase=()=>60+S.root-(S.root>=6?12:0)+12*(S.root>=6?1:0);
+function chordInfo(deg){const v=iv7(),r=v[deg%7],th=(v[(deg+2)%7]-r+12)%12,fi=(v[(deg+4)%7]-r+12)%12;
+  const q=fi===6?"dim":(th===3?"min":"maj");return{name:NOTE_N[(S.root+r)%12]+(q==="min"?"m":q==="dim"?"dim":""),q}}
+function triadSemis(m){const v=iv7();let idx=v.indexOf(pcOf(m));if(idx<0)idx=v.indexOf(pcOf(snapKey(m)));if(idx<0)idx=0;
+  return[0,(v[(idx+2)%7]-v[idx]+12)%12,(v[(idx+4)%7]-v[idx]+12)%12]}
+function kickTarget(){let best=null;for(let m=24;m<=48;m++){if(pcOf(m)!==0)continue;const hz=440*Math.pow(2,(m-69)/12),d=hz<41?41-hz:hz>58?hz-58:0;if(!best||d<best.d)best={m,hz,d}}return best}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 /* Klangempfehlungen: EMX-Parameter als Startpunkt. Quelle in "src": v=aus Skill/Erfahrung vermessen, u=Erfahrungswert, nicht am Gerät verifiziert */
 const SOUND={
@@ -168,12 +189,12 @@ const FXTYPES={ // laut Skill-Referenz / Gerät – Parameternamen nicht verifiz
  "Distortion":"Schranz-Kante auf Perc/Lead"
 };
 const TPL={
- "Intro":{kick:1,off:0,hat:0.5,perc:0.2,clap:0,bass:0},
- "Groove":{kick:1,off:1,hat:1,perc:0.5,clap:1,bass:1},
+ "Intro":{kick:1,off:0,hat:0.5,perc:0.2,clap:0,bass:0,chord:1},
+ "Groove":{kick:1,off:1,hat:1,perc:0.5,clap:1,bass:1,lead:0.5,phrase:1},
  "Build":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,fill:1,lead:0.5},
- "Drop":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,lead:1},
+ "Drop":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,lead:1,phrase:1},
  "Break":{kick:0,off:0,hat:0.3,perc:0,clap:0,bass:0,chord:1,voice:1},
- "Drop B (hart)":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,lead:1,double:1},
+ "Drop B (hart)":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,lead:1,double:1,phrase:1},
  "Rolls 190":{kick:1,off:1,hat:1,perc:1,clap:1,bass:1,rolls:1},
  "Outro":{kick:1,off:0.5,hat:0.5,perc:0.2,clap:0,bass:0.5}
 };
@@ -183,9 +204,14 @@ const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
 function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
-NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n+"-Moll";if(i===8)o.selected=true;$("root").appendChild(o);});
-function fillBrush(){const b=$("brush");b.innerHTML="";const r=S.root;for(let oct=1;oct<=5;oct++)MINOR.forEach(d=>{const m=12*(oct+1)+r+d-(r>=6?12:0);if(m<24||m>84)return;const o=document.createElement("option");o.value=m;o.textContent=nn(m);b.appendChild(o);});b.value=String(28+r<0?28:(24+r+12));if(!b.value)b.selectedIndex=0;S.brush=+b.value;}
-$("root").onchange=()=>{S.root=+$("root").value;fillBrush();};
+NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
+Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
+function fillBrush(){const b=$("brush");b.innerHTML="";for(let m=36;m<=84;m++){if(!inKey(m))continue;const o=document.createElement("option");o.value=m;o.textContent=nn(m)+(pcOf(m)===0?" (Grundton)":"");b.appendChild(o)}b.value=String(leadBase());if(!b.value)b.selectedIndex=0;S.brush=+b.value}
+function keyChanged(){fillBrush();retuneKick();buildGrid()}
+$("root").onchange=()=>{S.root=+$("root").value;keyChanged()};
+$("scale").onchange=()=>{S.scale=$("scale").value;keyChanged()};
+$("seed").onchange=()=>{S.seed=+$("seed").value||1};
+$("dice").onclick=()=>{S.seed=Math.floor(Math.random()*1e6);$("seed").value=S.seed;gen($("tpl").value)};
 $("brush").onchange=()=>S.brush=+$("brush").value;
 fillBrush();
 
@@ -195,6 +221,7 @@ function buildGrid(){
   hd.innerHTML='<div class="pname"></div>';
   for(let i=0;i<n;i++){const c=document.createElement("div");c.className="cell"+(i%4===0?" b4":"")+(i%16===0?" bar":"");c.textContent=i%16===0?"T"+(i/16+1):(i%4===0?(i%16)/4+1:"");hd.appendChild(c);}
   g.appendChild(hd);
+  if(typeof runCheck==="function")setTimeout(runCheck,0);
   PARTS.forEach(p=>{
     const row=document.createElement("div");row.className="prow";
     const nm=document.createElement("div");nm.className="pname";
@@ -220,30 +247,44 @@ function setStep(p,i,v,c){S.steps[p.id][i]=v;if(p.kind==="syn"&&v)S.notes[p.id][
 function clearAll(){snap();PARTS.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});S.motion=[];}
 function put(id,i,note){S.steps[id][i]=1;if(note)S.notes[id][i]=note;}
 function gen(kind){
-  const t=TPL[kind],n=nSteps(),r=S.root;
-  clearAll();
-  const bassN=12*3+r+(r>=6?-12:0)+12; // Bass-Oktave
-  const root=(12*(2)+r)+12*(r>=6?0:1);
-  const sc=d=>root+12+MINOR[d%7]+12*Math.floor(d/7);
-  const rnd=(a)=>Math.random()<a;
+  const t=TPL[kind],n=nSteps();snap();
+  PARTS.forEach(p=>{S.steps[p.id].fill(0);S.notes[p.id].fill(0)});S.motion=[];
+  const rng=mulberry(S.seed+kind.length*977),rnd=a=>rng()<a,pick=a=>a[Math.floor(rng()*a.length)];
+  const PROG=S.prog,cd=b=>PROG[b%4];
+  const ct=o=>[0,2,4].reduce((a,c)=>Math.abs(c-o)<Math.abs(a-o)?c:a,0);
+  // Lead-Motiv: ein Takt, relativ zum Akkordgrundton, Anfang/Ende auf Akkordton
+  const RHY=[[2,6,10,14],[3,6,10,13],[2,3,6,10,11],[0,3,6,10,12],[2,6,9,10,14],[1,3,6,9,11,14]];
+  const hits=pick(RHY);let off=pick([0,2,4]);const motif=hits.map((s,j)=>{if(j>0)off+=pick([-2,-1,-1,0,1,1,2]);off=Math.max(-2,Math.min(6,off));return{s,off}});
+  motif[0].off=ct(motif[0].off);motif[motif.length-1].off=ct(motif[motif.length-1].off);
   for(let i=0;i<n;i++){
-    const s=i%16,bar=Math.floor(i/16),last=bar===S.bars-1;
-    if(t.kick&&s%4===0&&(kind!=="Intro"||bar>0||s===0||i>=0)){ if(kind==="Outro"&&bar>=S.bars-2&&bar%2)continue; put("D1",i);}
+    const s=i%16,b=Math.floor(i/16),last=b===S.bars-1,phraseEnd=b%4===3||last,c=cd(b);
+    if(t.kick&&s%4===0){if(!(kind==="Outro"&&b>=S.bars-2&&b%2))put("D1",i);}
     if(t.kick&&t.double&&s%4===2&&rnd(0.3))put("D3",i);
     if(t.off&&s%4===2&&rnd(t.off))put("D2",i);
-    if(t.hat&&rnd(t.hat)){ if(s%2===1||t.hat>=1)put("D4",i);}
-    if(t.hat&&s%4===2&&rnd(0.5))put("D7",i); // Open Hat Offbeat, kollidiert nicht mit D6
-    else if(t.hat&&s%2===0&&rnd(t.hat*0.5)) put("D6",i);
-    if(t.perc&&rnd(t.perc*0.35)&&s%4!==0)put("D5",i);
+    if(t.hat&&(s%2===1||t.hat>=1||rnd(t.hat)))put("D4",i);
+    if(t.hat&&s%4===2&&rnd(0.6))put("D7",i);              // Open Hat nur auf dem Offbeat
+    else if(t.hat&&s%4===0&&rnd(t.hat*0.5))put("D6",i);    // Closed Hat auf dem Schlag, nie auf dem Open-Hat-Step
+    if(t.perc&&s%4!==0&&rnd(t.perc*0.35))put("D5",i);
     if(t.clap&&(s===4||s===12))put("D8",i);
-    if(t.bass&&s%4===2&&rnd(t.bass))put("S1",i,bassN);
-    if(t.fill&&bar>=S.bars-2&&(s>=8||last)&&rnd(0.7))put("D9",i);
-    if(t.lead&&s%4!==0&&rnd(0.28*t.lead))put("S2",i,sc([0,2,4,6,7,9][Math.floor(Math.random()*6)])+12);
-    if(t.rolls&&bar%2===1&&s>=8)put("D3",i);
-    if(t.rolls&&s%2===0&&bar%2===0&&rnd(.3))put("D3",i);
-    if(t.chord&&s===0&&bar%4===0)put("S3",i,sc(0)+12);
-    if(t.voice&&s%8===4&&rnd(0.6))put("S4",i,sc([0,2,4][Math.floor(Math.random()*3)])+12);
-    if(t.kick&&s%4===0&&s%8===0)put("AC",i);
+    // Bass: Offbeats, folgt dem Akkordgrundton, Phrasenende = Quinte (Spannung -> Tonika), Takt 2 optional 2. Stufe
+    if(t.bass&&(s%4===2||(t.double&&s%4===3&&rnd(0.5)))&&rnd(t.bass)){
+      let d=c;if(s===14&&b%4===3&&kind!=="Outro")d=4;else if(s===14&&b%4===1&&rnd(0.5))d=1;
+      let bn=degNote(bassBase(),d);if(bn-bassBase()>=8)bn-=12;put("S1",i,bn);}
+    // Phrasenende-Fill (Takt 4/8): Rolls auf Kurzkick + Snare
+    if(t.kick&&phraseEnd&&s>=12&&(t.phrase||t.fill)&&kind!=="Outro"){if(rnd(0.85))put("D3",i);if(s>=14)put("D9",i);}
+    if(t.fill&&b>=S.bars-2&&s>=8&&rnd(0.7))put("D9",i);
+    if(t.rolls&&b%2===1&&s>=8)put("D3",i);
+    if(t.rolls&&b%2===0&&s%2===0&&rnd(.3))put("D3",i);
+    // Lead: Motiv pro Takt, transponiert auf den Akkordgrundton; Takt 4 = Antwort (rückwärts) und Auflösung auf die Tonika
+    if(t.lead&&(t.lead>=1||b>=S.bars/2)){
+      const hi=motif.findIndex(m=>m.s===s);
+      if(hi>=0){const ans=b%4===3,m=ans?motif[motif.length-1-hi]:motif[hi];let d=c+m.off;
+        if(ans&&hi===motif.length-1)d=0;put("S2",i,degNote(leadBase(),d));}}
+    if(t.chord&&s===0)put("S3",i,degNote(chordBase(),c));
+    if(t.voice&&s%8===4&&rnd(0.65))put("S4",i,degNote(leadBase(),c+pick([0,2,4])));
+    if(t.kick&&s%4===0)put("AC",i);
+    if(kind==="Build"&&b>=S.bars-2&&s%4===0)put("S5",i,leadBase());      // Riser
+    if((kind==="Drop"||kind==="Drop B (hart)")&&s===0&&b%4===0)put("S5",i,leadBase()); // Impact
   }
   if(kind==="Build"||kind==="Drop B (hart)"){S.motion=[mkLane("D5","cutoff","rise"),mkLane("S2","cutoff","saw")];}
   if(kind==="Break"){S.motion=[mkLane("S4","formant","tri"),mkLane("S2","cutoff","rise")];}
@@ -271,7 +312,7 @@ function buildSound(){
   h+=`</table></div>
   <div class="card"><h3>Regeln, die den Sound entscheiden</h3><ul>
   <li><b>Bass auf Offbeats</b> (Steps 3/7/11/15), nie auf der Eins – zwei Tiefbässe summieren sich, die Röhre geht in die Knie.</li>
-  <li><b>Alles in G#-Moll</b> (passt zum Kick-Grundton) – Tonart oben wählbar.</li>
+  <li><b>Alles in einer Tonart:</b> Grundton + Skala (Moll, Phrygisch, Harmonisch Moll …) oben wählbar. Kick wird auf den Grundton gestimmt, Bass folgt der Akkordfolge, Lead ist ein Motiv auf Akkordtönen. Der Musik-Check unter dem Raster prüft das.</li>
   <li><b>Accent hebt an, ducked nicht.</b> Pumpen = FX-Kompressor oder Level-Motion.</li>
   <li><b>Tube Gain ≠ Lautstärke.</b> Gain-Staging: Part-Level 85–110 → Tube Gain → Master → Mixer 0 dB.</li>
   <li><b>EMX-Filtertypen:</b> LPF, HPF, BPF, BPF+. Comb gibt es nur als Oszillatortyp (Audio In + Comb).</li>
@@ -363,21 +404,21 @@ function trig(p,i,t){
   switch(p.id){
    case "D1":case "D2":case "D3":{
      if(p.id==="D1"&&kickBuf){const b=ac.createBufferSource();b.buffer=kickBuf;b.connect(out);b.start(t);break;}
-     const base=51.9,o=ac.createOscillator();o.type="sine";
+     const base=kickTarget().hz,o=ac.createOscillator();o.type="sine";
      const tail=p.id==="D1"?0.32:p.id==="D2"?0.2:0.11;
-     o.frequency.setValueAtTime(p.id==="D2"?260:200,t);o.frequency.exponentialRampToValueAtTime(p.id==="D2"?base*1.12:base,t+0.06);
+     o.frequency.setValueAtTime(base*4,t);o.frequency.exponentialRampToValueAtTime(base,t+0.06);
      const sh=ac.createWaveShaper();sh.curve=satCurve(3);o.connect(sh);sh.connect(g);env(g,t,0.001,tail,1);o.start(t);o.stop(t+tail+0.05);
      const c=noise(t,0.01),cg=ac.createGain();cg.gain.value=0.25;const hp=ac.createBiquadFilter();hp.type="highpass";hp.frequency.value=2500;c.connect(hp);hp.connect(cg);cg.connect(out);break;}
    case "D4":case "D6":case "D7":{
      const n=noise(t,0.2),f=ac.createBiquadFilter();f.type="highpass";f.frequency.value=p.id==="D4"?8000:7000;n.connect(f);f.connect(g);
      env(g,t,0.001,p.id==="D7"?0.18:0.04,p.id==="D4"?0.35:0.5);sendFx(p,g,t);break;}
-   case "D5":{const o=ac.createOscillator();o.type="square";o.frequency.value=380+Math.random()*60;const f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=900+cutoffNow.D5*3000;f.Q.value=8;o.connect(f);f.connect(g);env(g,t,0.001,0.06,0.5);o.start(t);o.stop(t+0.1);sendFx(p,g,t);break;}
+   case "D5":{const o=ac.createOscillator();o.type="square";o.frequency.value=440*Math.pow(2,(leadBase()+12-69)/12);const f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=900+cutoffNow.D5*3000;f.Q.value=8;o.connect(f);f.connect(g);env(g,t,0.001,0.06,0.5);o.start(t);o.stop(t+0.1);sendFx(p,g,t);break;}
    case "D8":case "D9":{
      const n=noise(t,0.3),f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=p.id==="D8"?1500:2200;f.Q.value=0.9;n.connect(f);f.connect(g);
      env(g,t,0.002,p.id==="D8"?0.14:0.18,0.8);sendFx(p,g,t);break;}
    case "S1":{synthVoice(p,i,t,stepDur*1.6,"sawtooth",0.7,true,out,g);break;}
    case "S2":{synthVoice(p,i,t,stepDur*0.9,"square",1.3,false,out,g);break;}
-   case "S3":{[0,3,7].forEach(d=>synthVoice(p,i,t,stepDur*6,"sawtooth",0.4,false,out,g,d));break;}
+   case "S3":{triadSemis(S.notes.S3[i]).forEach(d=>synthVoice(p,i,t,stepDur*6,"sawtooth",0.4,false,out,g,d));break;}
    case "S4":{formantVoice(p,i,t,stepDur*3,out,g);break;}
    case "S5":{const n=noise(t,stepDur*4),f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=500+cutoffNow.S5*6000;f.Q.value=6;n.connect(f);f.connect(g);env(g,t,0.01,stepDur*4,0.5);sendFx(p,g,t);break;}
    case "AC":break;
@@ -461,8 +502,8 @@ function buildMidi(){
   return new Uint8Array(out);
 }
 function stepSheet(){
-  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]}-Moll\nX=Accent-Step  o=Step an  -=aus\n\n`;
-  for(let b=0;b<S.bars;b++){o+=`--- Takt ${b+1} ---\n`;
+  const n=nSteps();let o=`RFT PATTERN · ${$("bpm").value} BPM · ${S.bars} Takte x 16 Steps · ${NOTE_N[S.root]} ${SCALES[S.scale].n}\nX=Accent-Step  o=Step an  -=aus\n\n`;
+  for(let b=0;b<S.bars;b++){{const c=chordInfo(S.prog[b%4]);o+=`--- Takt ${b+1} · Akkord ${c.name} (EMX Chord-Typ: ${c.q}) ---\n`;}
     PARTS.forEach(p=>{let s="";for(let i=b*16;i<b*16+16;i++){if(i%4===0&&i%16)s+=" ";const on=S.steps[p.id][i];s+=on?(p.kind==="syn"?"":(S.steps.AC[i]&&p.kind!=="acc"?"X":"o")):"-";if(on&&p.kind==="syn")s+=nn(S.notes[p.id][i])+" "}
       if(s.replace(/[- ]/g,"")||p.kind==="acc")o+=(p.id+" "+p.name).padEnd(30)+s+"\n"});o+="\n"}
   o+="MOTION:\n"+S.motion.map(l=>`${l.part} ${l.param}: `+l.vals.slice(0,n).map(v=>v==null?".":v).join(",")).join("\n");
@@ -511,6 +552,13 @@ $("t-research").innerHTML=`
 <tr><td>3. Formant-Oszillator</td><td>Synth 4 mit Formant-Osz, Parameter per Motion durch Vokale fahren (a-e-i-o-u), danach BPF+ und FX2.</td><td>Klingt robotisch-vokalisch, kein echter Text. Genau das passt zu Rave-/Hardtekk-„Stab“-Stimmen. In der Vorschau grob modelliert (Näherungswerte).</td></tr>
 <tr><td>4. Mikrofon live</td><td>Audio In (Mic/Line) – Echo/Reverb/Grain Shifter als Schmutzfilter.</td><td>Nur für Rufe/Shouts im Set.</td></tr></table>
 <div class="warn">Voice-Tricks sind Erfahrungswerte, am EMX gegenhören. Ein Vocoder-/Formant-Shift wie beim microKORG ist für den EMX <b>nicht belegt</b>.</div></div>
+<div class="card"><h3>Warum es musikalisch passt (Generator-Logik)</h3><ul>
+<li><b>Kick = Grundton:</b> Kick-Grundfrequenz wird auf die Tonika abgestimmt (G#1 = 51,9 Hz im Szene-Fenster 41–58 Hz). Alle Kick-Layer (Haupt-, Offbeat-, Kurzkick) nutzen denselben Ton – kein Zwischenton.</li>
+<li><b>Akkordfolge i – i – VI – VII</b> pro 4 Takte, aus den Stufen der gewählten Skala gebaut. Bass, Chord und Lead beziehen sich alle darauf.</li>
+<li><b>Bass:</b> nur Offbeats, folgt dem Akkordgrundton; am Phrasenende Quinte (Spannung → zurück zur Tonika), gelegentlich 2. Stufe als Durchgang.</li>
+<li><b>Lead:</b> ein Motiv (Rhythmus + Kontur), pro Takt auf den Akkordgrundton transponiert; Anfang und Ende auf Akkordtönen; Takt 4 = Antwort (rückwärts) mit Auflösung auf die Tonika. Per Seed reproduzierbar.</li>
+<li><b>Chord-Part:</b> Dreiklang entsteht aus der Skala (Moll/Dur/vermindert je Stufe). Am EMX ist der Chord-Typ ein Oszillator-Parameter – bei Wechsel Moll↔Dur den Typ per Motion/Hand umstellen (Step-Sheet nennt ihn pro Takt).</li>
+<li><b>Rhythmus:</b> Hauptkick auf jedem Viertel, Open Hat nur auf Offbeats, Clap auf 2 und 4, Fill/Roll am Phrasenende (Takt 4/8), Riser vor dem Drop, Impact auf der Eins.</li></ul></div>
 <div class="card"><h3>Samples & Quellen</h3><ul>
 <li>Hardtekk-/Schranz-Packs: <a style="color:var(--hot)" href="https://sinee.de/en/doht-hardtechno-schranz-vol.1/TSOHT-2/">SINEE DOHT Hardtechno & Schranz</a> (u. a. Vocal-Pack mit Wörtern, Phrasen, Growls), <a style="color:var(--hot)" href="https://samplesrevolution.gumroad.com/l/lakjo">Samples Revolution VERKNIPT</a> (Screeches, Vocals, Perc) – beides kostenpflichtig, Lizenz prüfen. Von „Free-Download“-Spiegelseiten die Finger lassen.</li>
 <li>EMX-Werks-PCMs: <a style="color:var(--hot)" href="https://www.polynominal.com/sample-packs/Korg-EMX1">Polynominal EMX1 Archive</a> – zur Würze, nicht als Fundament.</li>
@@ -640,8 +688,54 @@ function buildSet(){
     else{setPlaying=false;$("c-play").textContent="▶ Set spielen"}};
 }
 
+
+/* ============ Musik-Check ============ */
+let kmemo=null;
+function kickPitchInfo(){const key=JSON.stringify(S.kick)+S.root;if(kmemo&&kmemo.key===key)return kmemo.v;const m=measureKick(renderKick(S.kick));
+  const rootHz=kickTarget().hz,cents=Math.round(1200*Math.log2(m.hz/rootHz));kmemo={key,v:{hz:m.hz,note:m.note,cents,rootHz}};return kmemo.v}
+function retuneKick(){const t=kickTarget(),cur=measureKick(renderKick(S.kick));calibrate(S.kick,t.hz,cur.tail||200);kmemo=null;
+  if(kickBuf&&ac){const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);kickBuf=b}}
+function musicCheck(){
+  const out=[],n=nSteps(),ok=(m)=>out.push(["✓",m,"ok"]),no=(m)=>out.push(["✗",m,"warn"]),w=(m)=>out.push(["⚠",m,"warn"]);
+  // 1 Tonart
+  let bad=[];["S1","S2","S3","S4","S5"].forEach(id=>{for(let i=0;i<n;i++)if(S.steps[id][i]&&id!=="S5"&&!inKey(S.notes[id][i]))bad.push(id+"@"+(i+1))});
+  bad.length?no(`${bad.length} Note(n) außerhalb ${NOTE_N[S.root]}-${SCALES[S.scale].n}: ${bad.slice(0,6).join(", ")}${bad.length>6?" …":""} → „Auto-Fix Tonart“`):ok(`Alle Synth-Noten liegen in ${NOTE_N[S.root]} ${SCALES[S.scale].n}`);
+  // 2 Kick <-> Tonart
+  const kp=kickPitchInfo(),tg=kickTarget();
+  Math.abs(kp.cents)<=35?ok(`Kick-Grundton ${kp.hz.toFixed(1)} Hz (${kp.note}) = Tonart-Grundton ${NOTE_N[S.root]} (${kp.cents>=0?"+":""}${kp.cents} Cent)`):no(`Kick-Grundton ${kp.hz.toFixed(1)} Hz (${kp.note}) weicht ${kp.cents} Cent vom Grundton ${NOTE_N[S.root]} (${tg.hz.toFixed(1)} Hz) ab → Kick-Tab „Auto-Einmessen“`);
+  if(tg.d>0)w(`Grundton ${NOTE_N[S.root]} liegt mit ${tg.hz.toFixed(1)} Hz außerhalb des Szene-Fensters 41–58 Hz (G–A#). Funktioniert, aber Kick klingt dann ungewohnt tief/hoch.`);
+  // 3 Bass vs Kick-Eins
+  let clash=0;for(let i=0;i<n;i++)if(S.steps.S1[i]&&S.steps.D1[i])clash++;
+  clash?no(`Bass und Hauptkick treffen ${clash}× zusammen – Tiefbässe summieren sich`):ok("Bass kollidiert nie mit der Hauptkick (Offbeat-Prinzip)");
+  // 4 Bass Tonvorrat
+  const bn=new Set();for(let i=0;i<n;i++)if(S.steps.S1[i])bn.add(NOTE_N[S.notes.S1[i]%12]);
+  if(bn.size)(bn.size<=6?ok:w)(`Bass-Töne: ${[...bn].join(" ")} (${bn.size}) – ${bn.size<=6?"folgt Akkordgrundtönen + Durchgang":"viele Töne, wirkt unruhig"}`);
+  // 5 Lead auf Akkordtönen
+  let tot=0,hit=0;for(let i=0;i<n;i++)if(S.steps.S2[i]&&i%16%4===0){tot++;const c=S.prog[Math.floor(i/16)%4],tri=triadSemis(degNote(48+S.root,c)).map(x=>(pcOf(degNote(48+S.root,c))+x)%12);if(tri.includes(pcOf(S.notes.S2[i])))hit++}
+  if(tot)(hit/tot>=0.6?ok:w)(`Lead: ${hit}/${tot} betonte Töne sind Akkordtöne des aktuellen Takts`);
+  // 6 Lage/Frequenz
+  const lo=(id,min)=>{const ms=[];for(let i=0;i<n;i++)if(S.steps[id][i])ms.push(S.notes[id][i]);return ms.length&&Math.min(...ms)<min};
+  lo("S2",57)?w("Lead tiefer als A3 – kollidiert mit Bass/Akkord im Bereich ~200 Hz"):ok("Lead-Lage über dem Bassbereich");
+  lo("S3",45)?w("Akkord tiefer als A2 – matscht mit Bass"):ok("Akkord-Lage frei vom Bass");
+  // 7 Hat-Konflikt
+  let hc=0;for(let i=0;i<n;i++)if(S.steps.D6[i]&&S.steps.D7[i])hc++;hc?w(`Closed und Open Hat gleichzeitig (${hc}×)`):ok("Open Hat nie auf dem Closed-Hat-Step");
+  // 8 Phrasen
+  if(S.bars>=4){let f=0;for(let i=(S.bars-1)*16+12;i<n;i++)if(S.steps.D3[i]||S.steps.D9[i])f++;f?ok("Phrasenende (letzter Takt) mit Fill/Roll abgeschlossen"):w("Letzter Takt ohne Fill – Loop-Übergang wirkt flach (Intro/Break ok)")}
+  // 9 Tempo
+  const bpm=+$("bpm").value;bpm>=155&&bpm<=190?ok(`Tempo ${bpm} BPM im Szene-Fenster 155–190`):w(`Tempo ${bpm} BPM außerhalb 155–190`);
+  return out}
+function runCheck(){
+  const ch=[];for(let b=0;b<S.bars;b++){const c=chordInfo(S.prog[b%4]);ch.push(c.name)}
+  $("chords").textContent=`${NOTE_N[S.root]}-${SCALES[S.scale].n} · Akkorde pro Takt: ${ch.join(" | ")}`;
+  const r=musicCheck(),bad=r.filter(x=>x[0]!=="✓").length;
+  $("mcheck").innerHTML=`<div class="card"><h3>Musik-Check · ${bad?bad+" Hinweis(e)":"alles passt"}</h3>${r.map(x=>`<div class="${x[2]}" style="margin:3px 0">${x[0]} ${x[1]}</div>`).join("")}</div>`}
+function autoFix(){snap();["S1","S2","S3","S4"].forEach(id=>{for(let i=0;i<MAXSTEPS;i++)if(S.steps[id][i])S.notes[id][i]=snapKey(S.notes[id][i])});
+  for(let i=0;i<MAXSTEPS;i++)if(S.steps.S1[i]&&S.steps.D1[i])S.steps.S1[i]=0;buildGrid()}
+$("mchk").onclick=runCheck;$("mfix").onclick=autoFix;
+document.addEventListener("mouseup",()=>setTimeout(runCheck,0));
+
 /* ============ Init ============ */
-buildMotionUi();buildSound();buildFx();$("tpl").value="Groove";gen("Groove");
+buildMotionUi();buildSound();buildFx();$("tpl").value="Groove";retuneKick();gen("Groove");
 </script>
 </body>
 </html>
