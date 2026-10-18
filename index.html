@@ -105,6 +105,7 @@ pre{background:#000;border:1px solid var(--line);padding:10px;overflow:auto;max-
 <section id="t-kick"></section>
 <section id="t-lab"></section>
 <section id="t-spec"></section>
+<section id="t-rft"></section>
 <section id="t-set"></section>
 <section id="t-export"></section>
 <section id="t-research"></section>
@@ -203,9 +204,9 @@ const TPL={
 };
 
 /* ============ UI-Aufbau ============ */
-const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
+const TABS=[["pattern","Pattern"],["sound","Drums & Synth"],["fx","FX-Kette"],["motion","Motion Seq"],["kick","Kick-Designer"],["lab","Sample-Lab"],["spec","Spektrum"],["rft","RFT-Analyse"],["set","Set / Song"],["export","Export"],["research","Recherche & Stimmen"]];
 TABS.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=k;if(!i)b.classList.add("on");b.onclick=()=>showTab(k);$("nav").appendChild(b);});
-function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
+function showTab(k){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===k));document.querySelectorAll("section").forEach(s=>s.classList.toggle("act",s.id==="t-"+k));if(k==="motion")drawMotion();if(k==="export")buildExport();if(k==="kick")buildKick();if(k==="lab")buildLab();if(k==="rft")buildRft();specOn=(k==="spec");if(specOn)buildSpec();if(k==="set")buildSet();}
 Object.keys(TPL).forEach(k=>{const o=document.createElement("option");o.textContent=k;$("tpl").appendChild(o);});
 NOTE_N.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.textContent=n;if(i===8)o.selected=true;$("root").appendChild(o);});
 Object.entries(SCALES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.n;$("scale").appendChild(o)});
@@ -626,6 +627,9 @@ $("tl-un").onclick=undo;$("tl-re").onclick=redo;
 /* ============ Kick-Designer ============ */
 const SR=44100;let kickBuf=null;
 const KZ={base:[30,70,"Hz"],start:[80,400,"Hz"],sweep:[10,150,"ms"],tail:[80,500,"ms"],drive:[0,8,"x"],click:[0,0.6,""],sub:[0,0.6,"Sub-Oberwelle"]};
+/* Tail nach Referenz-Methode: Tiefpass 130 Hz, Betrag, Glättung 25 Hz, Zeit bis -20 dB vom Peak (wie bei den Szene-Tracks gemessen) */
+function refTail(f,sr){const low=lp4(Float32Array.from(f),130,sr),e=new Float32Array(low.length);for(let i=0;i<e.length;i++)e[i]=Math.abs(low[i]);const k=filt(e,biq("lp",25,sr,0.7071));let pk=0,pi=0;for(let i=0;i<k.length;i++)if(k[i]>pk){pk=k[i];pi=i}
+  for(let i=pi;i<k.length;i++)if(k[i]<pk*.1)return Math.round(i/sr*1000);return Math.round(k.length/sr*1000)}
 function renderKick(k){
   const n=Math.floor(SR*(k.tail/1000*2.2+0.06)),o=new Float32Array(n);let ph=0,hp=0,prev=0;
   const tau=k.sweep/1000/3,dec=k.tail/1000/Math.log(10);let seed=12345;
@@ -649,7 +653,7 @@ function measureKick(o){
   let tail=0;for(let i=env.length-1;i>=0;i--){if(env[i]>pk*0.1){tail=(i+1)*5;break}}
   // Energieanteil <120 Hz via 1-Pol-Tiefpass (grob)
   let lo=0,el=0,et=0;const a=1-Math.exp(-2*Math.PI*120/SR);for(const v of o){lo+=a*(v-lo);el+=lo*lo;et+=v*v}
-  return{hz,note:hz?nn(midi):"–",tail,low:Math.round(el/et*100)}}
+  return{hz,note:hz?nn(midi):"–",tail,rtail:refTail(o,SR),low:Math.round(el/et*100)}}
 function wavBytes(f){const n=f.length,b=new DataView(new ArrayBuffer(44+n*2));const w=(o,s)=>[...s].forEach((c,i)=>b.setUint8(o+i,c.charCodeAt(0)));
   w(0,"RIFF");b.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);b.setUint32(24,SR,true);b.setUint32(28,SR*2,true);b.setUint16(32,2,true);b.setUint16(34,16,true);w(36,"data");b.setUint32(40,n*2,true);
   for(let i=0;i<n;i++)b.setInt16(44+i*2,Math.max(-32768,Math.min(32767,Math.round(f[i]*32767))),true);return b.buffer}
@@ -661,7 +665,7 @@ function calibrate(k,hz,tail){
   return k}
 function buildKick(){
   const t=$("t-kick"),k=S.kick;
-  t.innerHTML=`<div class="warn">Zielfenster aus 8 Szene-Tracks: Grundton 41–58 Hz (Median ≈ 51 Hz = G#1), Tail bis −20 dB 147–388 ms (~200 ms). Das Tool misst die <b>synthetisierte</b> Kick selbst (Autokorrelation 35–200 ms nach dem Transienten) – Charakter und Sättigung musst du am Ende hören.</div>
+  t.innerHTML=`<div class="warn">Zielfenster aus 8 Szene-Tracks: Grundton 41–58 Hz (Median ≈ 51 Hz = G#1), Tail bis −20 dB 147–388 ms. Die Szene-Werte wurden im vollen Mix gemessen (Tiefband bis −20 dB, inklusive Offbeat-Bass) und fallen deshalb länger aus als der Tail einer einzelnen Kick. Im Test-Loop mit Offbeat-Bass wurde aus 205 ms Solo-Tail ein Mix-Tail von ca. 313 ms. Das Fenster hier ist darum eine konservative Grenze für die Solo-Kick. Das Tool misst die <b>synthetisierte</b> Kick selbst (Autokorrelation 35–200 ms nach dem Transienten) – Charakter und Sättigung musst du am Ende hören.</div>
   <div class="card"><h3>Kick-Synthese</h3><div id="kk"></div>
   <div class="row"><button id="k-play">▶ Anhören</button><button id="k-use">Als Drum 1 in Vorschau</button><button id="k-wav">⬇ WAV (KCKMN1.WAV)</button>
   <label>Ziel Hz <input id="k-th" type="number" value="51.9" step="0.1" style="width:80px"></label><label>Ziel Tail ms <input id="k-tt" type="number" value="200" style="width:80px"></label><button id="k-cal">Auto-Einmessen</button><label>Verzerrung <select id="k-mode"><option value="0">Soft (Tanh)</option><option value="1">Hard-Clip</option><option value="2">Wavefold</option><option value="3">Röhre (asymmetrisch)</option></select></label><label>Preset <select id="k-pre"><option value="">–</option><option value="g">G#1 · 200 ms (Standard)</option><option value="l">Lang 320 ms · G#1</option><option value="s">Kurz 150 ms · A1 (190 BPM)</option><option value="d">Tief E1 · 310 ms</option></select></label></div>
@@ -678,9 +682,9 @@ function buildKick(){
 function kickUpdate(){
   const k=S.kick;Object.entries(KZ).forEach(([n,[a,b,u]])=>{const e=$("kv-"+n);if(e)e.textContent=(+k[n]).toFixed(2)+" "+u});
   const f=renderKick(k),m=measureKick(f);
-  const okH=m.hz>=41&&m.hz<=58,okT=m.tail>=147&&m.tail<=388;
+  const okH=m.hz>=41&&m.hz<=58,okT=m.rtail>=147&&m.rtail<=388;
   $("k-meas").className=(okH&&okT)?"ok":"warn";
-  $("k-meas").innerHTML=`Grundton <b>${m.hz.toFixed(1)} Hz (${m.note})</b> ${okH?"✓":"✗ außerhalb 41–58 Hz"} · Tail <b>${m.tail} ms</b> ${okT?"✓":"✗ außerhalb 147–388 ms"} · ${m.low} % der Energie unter 120 Hz · Länge ${Math.round(f.length/SR*1000)} ms · Peak −1 dBFS`;
+  $("k-meas").innerHTML=`Grundton <b>${m.hz.toFixed(1)} Hz (${m.note})</b> ${okH?"✓":"✗ außerhalb 41–58 Hz"} · Tail <b>${m.tail} ms</b> solo · <b>${m.rtail} ms</b> mit Referenz-Filterkette ${okT?"✓":"✗ außerhalb 147–388 ms"} · ${m.low} % der Energie unter 120 Hz · Länge ${Math.round(f.length/SR*1000)} ms · Peak −1 dBFS`;
   const c=$("k-cv").getContext("2d"),W=1100,H=160;c.clearRect(0,0,W,H);c.strokeStyle="#d3122a";c.beginPath();
   for(let x=0;x<W;x++){const i0=Math.floor(x/W*f.length),i1=Math.floor((x+1)/W*f.length);let mn=1,mx=-1;for(let i=i0;i<i1;i++){mn=Math.min(mn,f[i]);mx=Math.max(mx,f[i])}c.moveTo(x,H/2-mx*H/2);c.lineTo(x,H/2-mn*H/2)}c.stroke()}
 
@@ -751,7 +755,10 @@ function analyzeBuf(ab){
   fft(re,im);const P=new Float64Array(N/2);let E=1e-12,cs=0;for(let k=1;k<N/2;k++){P[k]=re[k]*re[k]+im[k]*im[k];E+=P[k];cs+=P[k]*k*sr/N}
   const band=(a,b)=>{let s=0;for(let k=1;k<N/2;k++){const f=k*sr/N;if(f>=a&&f<b)s+=P[k]}return s/E};
   const cent=cs/E,[hz,pr]=cent<1500?pitchOf(x,sr,pkI):[0,0];
-  const a={dur,pk,rms,width,tail,cent,sub:band(20,60),bass:band(60,120),lm:band(120,400),mid:band(400,2000),hi:band(2000,6000),air:band(6000,20000),hz,pr,midi:hz?69+12*Math.log2(hz/440):0};
+  let ce=0,be=1e-12,n1=1,n2=1;{const a0=Math.max(0,pkI-Math.floor(.002*sr)),a1=Math.min(L-2,pkI+Math.floor(.006*sr));let p1=x[a0];for(let i=a0+1;i<a1;i++){const d=x[i]-p1;p1=x[i];ce+=d*d}n1=Math.max(1,a1-a0);
+    const b0=Math.min(L-2,pkI+Math.floor(.01*sr)),b1=Math.min(L-1,pkI+Math.floor(.06*sr));for(let i=b0;i<b1;i++)be+=x[i]*x[i];n2=Math.max(1,b1-b0)}
+  const click=Math.sqrt((ce/n1)/(be/n2+1e-12));
+  const a={dur,pk,rms,width,tail,cent,sub:band(20,60),bass:band(60,120),lm:band(120,400),mid:band(400,2000),hi:band(2000,6000),air:band(6000,20000),hz,pr,click,midi:hz?69+12*Math.log2(hz/440):0};
   a.cls=classify(a);return a}
 /* ZIP lesen (stored + deflate), mit Größen-Limits */
 async function readZip(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<0)throw new Error("Kein ZIP");
@@ -775,6 +782,13 @@ async function loadFiles(list){
   st.textContent=`${ok} Samples geladen${bad?`, ${bad} nicht lesbar`:""}.`;renderLab()}
 function partOptions(sel){return'<option value="">–</option>'+PARTS.filter(p=>p.kind!=="acc").map(p=>`<option value="${p.id}" ${sel===p.id?"selected":""}>${p.id}</option>`).join("")}
 function itemPart(it){return Object.keys(sampAssign).find(k=>sampAssign[k]===it)||""}
+function rftScore(it){
+  if(it.cls!=="Kick"&&it.cls!=="Sub")return null;const w=WIN.kick,bpm=+$("bpm").value,q=60000/bpm*0.85;let p=0;
+  if(it.hz&&it.pr>=.5){if(it.hz>=w[0]&&it.hz<=w[1])p=30;else{const e=it.hz<w[0]?w[0]:w[1];p=30*Math.max(0,1-Math.abs(1200*Math.log2(it.hz/e))/300)}}else p=10;
+  const tw=WIN.tail,tp=(it.tail>=tw[0]&&it.tail<=tw[1])?15:Math.max(0,15-Math.min(Math.abs(it.tail-tw[0]),Math.abs(it.tail-tw[1]))/20),bp=it.tail<=q?10:Math.max(0,10-(it.tail-q)/20);
+  const lo=it.sub+it.bass,lp=lo>=.9?25:25*Math.max(0,(lo-.6)/.3),cp=it.click<=CLICK_OK?10:Math.max(0,10-(it.click-CLICK_OK)/CLICK_OK*10),wp=it.width<.3?10:10*Math.max(0,1-(it.width-.3)/.5);
+  return Math.round(p+tp+bp+lp+cp+wp)}
+const CLICK_OK=0.08;
 function centsToKick(it){return it.hz?Math.round(1200*Math.log2(it.hz/kickTarget().hz)):null}
 function audition(it){initAudio();ac.resume();const s=ac.createBufferSource();s.buffer=it.buf;let rate=1;
   if(sampTune&&(it.cls==="Kick")&&it.hz&&it.pr>=.5){rate=kickTarget().hz/it.hz;if(rate<.5||rate>2)rate=1}
@@ -806,7 +820,7 @@ function exportList(entries,zipName,info){
 function exportKit(){const e=Object.entries(sampAssign).map(([part,it])=>[KITNAME[part]||part,it,tuneRate(part,it)]);if(!e.length){$("lab-stat").textContent="Kit ist leer.";return}
   exportList(e,"EMX_KIT.zip","\nHinweis: Namen folgen der Part-Belegung des Designers (D1 = Hauptkick …).\n")}
 function visibleItems(){let a=LAB.items.filter(i=>LAB.filter==="Alle"||i.cls===LAB.filter);
-  const k=LAB.sort;a=a.slice().sort((x,y)=>k==="kick"?Math.abs(centsToKick(x)??9e3)-Math.abs(centsToKick(y)??9e3):k==="dur"?y.dur-x.dur:k==="bright"?y.cent-x.cent:x.id-y.id);return a}
+  const k=LAB.sort;a=a.slice().sort((x,y)=>k==="kick"?Math.abs(centsToKick(x)??9e3)-Math.abs(centsToKick(y)??9e3):k==="dur"?y.dur-x.dur:k==="bright"?y.cent-x.cent:k==="rft"?(rftScore(y)??-1)-(rftScore(x)??-1):x.id-y.id);return a}
 function exportVisible(){const v=visibleItems().slice(0,256);if(!v.length)return;const cnt={};
   exportList(v.map(it=>{const c=CLSN[it.cls]||"SMP";cnt[c]=(cnt[c]||0)+1;return[c+String(cnt[c]).padStart(3,"0"),it,1]}),"EMX_SAMPLES.zip")}
 function buildLab(){
@@ -834,11 +848,11 @@ function renderLab(){
   if(!LAB.built)return;
   $("lab-kit").innerHTML=Object.keys(sampAssign).length?"<table>"+PARTS.filter(p=>sampAssign[p.id]).map(p=>{const it=sampAssign[p.id],r=tuneRate(p.id,it);return`<tr><td>${p.name}</td><td>${it.name} <span class="tag">${it.cls}</span></td><td>${it.hz?it.hz.toFixed(1)+" Hz ("+nn(Math.round(it.midi))+")":"–"}${r!==1?` <span class="tag v">gestimmt → ${kickTarget().hz.toFixed(1)} Hz</span>`:""}</td></tr>`}).join("")+"</table>":'<span style="color:var(--dim)">Leer. „Auto-Kit“ wählt passende Samples nach Tonart, Tail und Klasse.</span>';
   const cls=["Alle",...Object.keys(CLSN)],cnt=c=>c==="Alle"?LAB.items.length:LAB.items.filter(i=>i.cls===c).length;
-  $("lab-filter").innerHTML=cls.map(c=>`<button data-f="${c}" class="${LAB.filter===c?"on":""}">${c} ${cnt(c)}</button>`).join("")+`<label>Sortierung <select id="lab-sort">${[["name","Reihenfolge"],["kick","Kick-Passung"],["dur","Länge"],["bright","Helligkeit"]].map(([v,n])=>`<option value="${v}" ${LAB.sort===v?"selected":""}>${n}</option>`).join("")}</select></label>`;
+  $("lab-filter").innerHTML=cls.map(c=>`<button data-f="${c}" class="${LAB.filter===c?"on":""}">${c} ${cnt(c)}</button>`).join("")+`<label>Sortierung <select id="lab-sort">${[["name","Reihenfolge"],["kick","Kick-Passung"],["dur","Länge"],["bright","Helligkeit"],["rft","RFT-Score (Kicks)"]].map(([v,n])=>`<option value="${v}" ${LAB.sort===v?"selected":""}>${n}</option>`).join("")}</select></label>`;
   const v=visibleItems(),tg=kickTarget().hz;
-  $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
+  $("lab-table").innerHTML=v.length?`<table><tr><th></th><th>Name</th><th>Klasse</th><th>Länge</th><th>Tail</th><th>Ton</th><th>Δ Kick (${tg.toFixed(1)} Hz)</th><th>&lt;120 Hz</th><th>Klick</th><th>RFT</th><th>Breite</th><th>Part</th></tr>`+v.slice(0,300).map(it=>{
     const c=(it.cls==="Kick"||it.cls==="Sub")?centsToKick(it):null,okc=c!==null&&Math.abs(c)<=35,conf=it.pr>=.6?"":' <span class="tag u">unsicher</span>';
-    return`<tr><td><button data-pl="${it.id}">▶</button></td><td>${it.name}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
+    return`<tr><td><button data-pl="${it.id}">▶</button></td><td>${it.name}</td><td>${it.cls}</td><td>${Math.round(it.dur*1000)} ms</td><td>${it.tail} ms</td><td>${it.hz?it.hz.toFixed(1)+" Hz "+nn(Math.round(it.midi)):"–"}${it.hz?conf:""}</td><td>${c===null?"":`<span class="tag ${okc?"v":"u"}">${c>0?"+":""}${c} ct</span>`}</td><td>${Math.round((it.sub+it.bass)*100)} %</td><td>${(it.cls==="Kick"||it.cls==="Sub")?it.click.toFixed(2):""}</td><td>${(()=>{const sc=rftScore(it);return sc===null?"":`<span class="tag ${sc>=75?"v":"u"}">${sc}</span>`})()}</td><td>${it.width>.8?'<span class="tag u" title="Mono-Summe kann auslöschen">breit</span>':Math.round(it.width*100)+" %"}</td><td><select data-as="${it.id}">${partOptions(itemPart(it))}</select></td></tr>`}).join("")+"</table>"+(v.length>300?`<div style="color:var(--dim)">Zeige 300 von ${v.length} – Filter nutzen.</div>`:""):'<span style="color:var(--dim)">Keine Samples in dieser Ansicht.</span>'}
 function playSample(p,sa,i,t,out){
   const s=ac.createBufferSource();s.buffer=sa.buf;let rate=1;
   if(p.id==="D1")rate=tuneRate("D1",sa);else if(p.kind==="syn"&&sa.hz&&sa.pr>=.5){rate=Math.pow(2,(S.notes[p.id][i]-sa.midi)/12);if(rate<.25||rate>4)rate=1}
@@ -879,17 +893,128 @@ function specLoop(){
   const step=()=>{if(!specOn){specBusy=false;return}
     drawSpec(anMix,$("sp-mix"),"mix");drawSpec(anG.drums,$("sp-drums"),"d");drawSpec(anG.bass,$("sp-bass"),"b");drawSpec(anG.music,$("sp-music"),"m");
     if(anMix&&playing){const {shares,tot}=bandShares(anMix),tt=BANDS.reduce((a,b)=>a+b[3],0);
-      $("sp-bands").innerHTML="<table><tr><th>Band</th><th>Live</th><th>Ziel (Szene-Median)</th><th>Abweichung</th><th></th></tr>"+BANDS.map((b,i)=>{const tg=b[3]/tt,lv=shares[i],db=10*Math.log10((lv+1e-9)/tg),bad=Math.abs(db)>3;
+      $("sp-bands").innerHTML="<table><tr><th>Band</th><th>Live</th><th>Ziel ("+(S.refBands?S.refName:"Szene-Median")+")</th><th>Abweichung</th><th></th></tr>"+BANDS.map((b,i)=>{const tg=S.refBands?S.refBands[i]:b[3]/tt,lv=shares[i],db=10*Math.log10((lv+1e-9)/tg),bad=Math.abs(db)>3;
         return`<tr><td>${b[0]} ${b[1]}–${b[2]>=1000?b[2]/1000+"k":b[2]} Hz</td><td>${(lv*100).toFixed(1)} %</td><td>${(tg*100).toFixed(1)} %</td><td><span class="tag ${bad?"u":"v"}">${db>0?"+":""}${db.toFixed(1)} dB</span></td><td>${bad?BAND_HINT[i][db>0?1:0]:"passt"}</td></tr>`}).join("")+"</table>"}
     else if(!playing)$("sp-bands").innerHTML='<div style="color:var(--dim)">Play drücken, um zu messen.</div>';
     requestAnimationFrame(step)};
   requestAnimationFrame(step)}
 
+
+/* ============ RFT-Analyse (Referenztracks messen, Portierung der Skill-Methode) ============ */
+const SCENE=[["Hunnel – 155er aufn sonntag",155.3,51.8,388,-9.9,7.4],["Webster – Other One",160.3,48.4,185,-18.4,10.0],["ViruzZ & Leigh Johnson",164.9,53.8,199,-13.8,10.4],["ViruzZ – Tränen aus Kajal",166.9,49.8,186,-8.5,8.4],["Der Hoffi vs Devil's Cartel",170.0,51.1,147,-7.2,7.2],["Torett – Du & Icke @ mirage",174.9,41.0,314,-19.8,13.9],["Kannadiss – Kannadreckig Korg",190.4,43.7,159,-6.4,6.4],["Hunnel38 – Was neues vom Set",190.5,58.5,315,-8.6,7.2]];
+const WIN={bpm:[155,190],kick:[41,58],tail:[147,388],crest:[6.4,13.9]};
+const RFT={refs:[],built:false};
+function biq(type,f,sr,Q){const w=2*Math.PI*f/sr,c=Math.cos(w),a=Math.sin(w)/(2*Q);let b0,b1,b2;
+  if(type==="lp"){b0=(1-c)/2;b1=1-c;b2=(1-c)/2}else{b0=(1+c)/2;b1=-(1+c);b2=(1+c)/2}
+  const a0=1+a;return{b0:b0/a0,b1:b1/a0,b2:b2/a0,a1:-2*c/a0,a2:(1-a)/a0}}
+function filt(x,k){const y=new Float32Array(x.length);let x1=0,x2=0,y1=0,y2=0;for(let i=0;i<x.length;i++){const v=x[i],o=k.b0*v+k.b1*x1+k.b2*x2-k.a1*y1-k.a2*y2;x2=x1;x1=v;y2=y1;y1=o;y[i]=o}return y}
+const lp4=(x,f,sr)=>{const k=biq("lp",f,sr,0.7071);return filt(filt(x,k),k)};
+function pct(a,p){const s=Float32Array.from(a).sort();return s[Math.min(s.length-1,Math.floor(s.length*p))]}
+const med=a=>{if(!a.length)return 0;const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const tick0=()=>new Promise(r=>setTimeout(r,0));
+function onsetEnv(x,sr){const nfft=2048,hop=512,n=Math.floor((x.length-nfft)/hop),re=new Float64Array(nfft),im=new Float64Array(nfft),win=new Float64Array(nfft);for(let i=0;i<nfft;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/nfft);
+  const half=nfft/2,kLow=Math.floor(200*nfft/sr),kHi=Math.floor(3000*nfft/sr);let prev=new Float64Array(half);const all=new Float32Array(n),lo=new Float32Array(n),hi=new Float32Array(n);
+  for(let f=0;f<n;f++){for(let i=0;i<nfft;i++){re[i]=x[f*hop+i]*win[i];im[i]=0}fft(re,im);let sa=0,sl=0,sh=0;
+    for(let k=0;k<half;k++){const v=Math.log1p(Math.hypot(re[k],im[k])*100),d=v-prev[k];prev[k]=v;if(f>0&&d>0){sa+=d;if(k<=kLow)sl+=d;else if(k>=kHi)sh+=d}}all[f]=sa;lo[f]=sl;hi[f]=sh}
+  return{all,lo,hi,fps:sr/hop}}
+function bpmFromEnv(env,fps){let m=0;for(const v of env)m+=v;m/=env.length;const e=env.map(v=>v-m),n=e.length,lagLo=Math.floor(fps*60/210),lagHi=Math.min(Math.floor(fps*60/120),n-2);
+  let a0=0;for(let i=0;i<n;i++)a0+=e[i]*e[i];let best=-1,k=lagLo;const ac=new Float64Array(lagHi+2);
+  for(let lag=lagLo-1;lag<=lagHi+1;lag++){let s=0;for(let i=0;i<n-lag;i++)s+=e[i]*e[i+lag];ac[lag]=s/(a0+1e-12);if(lag>=lagLo&&lag<=lagHi&&ac[lag]>best){best=ac[lag];k=lag}}
+  const a=ac[k-1],b=ac[k],c=ac[k+1];if(k>lagLo&&k<lagHi)k+=0.5*(a-c)/(a-2*b+c+1e-12);return[60*fps/k,best]}
+const KP_MIN=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17],KP_MAJ=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+function keyOf(P,sr,N){const ch=new Float64Array(12);for(let k=1;k<N/2;k++){const f=k*sr/N;if(f<35||f>2000)continue;const pc=((Math.round(12*Math.log2(f/440)+69))%12+12)%12;ch[pc]+=Math.sqrt(P[k])}
+  const sum=ch.reduce((a,b)=>a+b,0)||1;for(let i=0;i<12;i++)ch[i]/=sum;const out=[];
+  for(let r=0;r<12;r++)for(const [prof,nm] of [[KP_MIN,"Moll"],[KP_MAJ,"Dur"]]){let ma=0,mp=0;for(let i=0;i<12;i++){ma+=ch[(r+i)%12];mp+=prof[i]}ma/=12;mp/=12;let num=0,da=0,dp=0;for(let i=0;i<12;i++){const a=ch[(r+i)%12]-ma,p=prof[i]-mp;num+=a*p;da+=a*a;dp+=p*p}out.push({root:r,mode:nm,r:num/Math.sqrt(da*dp+1e-12)})}
+  return out.sort((a,b)=>b.r-a.r)}
+async function analyzeTrack(ab,setStat){
+  const sr=ab.sampleRate,L=ab.length,nc=ab.numberOfChannels,l=ab.getChannelData(0),rr=nc>1?ab.getChannelData(1):l,seg=Math.min(L,Math.floor(30*sr));
+  let best=-1,bs=0;for(const fr of [.3,.5,.7]){const s0=Math.max(0,Math.min(L-seg,Math.floor(L*fr-seg/2)));let sum=0;for(let i=s0;i<s0+seg;i+=7){const v=(l[i]+rr[i])/2;sum+=v*v}if(sum>best){best=sum;bs=s0}}
+  const M=new Float32Array(seg),Sd=new Float32Array(seg);let pk=0,ss=0;for(let i=0;i<seg;i++){const a=l[bs+i],b=rr[bs+i];M[i]=(a+b)/2;Sd[i]=(a-b)/2;const v=Math.abs(M[i]);if(v>pk)pk=v;ss+=M[i]*M[i]}
+  const rms=Math.sqrt(ss/seg),rmsDb=20*Math.log10(rms+1e-12),crest=20*Math.log10(pk/(rms+1e-12));
+  setStat("Onset-Hüllkurve …");await tick0();const oe=onsetEnv(M,sr);const[bpmO,bconf]=bpmFromEnv(oe.all,oe.fps);
+  setStat("Kicks …");await tick0();
+  const low=lp4(M,130,sr),env0=new Float32Array(low.length);for(let i=0;i<low.length;i++)env0[i]=Math.abs(low[i]);const kenv=filt(env0,biq("lp",25,sr,0.7071)),thr=pct(kenv.filter((_,i)=>i%16===0),.9),on=[];let last=-1e9,above=false;
+  for(let i=1;i<kenv.length;i++){const a=kenv[i]>thr;if(a&&!(kenv[i-1]>thr)&&(i-last)>.18*sr){on.push(i);last=i}}
+  const e5=filt(env0,biq("lp",150,sr,0.7071)),dl=Math.floor(.004*sr),onR=on.map(o=>{const a=Math.max(dl,o-Math.floor(.09*sr)),b=Math.min(e5.length-1,o+Math.floor(.01*sr));let bi=a,bv=-1;for(let i=a;i<=b;i++){const d=e5[i]-e5[i-dl];if(d>bv){bv=d;bi=i}}return bi-Math.floor(dl/2)});
+  const f0s=[],lens=[],N=1<<16,re=new Float64Array(N),im=new Float64Array(N);
+  const lp300=biq("lp",300,sr,0.7071);
+  for(const o of on.slice(0,60)){const a=o+Math.floor(.035*sr),b=o+Math.floor(.2*sr);if(b>=M.length||b-a<2048)continue;const sg=filt(filt(M.subarray(a,b),lp300),lp300);re.fill(0);im.fill(0);for(let i=0;i<sg.length;i++)re[i]=sg[i]*(0.5-0.5*Math.cos(2*Math.PI*i/(sg.length-1)));fft(re,im);
+    let bi=0,bv=-1;const k0=Math.ceil(30*N/sr),k1=Math.floor(130*N/sr);for(let k=k0;k<=k1;k++){const v=re[k]*re[k]+im[k]*im[k];if(v>bv){bv=v;bi=k}}
+    const y0=Math.hypot(re[bi-1],im[bi-1]),y1=Math.hypot(re[bi],im[bi]),y2=Math.hypot(re[bi+1],im[bi+1]),d=0.5*(y0-y2)/(y0-2*y1+y2+1e-12);f0s.push((bi+d)*sr/N);
+    let kp=0;const e=Math.min(kenv.length,o+Math.floor(.6*sr));for(let i=o;i<e;i++)if(kenv[i]>kp)kp=kenv[i];for(let i=o;i<e;i++)if(kenv[i]<kp*.1){lens.push((i-o)/sr*1000);break}}
+  const f0=med(f0s),tail=med(lens);let bpmK=0;const ioi=[];for(let i=1;i<onR.length;i++){const d=(onR[i]-onR[i-1])/sr;if(d>.25&&d<.5)ioi.push(d)}if(ioi.length>4)bpmK=60/med(ioi);
+  setStat("Spektrum, Tonart …");await tick0();
+  const FN=16384,fw=new Float64Array(FN),P=new Float64Array(FN/2),fr2=new Float64Array(FN),fi=new Float64Array(FN);let nfr=0;for(let i=0;i<FN;i++)fw[i]=0.5-0.5*Math.cos(2*Math.PI*i/FN);
+  for(let s=0;s+FN<=M.length;s+=FN/2){for(let i=0;i<FN;i++){fr2[i]=M[s+i]*fw[i];fi[i]=0}fft(fr2,fi);for(let k=0;k<FN/2;k++)P[k]+=fr2[k]*fr2[k]+fi[k]*fi[k];nfr++}
+  const band=(a,b)=>{let s=0;for(let k=1;k<FN/2;k++){const f=k*sr/FN;if(f>=a&&f<b)s+=P[k]}return s};const tot=band(20,16000)||1,bands=BANDS.map(x=>band(x[1],x[2])/tot*(1));const bt=bands.reduce((a,b)=>a+b,0)||1;
+  const key=keyOf(P,sr,FN);
+  // Bassmauer: Anteil der Zeit zwischen zwei Kicks, in dem das Tiefband > -20 dB vom Peak bleibt
+  let wallN=0,wallT=0;if(on.length>2){let pkk=0;for(const v of kenv)if(v>pkk)pkk=v;for(let j=0;j+1<on.length;j++){const a=on[j]+Math.floor(.05*sr),b=on[j+1]-Math.floor(.01*sr);for(let i=a;i<b;i++){wallT++;if(kenv[i]>pkk*.1)wallN++}}}
+  // Bass-Mono-Kompatibilität: Side/Mid unter 120 Hz
+  const lm=lp4(M,120,sr),ls=lp4(Sd,120,sr);let em=1e-12,es=0;for(let i=0;i<lm.length;i+=3){em+=lm[i]*lm[i];es+=ls[i]*ls[i]}const bassSideDb=10*Math.log10((es+1e-12)/em);
+  // Groove: 4-Step-Profil pro Schlag (0 = Kick, 2 = Achtel-Offbeat)
+  const bpm=bpmK||bpmO,step=60/bpm/4,gl=new Float64Array(4),gh=new Float64Array(4);
+  if(on.length>4){let ml=0,mh=0;for(const v of oe.lo)ml+=v;for(const v of oe.hi)mh+=v;ml/=oe.lo.length;mh/=oe.hi.length;
+    const T=60/bpm,NB=64,ph=new Float64Array(NB),tf=f=>(f*512+1536)/sr;
+    for(let f=0;f<oe.lo.length;f++)if(oe.lo[f]>ml)ph[Math.floor(((tf(f)%T)/T)*NB)%NB]+=oe.lo[f]-ml;
+    let pb=0,pv=-1;for(let b=0;b<NB;b++){const v=ph[b]+0.5*(ph[(b+1)%NB]+ph[(b+NB-1)%NB]);if(v>pv){pv=v;pb=b}}const t0=(pb+0.5)/NB*T;
+    for(let f=0;f<oe.lo.length;f++){const s=Math.round((tf(f)-t0)/step),b=((s%4)+4)%4;if(oe.lo[f]>ml)gl[b]+=oe.lo[f]-ml;if(oe.hi[f]>mh)gh[b]+=oe.hi[f]-mh}}
+  const nz=a=>{const m=Math.max(...a,1e-9);return Array.from(a,v=>v/m)};
+  return{bpm,bpmK,bpmO,bconf,kicks:on.length,f0,tail,rmsDb,crest,bands:bands.map(v=>v/bt),bandsRaw:bands,wall:wallT?wallN/wallT*100:0,bassSideDb,key:key.slice(0,3),grooveLow:nz(gl),grooveHi:nz(gh),seg:seg/sr,probe:bs/sr}}
+function noteName(hz){if(!hz)return"–";const n=69+12*Math.log2(hz/440),k=Math.round(n),c=Math.round((n-k)*100);return nn(k)+" "+(c>=0?"+":"")+c+" ct"}
+async function addRefs(list){
+  initAudio();const st=$("rft-stat");
+  for(const f of list){if(!/\.(wav|flac|mp3|ogg|m4a|aac|aif|aiff)$/i.test(f.name))continue;
+    try{st.textContent=`Lade ${f.name} …`;await tick0();const ab=await ac.decodeAudioData(await f.arrayBuffer());
+      const r=await analyzeTrack(ab,m=>{st.textContent=`${f.name}: ${m}`});r.name=f.name.replace(/\.[^.]+$/,"");r.dur=ab.duration;RFT.refs.push(r);renderRft()}
+    catch(e){st.textContent=`${f.name}: nicht lesbar (${e&&e.message||"Decode-Fehler"})`;await tick0()}}
+  st.textContent=RFT.refs.length+" Referenz(en) analysiert."}
+function inWin(v,w){return v>=w[0]&&v<=w[1]}
+function flag(ok,t){return`<span class="tag ${ok?"v":"u"}">${t}</span>`}
+function applyRef(r){
+  snap();$("bpm").value=Math.round(r.bpm);const m=Math.round(69+12*Math.log2(r.f0/440));S.root=((m%12)+12)%12;$("root").value=S.root;
+  S.refBands=r.bands.slice();S.refName=r.name;keyChanged();calibrate(S.kick,r.f0,(r.tail||300)*0.65);kmemo=null;applyFx();
+  const tq=$("tpl");buildGrid();showTab("pattern");$("mchk").click()}
+function medianRef(){const k=RFT.refs;if(!k.length)return null;return{name:"Median aller Referenzen",bpm:med(k.map(r=>r.bpm)),f0:med(k.map(r=>r.f0)),tail:med(k.map(r=>r.tail)),bands:BANDS.map((_,i)=>med(k.map(r=>r.bands[i])))}}
+function grooveSvg(r){const W=160,H=46;const bar=(arr,x0,col)=>arr.map((v,i)=>`<rect x="${x0+i*18}" y="${H-4-v*(H-16)}" width="14" height="${v*(H-16)+0.5}" fill="${col}"/>`).join("");
+  return`<svg viewBox="0 0 ${W*2+10} ${H+12}" style="max-width:340px;width:100%"><g>${bar(r.grooveLow,0,"#d3122a")}</g><g transform="translate(${W+10},0)">${bar(r.grooveHi,0,"#e8e6e1")}</g>
+  <text x="2" y="${H+10}" fill="#8a8a90" font-size="9">Tiefband: Schlag · e · Offbeat · e</text><text x="${W+12}" y="${H+10}" fill="#8a8a90" font-size="9">Höhen: Schlag · e · Offbeat · e</text></svg>`}
+function refCard(r,i){
+  const q=60/r.bpm*1000*0.85,okB=inWin(r.bpm,WIN.bpm),okK=inWin(r.f0,WIN.kick),okT=inWin(r.tail,WIN.tail),budget=r.tail<=q,okC=inWin(r.crest,WIN.crest);
+  const k0=r.key[0],tp=BANDS.map((b,j)=>`<tr><td>${b[0]}</td><td><div style="background:#2a2a2e;height:8px;width:100%"><div style="background:var(--red);height:8px;width:${Math.min(100,r.bands[j]*100/0.75)}%"></div></div></td><td>${(r.bands[j]*100).toFixed(1)} %</td><td style="color:var(--dim)">${(b[3]/BANDS.reduce((a,x)=>a+x[3],0)*100).toFixed(1)} %</td></tr>`).join("");
+  const ow=(r.grooveLow[2]/(r.grooveLow[0]+1e-9));
+  return`<div class="card"><h3>${r.name}</h3>
+  <div class="row" style="gap:6px">${flag(okB,"Tempo "+r.bpm.toFixed(1)+" BPM")}${flag(Math.abs(r.bpmK-r.bpmO)<3||!r.bpmK,"Kick-Raster "+(r.bpmK?r.bpmK.toFixed(1):"–")+" · Onset "+r.bpmO.toFixed(1)+(Math.abs(r.bpmK-r.bpmO)>=3&&r.bpmK?" (Kick-Raster zählt: Offbeat-Bass verwirrt die Onset-Methode)":""))}${flag(okK,"Kick "+r.f0.toFixed(1)+" Hz ("+noteName(r.f0)+")")}${flag(okT,"Tail "+Math.round(r.tail)+" ms")}${flag(budget,"Tail-Budget "+Math.round(q)+" ms")}${flag(okC,"Crest "+r.crest.toFixed(1)+" dB")}<span class="tag">RMS ${r.rmsDb.toFixed(1)} dB</span></div>
+  <div class="row" style="gap:6px"><span class="tag">${r.kicks} Kicks erkannt</span>${flag(r.wall>=90,"Bassmauer "+r.wall.toFixed(0)+" %")}${flag(r.bassSideDb<-12,"Bass-Side "+r.bassSideDb.toFixed(1)+" dB (mono-sicher &lt; −12)")}${flag(ow>=0.5,"Offbeat/Schlag (Tiefband) "+ow.toFixed(2))}${flag(true,"Grundton laut Kick: "+NOTE_N[((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12])}${flag(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12,"Chroma-Tonart "+NOTE_N[k0.root]+"-"+k0.mode+" (r="+k0.r.toFixed(2)+")"+(k0.root===((Math.round(69+12*Math.log2(r.f0/440))%12)+12)%12?"":" weicht ab, bei Kick-dominierten Tracks unsicher"))}</div>
+  <div class="row" style="align-items:flex-start;gap:18px"><div style="flex:1;min-width:260px">${grooveSvg(r)}<div style="color:var(--dim);font-size:12px">Onset-Profil, gefaltet auf einen Schlag (aus 30 s ab ${Math.round(r.probe)} s)</div></div>
+  <div style="flex:1;min-width:260px"><table><tr><th>Band</th><th></th><th>Track</th><th>Median</th></tr>${tp}</table></div></div>
+  <div class="row"><button data-ra="${i}">Auf Designer anwenden</button><span style="color:var(--dim)">Tempo, Grundton, Kick, Band-Ziel</span><button data-rd="${i}">Entfernen</button></div></div>`}
+function buildRft(){
+  const t=$("t-rft");
+  if(!RFT.built){RFT.built=true;t.innerHTML=`<div class="warn">Lade eigene Referenztracks (MP3, WAV, FLAC, OGG, M4A). Die Dateien bleiben im Browser. Gemessen werden die lautesten 30 s (Methode wie bei den Szene-Referenzen: Sonden bei 30/50/70 %). <b>Grenze:</b> Live-Mitschnitte und MP3s verschieben Bandanteile; Tempo, Grundton und Tail sind robust.</div>
+  <div class="card"><h3>Referenzen laden</h3><div class="row"><input id="rft-file" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a"><span id="rft-stat" style="color:var(--dim)">Noch nichts geladen.</span></div></div>
+  <div id="rft-sum"></div><div id="rft-cards"></div><div id="rft-scene"></div>`;
+    $("rft-file").onchange=e=>addRefs(e.target.files);
+    $("rft-cards").addEventListener("click",e=>{const a=e.target.closest("[data-ra]"),d=e.target.closest("[data-rd]");if(a)applyRef(RFT.refs[+a.dataset.ra]);if(d){RFT.refs.splice(+d.dataset.rd,1);renderRft()}});
+    $("rft-sum").addEventListener("click",e=>{if(e.target.closest("#rft-ap")){const m=medianRef();if(m)applyRef(m)}})}
+  renderRft()}
+function renderRft(){
+  if(!RFT.built)return;
+  $("rft-cards").innerHTML=RFT.refs.map(refCard).join("");
+  const m=medianRef();
+  $("rft-sum").innerHTML=m?`<div class="card"><h3>Profil aus ${RFT.refs.length} Referenz(en)</h3>Tempo <b>${m.bpm.toFixed(1)} BPM</b> · Kick <b>${m.f0.toFixed(1)} Hz (${noteName(m.f0)})</b> · Tail <b>${Math.round(m.tail)} ms</b><div class="row"><button id="rft-ap">Median auf Designer anwenden</button><span style="color:var(--dim)">setzt Tempo, Grundton, Kick-Synthese und das Band-Ziel im Spektrum-Tab. Der Mix-Tail wird mit Faktor 0,65 auf einen Solo-Tail umgerechnet (Näherung aus einem Test-Loop).</span></div></div>`:"";
+  const rows=SCENE.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],false]).concat(RFT.refs.map(r=>[r.name,r.bpm,r.f0,r.tail,r.rmsDb,r.crest,true]));
+  const mm=i=>rows.map(r=>r[i]);const st=(i)=>`${Math.min(...mm(i)).toFixed(1)} – ${Math.max(...mm(i)).toFixed(1)}`;
+  $("rft-scene").innerHTML=`<div class="card"><h3>Szene-Vergleich (8 gemessene Szene-Tracks aus dem Skill + deine Referenzen)</h3><div style="overflow-x:auto"><table><tr><th>Track</th><th>BPM</th><th>Kick Hz</th><th>Tail ms</th><th>RMS dB</th><th>Crest dB</th></tr>`+
+   rows.map(r=>`<tr${r[6]?' style="color:var(--hot)"':""}><td>${r[0]}</td><td>${r[1].toFixed(1)}</td><td>${r[2].toFixed(1)}</td><td>${Math.round(r[3])}</td><td>${r[4].toFixed(1)}</td><td>${r[5].toFixed(1)}</td></tr>`).join("")+
+   `<tr><th>Spanne</th><th>${st(1)}</th><th>${st(2)}</th><th>${st(3)}</th><th>${st(4)}</th><th>${st(5)}</th></tr></table></div>
+   <div style="color:var(--dim);margin-top:6px">Szene-Messwerte stammen aus dem Hardtekk-Skill (acht Tracks, lauteste 30 s). Zwei Tempo-Lager: 155–175 und ca. 190 BPM.</div></div>`}
+
 /* ============ Musik-Check ============ */
 let kmemo=null;
-function kickPitchInfo(){const sa=sampAssign.D1;if(sa&&sa.hz&&sa.pr>=.5){const rootHz=kickTarget().hz,hz=sampTune?rootHz:sa.hz;return{hz,note:nn(Math.round(69+12*Math.log2(hz/440))),cents:Math.round(1200*Math.log2(hz/rootHz)),rootHz}}
+function kickPitchInfo(){const sa=sampAssign.D1;if(sa&&sa.hz&&sa.pr>=.5){const rootHz=kickTarget().hz,hz=sampTune?rootHz:sa.hz;return{hz,note:nn(Math.round(69+12*Math.log2(hz/440))),cents:Math.round(1200*Math.log2(hz/rootHz)),rootHz,tail:sa.tail}}
   const key=JSON.stringify(S.kick)+S.root;if(kmemo&&kmemo.key===key)return kmemo.v;const m=measureKick(renderKick(S.kick));
-  const rootHz=kickTarget().hz,cents=Math.round(1200*Math.log2(m.hz/rootHz));kmemo={key,v:{hz:m.hz,note:m.note,cents,rootHz}};return kmemo.v}
+  const rootHz=kickTarget().hz,cents=Math.round(1200*Math.log2(m.hz/rootHz));kmemo={key,v:{hz:m.hz,note:m.note,cents,rootHz,tail:m.tail}};return kmemo.v}
 function retuneKick(){const t=kickTarget(),cur=measureKick(renderKick(S.kick));calibrate(S.kick,t.hz,cur.tail||200);kmemo=null;
   if(kickBuf&&ac){const f=renderKick(S.kick),b=ac.createBuffer(1,f.length,SR);b.copyToChannel(f,0);kickBuf=b}}
 function musicCheck(){
@@ -901,6 +1026,7 @@ function musicCheck(){
   const kp=kickPitchInfo(),tg=kickTarget();
   Math.abs(kp.cents)<=35?ok(`Kick-Grundton ${kp.hz.toFixed(1)} Hz (${kp.note}) = Tonart-Grundton ${NOTE_N[S.root]} (${kp.cents>=0?"+":""}${kp.cents} Cent)`):no(`Kick-Grundton ${kp.hz.toFixed(1)} Hz (${kp.note}) weicht ${kp.cents} Cent vom Grundton ${NOTE_N[S.root]} (${tg.hz.toFixed(1)} Hz) ab → Kick-Tab „Auto-Einmessen“`);
   if(tg.d>0)w(`Grundton ${NOTE_N[S.root]} liegt mit ${tg.hz.toFixed(1)} Hz außerhalb des Szene-Fensters 41–58 Hz (G–A#). Funktioniert, aber Kick klingt dann ungewohnt tief/hoch.`);
+  { const bq=+$("bpm").value,q=60000/bq*0.85;kp.tail<=q?ok(`Kick-Tail ${Math.round(kp.tail)} ms passt ins Tempo-Budget (${Math.round(q)} ms bei ${bq} BPM)`):no(`Kick-Tail ${Math.round(kp.tail)} ms füllt mehr als 85 % der Viertel (${Math.round(q)} ms bei ${bq} BPM) – matscht in den nächsten Schlag`)}
   // 3 Bass vs Kick-Eins
   let clash=0;for(let i=0;i<n;i++)if(S.steps.S1[i]&&S.steps.D1[i])clash++;
   clash?no(`Bass und Hauptkick treffen ${clash}× zusammen – Tiefbässe summieren sich`):ok("Bass kollidiert nie mit der Hauptkick (Offbeat-Prinzip)");
